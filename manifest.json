@@ -1,0 +1,31 @@
+{
+  "manifest_version": "0.3",
+  "name": "carousel-generator",
+  "display_name": "Carousel Generator",
+  "version": "2.0.0",
+  "description": "Instagram 4:5 carousel generator with brand kits, golden-ratio slides and a visual editor",
+  "long_description": "Generates Instagram carousels (1080x1350, 4:5) as editable HTML pre-loaded with content. Includes a visual editor with golden-ratio calibration, multi brand-kit support with live switching, logo images, and PNG export per slide.",
+  "author": { "name": "BlackBoxVision" },
+  "repository": { "type": "git", "url": "https://github.com/BlackBoxVision/carousel-generator.git" },
+  "server": {
+    "type": "node",
+    "entry_point": "mcp/server.mjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/mcp/server.mjs"],
+      "env": {}
+    }
+  },
+  "tools": [
+    { "name": "generate_carousel", "description": "Generates an Instagram carousel as editable HTML (opens in browser), pre-loaded with slides and brand kit" },
+    { "name": "save_brand_kit", "description": "Saves a brand kit JSON for reuse with generate_carousel" },
+    { "name": "list_brand_kits", "description": "Lists the saved brand kits" },
+    { "name": "load_brand_kit", "description": "Returns the full JSON of a saved brand kit" }
+  ],
+  "keywords": ["instagram", "carousel", "brand-kit", "design", "social-media"],
+  "license": "UNLICENSED",
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=18.0.0" }
+  }
+}

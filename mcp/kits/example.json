@@ -1,0 +1,24 @@
+{
+  "name": "Example",
+  "colors": {
+    "primary": "#0ea5e9",
+    "secondary": "#0f172a",
+    "tertiary": "#ffffff",
+    "slideBg": "#1e293b"
+  },
+  "fonts": {
+    "heading": "'Inter', system-ui, sans-serif",
+    "body": "'Inter', system-ui, sans-serif",
+    "googleUrl": "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap"
+  },
+  "logo": {
+    "letter": "e",
+    "text": "Example"
+  },
+  "gradients": [
+    { "name": "navy", "css": "linear-gradient(145deg,#1e3a5f,#0f172a 65%)" },
+    { "name": "sunset", "css": "linear-gradient(145deg,#b4653a,#1c2b3a 50%,#0b1420 100%)" },
+    { "name": "mint", "css": "linear-gradient(135deg,#bfe3d8,#dcead2 55%,#5ea3b8)", "light": true },
+    { "name": "deep", "css": "linear-gradient(145deg,#16283c,#0b1420 70%)" }
+  ]
+}

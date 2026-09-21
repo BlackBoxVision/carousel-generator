@@ -1,0 +1,12 @@
+# Personal brand kits live in ~/.carousel-generator/kits/ (per machine, outside this repo).
+# Only the generic example kit is tracked:
+mcp/kits/*.json
+!mcp/kits/example.json
+
+# Bundle output
+dist/
+
+# Runtime / OS
+node_modules/
+*.log
+.DS_Store

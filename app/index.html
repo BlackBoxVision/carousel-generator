@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Generador de Carruseles</title>
+<style id="gf"></style>
+<style>
+:root{
+ --phi:1.618;
+ --fs-foot:11px;--fs-body:14px;--fs-sub:22.6px;--fs-title:36.6px;--fs-hero:59.2px;
+ --sp1:8px;--sp2:13px;--sp3:21px;--sp4:34px;
+ --primary:#f45b16;--secondary:#071522;--tertiary:#fff;--slidebg:#14283a;
+ --fh:'JetBrains Mono',monospace;--fb:'Archivo Narrow',Arial,sans-serif;
+ --u-bg:#0b1220;--u-panel:#121e2e;--u-panel2:#0d1725;--u-border:#223449;
+ --u-text:#e4ebf5;--u-dim:#8fa4bf;--u-accent:#4da3ff;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--u-bg);color:var(--u-text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+header{flex:0 0 auto;background:var(--u-panel2);border-bottom:1px solid var(--u-border);padding:8px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header .t{display:flex;align-items:center;gap:8px;min-width:0}
+header .t input{background:var(--u-panel);border:1px solid var(--u-border);color:var(--u-text);border-radius:6px;padding:7px 10px;font-weight:700;font-size:13px;width:250px}
+header select,.ins select{background:var(--u-panel);border:1px solid var(--u-border);color:var(--u-text);border-radius:6px;padding:7px 8px;font-size:12px;font-weight:700;max-width:190px}
+.toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-left:auto}
+button,.btn{border:0;border-radius:6px;padding:8px 11px;font-weight:700;font-size:12px;cursor:pointer;background:#2b4260;color:#fff;font-family:inherit}
+button.primary{background:var(--u-accent);color:#06121f}
+button.danger{background:#b3261e}
+button.ghost{background:transparent;border:1px solid var(--u-border);color:var(--u-dim)}
+button:disabled{opacity:.35;cursor:default}
+main{flex:1;display:grid;grid-template-columns:172px 1fr 372px;min-height:0}
+#nav{background:var(--u-panel2);border-right:1px solid var(--u-border);overflow-y:auto;padding:10px}
+.navitem{position:relative;border:1px solid var(--u-border);border-radius:8px;overflow:hidden;margin-bottom:8px;cursor:pointer;height:104px;background:#05090f}
+.navitem .tb{position:absolute;inset:0;background-size:cover;background-position:center}
+.navitem .num{position:absolute;top:4px;left:5px;font-size:10px;font-weight:800;background:rgba(4,9,17,.88);border-radius:4px;padding:2px 6px;color:#fff;z-index:2}
+.navitem .meta{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(4,9,17,.94));font-size:10px;padding:14px 6px 5px;display:flex;justify-content:space-between;color:#cfe0f2;z-index:2;font-weight:700}
+.navitem.sel{border-color:var(--u-accent);box-shadow:0 0 0 2px rgba(77,163,255,.4)}
+.navitem.drop{border-color:var(--u-accent);box-shadow:0 0 0 2px rgba(77,163,255,.7)}
+#deckwrap{overflow:auto;padding:26px;display:flex}
+.deck{display:flex;gap:26px;align-items:flex-start;margin:auto}
+.wrap{flex:0 0 auto}
+.wrap.sel .slide{outline:3px solid var(--u-accent);outline-offset:6px}
+.slide{width:540px;height:675px;position:relative;overflow:hidden;background:var(--slidebg);color:var(--tertiary);isolation:isolate;font-family:var(--fb);cursor:pointer}
+.photo{position:absolute;inset:0;background-position:center;background-size:cover;background-color:#173449;z-index:-2}
+.photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.02) 0%,rgba(0,0,0,.06) 61.8%,rgba(0,0,0,.9) 100%)}
+.slide.light .photo:after{background:linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.12) 61.8%,rgba(0,0,0,.17) 100%)}
+.slide.light{color:var(--secondary)}
+.slide.light .copy{text-shadow:none}
+.brand{position:absolute;top:3.8%;left:6.2%;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;z-index:4}
+.brand .logo{width:43px;height:43px;border-radius:10px;background:#fff;display:grid;place-items:center;color:var(--secondary);font-family:var(--fh);font-size:28px;font-weight:900;position:relative}
+.logo:after{content:"";position:absolute;bottom:7px;left:10px;width:22px;height:3px;background:var(--primary);transform:rotate(-5deg)}
+.brand .logoimg{height:43px;width:auto;display:block;filter:drop-shadow(0 1px 6px rgba(0,0,0,.4))}
+.count{position:absolute;right:6.2%;top:3.8%;background:rgba(6,17,29,.78);border-radius:5px;padding:6px 9px;font-size:12px;font-weight:700;color:#fff;z-index:4}
+.copy{position:absolute;left:6.2%;right:6.2%;bottom:6.2%;max-height:38.2%;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.35)}
+h1{font-family:var(--fh);text-transform:uppercase;font-weight:900;font-size:var(--fs-title);line-height:.94;letter-spacing:-.02em;margin:0 0 var(--sp2);color:var(--tertiary)}
+.slide.cover h1.big{font-size:var(--fs-hero)}
+.slide.light h1{color:var(--secondary)}
+.orange{display:table;max-width:100%;background:var(--primary);padding:4px 10px 7px;margin:4px 0 var(--sp2);text-shadow:none}
+.orange h1{color:#fff;margin:0;overflow-wrap:anywhere}
+p{font-size:var(--fs-body);line-height:1.28;margin:var(--sp1) 0;max-width:98%}
+.slide.light p{color:var(--secondary)}
+.eyebrow{font-size:12px;letter-spacing:.13em;font-weight:800;text-transform:uppercase;margin-bottom:var(--sp2)}
+.slide.light .eyebrow{color:var(--secondary)}
+.info{display:grid;gap:var(--sp1);margin-top:var(--sp2)}
+.item{display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:start}
+.ico{font-size:26px;line-height:1.1}
+.item b{display:block;font-size:var(--fs-body);margin-bottom:3px}
+.item span{font-size:12px;line-height:1.3;display:block}
+.slide.light .item span{color:var(--secondary)}
+.pill{position:absolute;background:var(--secondary);color:#fff;padding:8px 12px;border-radius:4px;font-weight:800;font-size:13px;white-space:nowrap;z-index:3}
+.ctabox{background:var(--secondary);padding:var(--sp2);border-radius:8px;margin-top:var(--sp3)}
+.ctabox b{font-size:var(--fs-sub);line-height:1.05}
+.ctabox p{margin:6px 0 0;font-size:12.5px}
+.slogan{font-weight:800;margin-top:var(--sp3);text-transform:uppercase}
+.foot{font-size:var(--fs-foot);letter-spacing:.06em;margin-top:var(--sp2)}
+.slide [contenteditable]{outline:none;border-radius:3px;min-width:1em}
+.slide [contenteditable]:hover{box-shadow:0 0 0 1.5px rgba(77,163,255,.6)}
+.slide [contenteditable]:focus{box-shadow:0 0 0 2px var(--u-accent);background:rgba(77,163,255,.08)}
+.phig{display:none;position:absolute;inset:0;z-index:6;pointer-events:none;
+ background:
+  linear-gradient(90deg,transparent calc(38.2% - 1px),rgba(0,229,255,.6) 38.2%,transparent calc(38.2% + 1px)),
+  linear-gradient(90deg,transparent calc(61.8% - 1px),rgba(0,229,255,.6) 61.8%,transparent calc(61.8% + 1px)),
+  linear-gradient(0deg,transparent calc(38.2% - 1px),rgba(0,229,255,.6) 38.2%,transparent calc(38.2% + 1px)),
+  linear-gradient(0deg,transparent calc(61.8% - 1px),rgba(0,229,255,.6) 61.8%,transparent calc(61.8% + 1px))}
+.phig .safe{position:absolute;left:6.2%;right:6.2%;bottom:6.2%;height:30%;border:1.5px dashed rgba(64,230,140,.85);background:rgba(64,230,140,.10);border-radius:4px}
+.phig .tag{position:absolute;left:6.2%;bottom:calc(6.2% + 30% + 3px);font-size:10px;font-weight:800;color:#40e68c;background:rgba(4,12,10,.85);padding:2px 6px;border-radius:3px}
+body.guides .phig{display:block}
+.controls{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.controls button,.controls .btn{font-size:11px;padding:7px 9px}
+.controls .btn{background:#223755}
+.upload{display:inline-block;position:relative;overflow:hidden}
+.upload input{position:absolute;inset:0;opacity:0;cursor:pointer}
+#editor{overflow-y:auto;background:var(--u-panel);border-left:1px solid var(--u-border);padding:12px}
+#editor .who{background:var(--u-panel2);border:1px solid var(--u-accent);border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+#editor .who b{font-size:13px}
+#editor .who .prevnext{margin-left:auto;display:flex;gap:5px}
+#editor details{background:var(--u-panel2);border:1px solid var(--u-border);border-radius:8px;margin-bottom:9px}
+#editor summary{padding:9px 11px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--u-dim);cursor:pointer;user-select:none}
+#editor summary::marker{color:var(--u-accent)}
+#editor details .bd{padding:0 11px 11px}
+#editor label{display:block;font-size:11px;font-weight:700;color:var(--u-dim);margin:8px 0 3px}
+#editor input[type=text],#editor input[type=number],#editor textarea,#editor select{width:100%;border:1px solid var(--u-border);border-radius:6px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--u-bg);color:var(--u-text)}
+#editor textarea{resize:vertical;min-height:44px}
+#editor .row{display:flex;gap:6px;align-items:center}
+#editor .row>*{flex:1}
+#editor .row .mini{flex:0 0 58px}
+#editor .row .mid{flex:0 0 92px}
+#editor .arr{margin-bottom:8px;border:1px dashed var(--u-border);border-radius:6px;padding:8px}
+#editor .arr .x{float:right;background:none;color:#ff7b72;padding:2px 6px;font-size:12px;border:0;cursor:pointer}
+#editor .add{width:100%;background:var(--u-bg);color:var(--u-dim);border:1px dashed var(--u-border)}
+#toast{position:fixed;bottom:18px;left:50%;transform:translate(-50%,8px);background:#0c1626f2;border:1px solid var(--u-border);color:var(--u-text);padding:9px 16px;border-radius:8px;font-size:12.5px;font-weight:700;opacity:0;pointer-events:none;transition:.18s;z-index:999}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+.ovl{position:fixed;inset:0;background:#000a;z-index:99;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px}
+.ovl.open{display:flex}
+.panel{background:var(--u-panel);border:1px solid var(--u-border);border-radius:10px;max-width:580px;width:100%;padding:18px}
+.panel h2{margin:0 0 4px;font-size:16px}
+.panel .note{font-size:11px;color:var(--u-dim);margin:0 0 12px}
+.panel label{display:block;font-size:11px;font-weight:700;color:var(--u-dim);margin:8px 0 3px}
+.panel input[type=text],.panel input[type=number],.panel textarea{width:100%;border:1px solid var(--u-border);border-radius:6px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--u-bg);color:var(--u-text)}
+.panel .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.panel .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.colorrow{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.colorrow input[type=color]{width:44px;height:32px;border:1px solid var(--u-border);border-radius:6px;padding:2px;background:var(--u-bg);flex:0 0 44px}
+.logoprev{display:flex;align-items:center;gap:10px;background:var(--u-bg);border:1px solid var(--u-border);border-radius:6px;padding:8px}
+.logoprev img{height:43px;width:auto}
+.empty{color:var(--u-dim);font-size:13px;padding:20px;text-align:center}
+.hint{font-size:11px;color:var(--u-dim);margin-top:6px;line-height:1.5}
+.hide{display:none}
+</style></head><body>
+<!--CAROUSEL_DATA-->
+<header>
+  <div class="t"><span style="font-size:20px">🪄</span><input id="metaTitle" oninput="setTitle(this.value)" placeholder="Título del carrusel"></div>
+  <div class="toolbar">
+    <select id="kitPicker" onchange="switchKit(this.value)" title="Brand kit activo"></select>
+    <button class="primary" onclick="openTpl()">+ Slide</button>
+    <button onclick="openKit()">🎨 Kit</button>
+    <button id="guidesBtn" class="ghost" onclick="toggleGuides()">📐 φ</button>
+    <button onclick="exportAll()">⬇ Exportar PNGs</button>
+    <button class="ghost" onclick="saveJSON()">💾 JSON</button>
+    <label class="btn" style="background:#223755">📂 Cargar<input type="file" accept=".json,application/json" style="display:none" onchange="loadJSONFile(event)"></label>
+    <button class="danger" onclick="newCarousel()">🗑</button>
+  </div>
+</header>
+<main>
+  <nav id="nav"></nav>
+  <div id="deckwrap"><section class="deck" id="deck"></section></div>
+  <aside id="editor" class="ins"></aside>
+</main>
+
+<div class="ovl" id="tplDlg" onclick="if(event.target===this)closeDlg('tplDlg')">
+  <div class="panel">
+    <h2>Agregar slide</h2>
+    <p class="note">Elegí una plantilla — después editás todoinline sobre la slide o desde el panel derecho.</p>
+    <div style="display:grid;gap:8px">
+      <button onclick="addSlide('cover')">🚀 Portada — título hero + frase gancho</button>
+      <button onclick="addSlide('fact')">💡 Dato — "¿Sabías que?" + items</button>
+      <button onclick="addSlide('map')">🗺 Mapa — pills de ubicación + texto</button>
+      <button onclick="addSlide('list')">📋 Lista — items con emoji</button>
+      <button onclick="addSlide('cta')">📣 Cierre — pregunta + box de marca</button>
+    </div>
+  </div>
+</div>
+
+<div class="ovl" id="kitDlg" onclick="if(event.target===this)closeDlg('kitDlg')">
+  <div class="panel">
+    <h2>Brand kit</h2>
+    <p class="note">Se guarda en esta máquina (este navegador). Para usar el kit con el MCP, descargalo y guardalo en <b>~/.carousel-generator/kits/</b></p>
+    <label>Nombre del kit</label><input type="text" id="k_name">
+    <label>Logo — imagen (PNG con transparencia recomendado)</label>
+    <div class="logoprev"><img id="k_logoPrev" class="hide" alt="logo"><span id="k_logoNone" style="font-size:12px;color:var(--u-dim)">Sin imagen — se usa la letra</span>
+      <label class="btn" style="background:#223755;margin-left:auto;position:relative;overflow:hidden">Subir<input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="kLogoUpload(event)"></label>
+      <button class="danger" onclick="kLogoRemove()">✕</button>
+    </div>
+    <div class="two">
+      <div><label>Altura del logo en slide (px)</label><input type="number" id="k_imgH" oninput="kLogoH(this.value)"></div>
+    </div>
+    <div class="two">
+      <div><label>Letra del logo (fallback)</label><input type="text" id="k_letter" maxlength="3"></div>
+      <div><label>Texto de marca</label><input type="text" id="k_text"></div>
+    </div>
+    <h3 style="margin:14px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--u-dim)">Colores</h3>
+    <div id="k_colors"></div>
+    <h3 style="margin:14px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--u-dim)">Fuentes</h3>
+    <label>Heading (font-family)</label><input type="text" id="k_fh">
+    <label>Body (font-family)</label><input type="text" id="k_fb">
+    <label>Google Fonts URL (@import)</label><input type="text" id="k_gf" placeholder="https://fonts.googleapis.com/css2?family=...">
+    <h3 style="margin:14px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--u-dim)">Gradients de background</h3>
+    <div id="k_grads"></div>
+    <button class="add" style="width:100%;background:var(--u-bg);color:var(--u-dim);border:1px dashed var(--u-border);border-radius:6px;padding:7px;font-weight:700;cursor:pointer" onclick="kAddGrad()">+ Gradient</button>
+    <div class="actions">
+      <button class="primary" onclick="kSave()">Guardar kit</button>
+      <button style="background:#223755" onclick="kDownload()">⬇ Descargar JSON</button>
+      <label class="btn" style="background:#223755;position:relative;overflow:hidden">⬆ Importar<input type="file" accept=".json,application/json" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="importKitFile(event)"></label>
+      <button class="ghost" onclick="closeDlg('kitDlg')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script>
+const HOOKED_KIT={
+ name:"Hooked",
+ colors:{primary:"#f45b16",secondary:"#071522",tertiary:"#ffffff",slideBg:"#14283a"},
+ fonts:{heading:"'JetBrains Mono', monospace",body:"'Archivo Narrow', Arial, sans-serif",googleUrl:"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700;800;900&family=Archivo+Narrow:wght@400;500;600;700&display=swap"},
+ logo:{letter:"h",text:"Hooked"},
+ gradients:[
+  {name:"navy",css:"linear-gradient(145deg,#173b53,#071522 60%,#8c593a)"},
+  {name:"sunset",css:"linear-gradient(145deg,#a76b46,#283744 48%,#06111d)"},
+  {name:"gold",css:"linear-gradient(130deg,#e8a45d,#172d3d 38%,#06111d 75%)"},
+  {name:"river",css:"linear-gradient(160deg,#477b9e 0%,#122a3d 48%,#071522 100%)"},
+  {name:"dusk",css:"linear-gradient(180deg,#f4a15c 0%,#8b5b52 35%,#123047 47%,#06111d 100%)"},
+  {name:"mapa",css:"linear-gradient(135deg,#b8ddd7,#d9e9cf 55%,#68a9bd)",light:true},
+  {name:"deep",css:"linear-gradient(145deg,#0d2233,#071522 70%)"},
+  {name:"sandy",css:"linear-gradient(150deg,#c9a26b,#35506a 45%,#071522 85%)"}
+ ]
+};
+const TEMPLATES={
+ cover:{template:"cover",bg:{type:"gradient",value:"dusk"},eyebrow:"ESPECIAL · DESLIZÁ",titleWhite:"Título principal",titleOrange:"de tu carrusel",paragraphs:["Una frase corta que enganche y sume contexto."],items:[],pills:[],ctaBox:{title:"",text:""},slogan:"",foot:"DESLIZÁ PARA VER MÁS →"},
+ fact:{template:"fact",bg:{type:"gradient",value:"navy"},eyebrow:"",titleWhite:"¿Sabías",titleOrange:"que?",paragraphs:[],items:[{emoji:"⚠️",title:"Dato clave",desc:"Escribí acá el dato que querés destacar."},{emoji:"🎣",title:"Otro dato",desc:"Contexto, fuente o detalle extra."}],pills:[],ctaBox:{title:"",text:""},slogan:"",foot:""},
+ map:{template:"map",bg:{type:"gradient",value:"mapa"},eyebrow:"",titleWhite:"¿Por qué",titleOrange:"este lugar?",paragraphs:["Explicá el porqué de la ubicación o el fenómeno.","**Un dato extra** va en negrita."],items:[],pills:[{text:"📍 UBICACIÓN",top:24,side:"left",offset:8},{text:"ZONA 📍",top:42,side:"right",offset:6}],ctaBox:{title:"",text:""},slogan:"",foot:""},
+ list:{template:"list",bg:{type:"gradient",value:"river"},eyebrow:"",titleWhite:"Título de",titleOrange:"la lista",paragraphs:[],items:[{emoji:"🎯",title:"Punto uno",desc:"Descripción corta del punto."},{emoji:"🛸",title:"Punto dos",desc:"Descripción corta del punto."},{emoji:"🎣",title:"Punto tres",desc:"Descripción corta del punto."}],pills:[],ctaBox:{title:"",text:""},slogan:"",foot:""},
+ cta:{template:"cta",bg:{type:"gradient",value:"gold"},eyebrow:"",titleWhite:"¿Ya viviste",titleOrange:"esta experiencia?",paragraphs:["**Pregunta de cierre.** Invitá a comentar y etiquetar."],items:[],pills:[],ctaBox:{title:"Marca",text:"Una línea de cierre con tu propuesta de valor."},slogan:"EL TAGLINE DE TU MARCA.",foot:"DEJÁ TU EXPERIENCIA EN LOS COMENTARIOS"}
+};
+const ORDER=["cover","fact","map","list","cta"];
+const TPL_LABEL={cover:"Portada",fact:"Dato",map:"Mapa",list:"Lista",cta:"Cierre"};
+const TPL_EMOJI={cover:"🚀",fact:"💡",map:"🗺️",list:"📋",cta:"📣"};
+const LS_STATE="cg:state",LS_KITS="cg:kits";
+let state=null,sel=0,uid=1,guidesOn=false,saveT=null,renderT=null,toastT=null;
+
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function normKit(k){const d=HOOKED_KIT;k=k||{};return{name:k.name||d.name,colors:Object.assign({},d.colors,k.colors||{}),fonts:Object.assign({},d.fonts,k.fonts||{}),logo:Object.assign({},d.logo,k.logo||{}),gradients:(k.gradients&&k.gradients.length?k.gradients:d.gradients).map(g=>({name:g.name||"grad",css:g.css||"",light:!!g.light}))}}
+function normSlide(s){const t=TEMPLATES[s.template]||TEMPLATES.list;const n=clone(t);n.id=uid++;n.template=s.template||t.template;
+ for(const f of["eyebrow","titleWhite","titleOrange","slogan","foot"])if(s[f]!==undefined)n[f]=String(s[f]);
+ if(s.paragraphs)n.paragraphs=s.paragraphs.map(x=>String(x));
+ if(s.items)n.items=s.items.map(x=>({emoji:String(x.emoji||"✨"),title:String(x.title||""),desc:String(x.desc||"")}));
+ if(s.pills)n.pills=s.pills.map(x=>({text:String(x.text||""),top:+x.top||30,side:x.side==="right"?"right":"left",offset:+x.offset||8}));
+ if(s.ctaBox)n.ctaBox={title:String(s.ctaBox.title||""),text:String(s.ctaBox.text||"")};
+ let bg=s.bg;
+ if(typeof bg==="string")bg=bg.includes("gradient")?{type:"css",css:bg}:{type:"gradient",value:bg};
+ if(!bg||!bg.type)bg=clone(t.bg);
+ if(bg.type==="gradient"&&!state.kit.gradients.some(g=>g.name===bg.value))bg={type:"gradient",value:state.kit.gradients[0].name};
+ if(bg.type==="css"&&!bg.css)bg={type:"gradient",value:state.kit.gradients[0].name};
+ n.bg=bg;
+ if(s.overlayLight!==undefined)n.overlayLight=!!s.overlayLight;else n.overlayLight=!!(bg.type==="gradient"&&(state.kit.gradients.find(g=>g.name===bg.value)||{}).light);
+ return n}
+function normState(d){const k=normKit(d&&d.kit);state={kit:k,kitSource:(d&&d.kitSource)||{store:"builtin",slug:"hooked"},meta:{title:(d&&d.meta&&d.meta.title)||"Carrusel nuevo"},slides:[]};state.slides=(d&&d.slides&&d.slides.length?d.slides:ORDER.map(t=>({template:t}))).map(normSlide)}
+
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function escAttr(s){return esc(s).replace(/'/g,"&#39;")}
+function md(s){let h=esc(s);h=h.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");h=h.replace(/\n/g,"<br>");return h}
+function serialize(el){let out="";const walk=(n)=>{for(const c of n.childNodes){if(c.nodeType===3)out+=c.data;else if(c.nodeName==="BR")out+="\n";else if(c.nodeName==="B"||c.nodeName==="STRONG"){out+="**";walk(c);out+="**"}else if(c.nodeName==="DIV"||c.nodeName==="P"){if(out&&!out.endsWith("\n"))out+="\n";walk(c)}else walk(c)}};walk(el);const NB="\u00a0";return out.split(NB).join(" ").replace(/\n{3,}/g,"\n\n").replace(/^\n+|\s+$/g,"")}
+function slug(s){return String(s||"carrusel").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,50)||"carrusel"}
+
+function gradCss(s){if(s.bg.type==="css")return s.bg.css;if(s.bg.type==="photo")return"none";const g=state.kit.gradients.find(g=>g.name===s.bg.value);return g?g.css:"none"}
+function lightOn(s){return s.bg.type==="gradient"&&(state.kit.gradients.find(g=>g.name===s.bg.value)||{}).light||s.overlayLight}
+function logoHTML(){const l=state.kit.logo||{};if(l.img)return`<img class="logoimg" src="${l.img}" style="height:${+l.imgH||43}px" alt="logo">`;return`<span class="logo">${esc(l.letter||"")}</span>`}
+
+function pillsHTML(s,ed){return s.pills.map((p,i)=>`<div class="pill" data-pill="${i}"${ed?` onpointerdown="pillDown(event,${i})" ondblclick="pillDbl(this)" onblur="pillDone(this,${i})"`:""} style="top:${+p.top||30}%;${p.side==="right"?`right:${+p.offset||6}%`:`left:${+p.offset||8}%`}">${esc(p.text)}</div>`).join("")}
+function slideHTML(s,i){
+ const ed=i===sel;
+ const n=state.slides.length;
+ const photoStyle=s.bg.type==="photo"?`background-image:url('${s.bg.src}')`:`background-image:${gradCss(s)}`;
+ const light=lightOn(s)?" light":"";
+ const hero=s.template==="cover";
+ const eb=(f,single)=>ed?` contenteditable="true" data-f="${f}"${single?' data-single="1"':""} oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:"";
+ const par=(j)=>ed?` contenteditable="true" data-arr="paragraphs" data-i="${j}" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:"";
+ let copy="";
+ if(s.eyebrow!==undefined&&s.eyebrow!=="")copy+=`<div class="eyebrow"${eb("eyebrow",true)}>${esc(s.eyebrow)}</div>`;
+ if(s.titleWhite)copy+=`<h1 class="${hero?"big":""}"${eb("titleWhite")}>${md(s.titleWhite)}</h1>`;
+ if(s.titleOrange)copy+=`<div class="orange"><h1${eb("titleOrange")}>${md(s.titleOrange)}</h1></div>`;
+ copy+=s.paragraphs.map((p,j)=>`<p${par(j)}>${md(p)}</p>`).join("");
+ if(s.items.length)copy+=`<div class="info">${s.items.map((it,j)=>`<div class="item"><div class="ico"${ed?` contenteditable="true" data-item="${j}" data-field="emoji" data-single="1" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${esc(it.emoji)}</div><div><b${ed?` contenteditable="true" data-item="${j}" data-field="title" data-single="1" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${md(it.title)}</b><span${ed?` contenteditable="true" data-item="${j}" data-field="desc" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${md(it.desc)}</span></div></div>`).join("")}</div>`;
+ if(s.ctaBox.title||s.ctaBox.text)copy+=`<div class="ctabox"><b${ed?` contenteditable="true" data-cta="title" data-single="1" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${esc(s.ctaBox.title)}</b>${`<p${ed?` contenteditable="true" data-cta="text" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${md(s.ctaBox.text)}</p>`}</div>`;
+ if(s.slogan)copy+=`<p class="slogan"${eb("slogan",true)}>${esc(s.slogan)}</p>`;
+ if(s.foot)copy+=`<div class="foot"${eb("foot",true)}>${esc(s.foot)}</div>`;
+ return`<section class="slide ${s.template}${light}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div><div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="brand">${logoHTML()} ${esc(state.kit.logo.text||"")}</div><span class="count">${i+1}/${n}</span>${pillsHTML(s,ed)}<div class="copy">${copy}</div></section>`}
+
+function controlsHTML(i){const n=state.slides.length;return`<div class="controls">
+ <label class="btn upload">📷 Foto<input type="file" accept="image/*" onchange="onPhoto(event,${i})"></label>
+ <button class="btn" onclick="exportSlide(${i})">⬇ PNG</button>
+ <button class="btn" onclick="moveSlide(${i},-1)"${i===0?" disabled":""}>◀</button>
+ <button class="btn" onclick="moveSlide(${i},1)"${i===n-1?" disabled":""}>▶</button>
+ <button class="btn" onclick="dupSlide(${i})">⧉</button>
+ <button class="btn" style="background:#b3261e" onclick="delSlide(${i})">✕</button></div>`}
+function thumbBg(s){if(s.bg.type==="photo"&&s.bg.src)return`background-image:url('${s.bg.src}')`;if(s.bg.type==="css")return`background-image:${s.bg.css}`;const g=state.kit.gradients.find(g=>g.name===s.bg.value);return g?`background-image:${g.css}`:""}
+
+function renderDeck(){const d=document.getElementById("deck");d.innerHTML=state.slides.map((s,i)=>`<div class="wrap${i===sel?" sel":""}" id="w${i}">${slideHTML(s,i)}${controlsHTML(i)}</div>`).join("")||`<div class="empty">Sin slides. Usá “+ Slide” para empezar.</div>`}
+function renderSlide(i){const w=document.getElementById("w"+i);if(!w)return;w.className="wrap"+(i===sel?" sel":"");w.innerHTML=slideHTML(state.slides[i],i)+controlsHTML(i)}
+function renderNav(){const v=document.getElementById("nav");v.innerHTML=state.slides.map((s,i)=>`<div class="navitem${i===sel?" sel":""}" draggable="true" data-i="${i}" onclick="selectSlide(${i})" ondragstart="navDrag(event)" ondragover="navOver(event)" ondragleave="this.classList.remove('drop')" ondrop="navDrop(event,${i})"><div class="tb" style="${thumbBg(s)}"></div><span class="num">${i+1}</span><span class="meta"><span>${TPL_EMOJI[s.template]||"•"}</span><span>${esc(TPL_LABEL[s.template]||s.template)}</span></span></div>`).join("")+`<button class="add" style="width:100%;background:var(--u-panel);color:var(--u-dim);border:1px dashed var(--u-border);border-radius:6px;padding:7px;font-weight:700;cursor:pointer" onclick="openTpl()">+ Slide</button>`}
+
+function editorHTML(){
+ if(!state.slides.length)return`<div class="empty">Agregá una slide con “+ Slide”.</div>`;
+ const s=state.slides[sel];
+ const bgOpts=state.kit.gradients.map(g=>`<option value="${escAttr(g.name)}"${s.bg.type==="gradient"&&s.bg.value===g.name?" selected":""}>${esc(g.name)}${g.light?" (claro)":""}</option>`).join("");
+ let paragraphs=s.paragraphs.map((p,i)=>`<div class="arr"><button class="x" onclick="delArr('paragraphs',${i})">✕</button><textarea id="ed_p_${i}" rows="2" oninput="setArr('paragraphs',${i},this.value)">${esc(p)}</textarea></div>`).join("");
+ let items=s.items.map((it,i)=>`<div class="arr"><button class="x" onclick="delItem(${i})">✕</button>
+  <div class="row"><input class="mini" type="text" id="ed_it${i}_emoji" value="${escAttr(it.emoji)}" oninput="setItem(${i},'emoji',this.value)" placeholder="Emoji"><input type="text" id="ed_it${i}_title" value="${escAttr(it.title)}" oninput="setItem(${i},'title',this.value)" placeholder="Título"></div>
+  <textarea rows="2" id="ed_it${i}_desc" style="margin-top:5px" oninput="setItem(${i},'desc',this.value)" placeholder="Descripción">${esc(it.desc)}</textarea></div>`).join("");
+ let pills=s.pills.map((p,i)=>`<div class="arr"><button class="x" onclick="delPill(${i})">✕</button>
+  <div class="row"><input type="text" id="ed_pl${i}_text" value="${escAttr(p.text)}" oninput="setPill(${i},'text',this.value)" placeholder="Texto del pill"><input class="mini" type="number" value="${+p.top||30}" oninput="setPill(${i},'top',this.value)" placeholder="top%"><select class="mid" oninput="setPill(${i},'side',this.value)"><option value="left"${p.side!=="right"?" selected":""}>Izq</option><option value="right"${p.side==="right"?" selected":""}>Der</option></select><input class="mini" type="number" value="${+p.offset||8}" oninput="setPill(${i},'offset',this.value)" placeholder="off%"></div></div>`).join("");
+ return`
+ <div class="who"><b>Slide ${sel+1} / ${state.slides.length}</b><span style="font-size:11px;color:var(--u-dim)">${TPL_EMOJI[s.template]||""} ${esc(TPL_LABEL[s.template]||s.template)}</span>
+  <span class="prevnext"><button class="ghost" onclick="selectSlide(${Math.max(0,sel-1)})"${sel===0?" disabled":""}>◀</button><button class="ghost" onclick="selectSlide(${Math.min(state.slides.length-1,sel+1)})"${sel===state.slides.length-1?" disabled":""}>▶</button></span></div>
+ <details><summary>Plantilla</summary><div class="bd">
+  <div class="row"><select id="tplSel">${ORDER.map(t=>`<option value="${t}"${t===s.template?" selected":""}>${TPL_EMOJI[t]} ${TPL_LABEL[t]}</option>`).join("")}</select><button style="background:#223755;flex:0 0 auto" onclick="applyTemplate()">Aplicar</button></div>
+  <div class="hint">Cambiar de plantilla reemplaza la estructura y el contenido de esta slide.</div></div></details>
+ <details><summary>Background</summary><div class="bd">
+  <select id="ed_bgtype" onchange="setBgType(this.value)"><option value="gradient"${s.bg.type==="gradient"?" selected":""}>Gradient del kit</option><option value="css"${s.bg.type==="css"?" selected":""}>CSS custom</option><option value="photo"${s.bg.type==="photo"?" selected":""}>Foto</option></select>
+  ${s.bg.type==="gradient"?`<div style="margin-top:8px"><label>Gradient</label><select id="ed_bggrad" onchange="setBgGrad(this.value)">${bgOpts}</select></div>`:""}
+  ${s.bg.type==="css"?`<div style="margin-top:8px"><label>CSS background</label><textarea id="ed_bgcss" rows="2" oninput="setBgCss(this.value)">${esc(s.bg.css)}</textarea></div>`:""}
+  ${s.bg.type==="photo"?`<div style="margin-top:8px"><label class="btn" style="background:#223755;display:inline-block;position:relative;overflow:hidden">Cambiar foto<input type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer" onchange="onPhoto(event,${sel})"></label> <button class="danger" onclick="removePhoto()">Quitar foto</button></div>`:""}
+  <div style="margin-top:8px"><label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" style="width:auto" ${lightOn(s)?"checked":""} onchange="setLight(this.checked)"> Fondo claro / estilo mapa (texto oscuro)</label></div></div></details>
+ <details open><summary>Textos — click directo sobre la slide también edita</summary><div class="bd">
+  <label>Eyebrow (kicker superior)</label><input type="text" id="ed_eyebrow" value="${escAttr(s.eyebrow)}" oninput="setF('eyebrow',this.value)">
+  <label>Título blanco${s.template==="cover"?" (hero φ³)":""}</label><textarea id="ed_titleWhite" rows="2" oninput="setF('titleWhite',this.value)">${esc(s.titleWhite)}</textarea>
+  <label>Título resaltado (caja de color)</label><textarea id="ed_titleOrange" rows="2" oninput="setF('titleOrange',this.value)">${esc(s.titleOrange)}</textarea>
+  <label>Párrafos — <b>**negrita**</b> y Enter para cortar línea</label>${paragraphs}<button class="add" onclick="addArr('paragraphs')">+ Párrafo</button></div></details>
+ <details open><summary>Items con emoji (${s.items.length})</summary><div class="bd">${items}<button class="add" onclick="addItem()">+ Item</button></div></details>
+ <details${s.pills.length?" open":""}><summary>Pills / ubicaciones (${s.pills.length})</summary><div class="bd">${pills}<button class="add" onclick="addPill()">+ Pill</button><div class="hint">En la slide: arrastrá el pill para moverlo, doble click para editar su texto.</div></div></details>
+ <details open><summary>Cierre / CTA</summary><div class="bd">
+  <label>Título del box de marca</label><input type="text" id="ed_cta_title" value="${escAttr(s.ctaBox.title)}" oninput="setCta('title',this.value)">
+  <label>Texto del box</label><textarea id="ed_cta_text" rows="2" oninput="setCta('text',this.value)">${esc(s.ctaBox.text)}</textarea>
+  <label>Slogan final</label><input type="text" id="ed_slogan" value="${escAttr(s.slogan)}" oninput="setF('slogan',this.value)">
+  <label>Foot (texto chico)</label><input type="text" id="ed_foot" value="${escAttr(s.foot)}" oninput="setF('foot',this.value)"></div></details>`}
+
+function renderEditor(){document.getElementById("editor").innerHTML=editorHTML()}
+function renderAll(){applyTheme();populateKits();renderNav();renderDeck();renderEditor();document.getElementById("metaTitle").value=state.meta.title}
+function applyTheme(){const r=document.documentElement.style,k=state.kit;
+ r.setProperty("--primary",k.colors.primary);r.setProperty("--secondary",k.colors.secondary);r.setProperty("--tertiary",k.colors.tertiary);r.setProperty("--slidebg",k.colors.slideBg);
+ r.setProperty("--fh",k.fonts.heading);r.setProperty("--fb",k.fonts.body);
+ document.getElementById("gf").textContent=k.fonts.googleUrl?`@import url('${k.fonts.googleUrl}');`:""}
+
+function queueSave(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(LS_STATE,JSON.stringify(state))}catch(e){}},450)}
+function queueRender(){clearTimeout(renderT);renderT=setTimeout(()=>{renderSlide(sel)},140)}
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),2300)}
+
+function setTitle(v){state.meta.title=v;queueSave()}
+function selectSlide(i){if(i===sel||!state.slides[i])return;const prev=sel;sel=i;renderSlide(prev);renderSlide(sel);renderNav();renderEditor();const w=document.getElementById("w"+i);if(w)w.scrollIntoView({behavior:"smooth",inline:"center",block:"nearest"})}
+function syncIns(id,v){const el=document.getElementById(id);if(el&&document.activeElement!==el)el.value=v}
+
+function edInput(el){const s=state.slides[sel];const v=serialize(el);
+ if(el.dataset.f){s[el.dataset.f]=v;syncIns("ed_"+el.dataset.f,v)}
+ else if(el.dataset.arr){s[el.dataset.arr][+el.dataset.i]=v;syncIns("ed_p_"+el.dataset.i,v)}
+ else if(el.dataset.item!==undefined){s.items[+el.dataset.item][el.dataset.field]=v;syncIns("ed_it"+el.dataset.item+"_"+el.dataset.field,v)}
+ else if(el.dataset.cta){s.ctaBox[el.dataset.cta]=v;syncIns("ed_cta_"+el.dataset.cta,v)}
+ queueSave()}
+function edKeys(e,el){if(el.dataset.single&&e.key==="Enter"){e.preventDefault();el.blur();return}
+ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="b"){e.preventDefault();document.execCommand("bold");edInput(el)}}
+function edPaste(e){e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData("text/plain");document.execCommand("insertText",false,t)}
+
+function setF(f,v){state.slides[sel][f]=v;queueSave();queueRender()}
+function setCta(f,v){state.slides[sel].ctaBox[f]=v;queueSave();queueRender()}
+function setArr(a,i,v){state.slides[sel][a][i]=v;queueSave();queueRender()}
+function addArr(a){state.slides[sel][a].push("");queueSave();renderSlide(sel);renderEditor()}
+function delArr(a,i){state.slides[sel][a].splice(i,1);queueSave();renderSlide(sel);renderEditor()}
+function setItem(i,f,v){state.slides[sel].items[i][f]=v;queueSave();queueRender()}
+function addItem(){state.slides[sel].items.push({emoji:"✨",title:"",desc:""});queueSave();renderSlide(sel);renderEditor()}
+function delItem(i){state.slides[sel].items.splice(i,1);queueSave();renderSlide(sel);renderEditor()}
+function setPill(i,f,v){state.slides[sel].pills[i][f]=f==="text"||f==="side"?v:+v||0;queueSave();const s=state.slides[sel];const w=document.getElementById("w"+sel);const el=w&&w.querySelector(`[data-pill="${i}"]`);if(el){el.style.top=(+s.pills[i].top||30)+"%";el.style.left=s.pills[i].side==="right"?"auto":(+s.pills[i].offset||8)+"%";el.style.right=s.pills[i].side==="right"?((+s.pills[i].offset||8)+"%"):"auto";if(f==="text")el.textContent=v}}
+function addPill(){state.slides[sel].pills.push({text:"📍 ",top:30,side:"left",offset:8});queueSave();renderSlide(sel);renderEditor()}
+function delPill(i){state.slides[sel].pills.splice(i,1);queueSave();renderSlide(sel);renderEditor()}
+
+function pillDown(e,i){const el=e.currentTarget;if(el.isContentEditable||e.button!==0)return;e.stopPropagation();e.preventDefault();
+ const slide=el.closest(".slide");const r=slide.getBoundingClientRect();const st=state.slides[sel].pills[i];
+ const mv=(ev)=>{const x=(ev.clientX-r.left)/r.width*100,y=(ev.clientY-r.top)/r.height*100;
+  st.top=Math.max(2,Math.min(92,Math.round(y*10)/10));
+  if(x>50){st.side="right";st.offset=Math.max(1,Math.min(88,Math.round((100-x)*10)/10))}else{st.side="left";st.offset=Math.max(1,Math.min(88,Math.round(x*10)/10))}
+  el.style.top=st.top+"%";el.style.left=st.side==="right"?"auto":st.offset+"%";el.style.right=st.side==="right"?st.offset+"%":"auto"};
+ const up=()=>{window.removeEventListener("pointermove",mv);window.removeEventListener("pointerup",up);queueSave();renderEditor()};
+ window.addEventListener("pointermove",mv);window.addEventListener("pointerup",up)}
+function pillDbl(el){el.contentEditable="true";el.focus();try{document.execCommand("selectAll",false,null)}catch(e){}}
+function pillDone(el,i){if(el.isContentEditable){el.contentEditable="false";state.slides[sel].pills[i].text=el.textContent.trim();queueSave();renderEditor()}}
+
+function setBgType(t){const s=state.slides[sel];
+ if(t==="gradient")s.bg={type:"gradient",value:state.kit.gradients[0].name};
+ else if(t==="css")s.bg={type:"css",css:"linear-gradient(145deg,#173b53,#071522 60%)"};
+ else s.bg={type:"photo",src:s.bg.type==="photo"?s.bg.src:""};
+ s.overlayLight=t==="gradient"&&!!(state.kit.gradients[0].light);queueSave();renderSlide(sel);renderNav();renderEditor()}
+function setBgGrad(name){const s=state.slides[sel];s.bg={type:"gradient",value:name};s.overlayLight=!!(state.kit.gradients.find(g=>g.name===name)||{}).light;queueSave();renderSlide(sel);renderNav();renderEditor()}
+function setBgCss(css){state.slides[sel].bg.css=css;queueSave();queueRender()}
+function setLight(on){state.slides[sel].overlayLight=on;queueSave();renderSlide(sel)}
+function removePhoto(){const s=state.slides[sel];s.bg={type:"gradient",value:state.kit.gradients[0].name};s.overlayLight=false;queueSave();renderSlide(sel);renderNav();renderEditor()}
+function shrink(file,keepAlpha,cb){const img=new Image(),r=new FileReader();
+ r.onload=()=>{img.onload=()=>{const M=1350,sc=Math.min(1,M/Math.max(img.width,img.height)),c=document.createElement("canvas");
+  c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);cb(keepAlpha?c.toDataURL("image/png"):c.toDataURL("image/jpeg",.86))};img.src=r.result};
+ r.readAsDataURL(file)}
+function onPhoto(e,i){const f=e.target.files&&e.target.files[0];if(!f)return;const idx=i;
+ shrink(f,f.type==="image/png",src=>{const s=state.slides[idx];s.bg={type:"photo",src};s.overlayLight=false;queueSave();renderSlide(idx);renderNav();if(idx===sel)renderEditor()});toast("Foto aplicada a la slide "+(idx+1))}
+function applyTemplate(){const t=document.getElementById("tplSel").value;const n=normSlide({template:t});state.slides[sel]=n;queueSave();renderSlide(sel);renderNav();renderEditor();toast("Plantilla aplicada: "+(TPL_LABEL[t]||t))}
+function addSlide(t){state.slides.push(normSlide({template:t}));sel=state.slides.length-1;queueSave();renderDeck();renderNav();renderEditor();closeDlg("tplDlg");const w=document.getElementById("w"+sel);if(w)w.scrollIntoView({behavior:"smooth",inline:"center"})}
+function dupSlide(i){state.slides.splice(i+1,0,clone(state.slides[i]));sel=i+1;queueSave();renderDeck();renderNav();renderEditor();toast("Slide duplicada")}
+function delSlide(i){if(!confirm("¿Eliminar slide "+(i+1)+"?"))return;state.slides.splice(i,1);sel=Math.min(sel,state.slides.length-1);queueSave();renderDeck();renderNav();renderEditor()}
+function moveSlide(i,dir){const j=i+dir;if(j<0||j>=state.slides.length)return;const a=state.slides;[a[i],a[j]]=[a[j],a[i]];sel=j;queueSave();renderDeck();renderNav();renderEditor()}
+function newCarousel(){if(!confirm("¿Empezar un carrusel nuevo? (se mantiene el brand kit actual)"))return;const kit=state.kit,ks=state.kitSource;normState({kit,meta:{title:"Carrusel nuevo"},slides:ORDER.map(t=>({template:t}))});state.kit=kit;state.kitSource=ks;sel=0;queueSave();renderAll()}
+function navDrag(e){e.dataTransfer.setData("text/plain",e.currentTarget.dataset.i)}
+function navOver(e){e.preventDefault();e.currentTarget.classList.add("drop")}
+function navDrop(e,i){e.preventDefault();e.currentTarget.classList.remove("drop");const from=+e.dataTransfer.getData("text/plain");if(from===i||isNaN(from))return;const a=state.slides;const m=a.splice(from,1)[0];a.splice(i,0,m);sel=i;queueSave();renderDeck();renderNav();renderEditor()}
+
+function dl(url,name){const a=document.createElement("a");a.download=name;a.href=url;a.click()}
+async function toCanvas(i){if(!window.html2canvas){alert("Necesitás conexión a internet para cargar html2canvas (CDN).");return null}
+ if(document.activeElement)document.activeElement.blur();
+ const hadGuides=guidesOn;if(hadGuides)document.body.classList.remove("guides");
+ if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+ try{return await html2canvas(document.getElementById("s"+i),{scale:2,useCORS:true,backgroundColor:null})}finally{if(hadGuides)document.body.classList.add("guides")}}
+async function exportSlide(i){const c=await toCanvas(i);if(!c)return;dl(c.toDataURL("image/png"),`${slug(state.meta.title)}-${String(i+1).padStart(2,"0")}.png`);toast(`PNG ${i+1}/${state.slides.length} descargado`)}
+async function exportAll(){toast("Exportando PNGs…");for(let i=0;i<state.slides.length;i++){const c=await toCanvas(i);if(!c)return;dl(c.toDataURL("image/png"),`${slug(state.meta.title)}-${String(i+1).padStart(2,"0")}.png`);toast(`Exportando ${i+1}/${state.slides.length}…`);await new Promise(r=>setTimeout(r,350))}toast("Listo — "+state.slides.length+" PNGs descargados")}
+function saveJSON(){dl(URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"})),slug(state.meta.title)+".json");toast("JSON guardado")}
+function loadJSONFile(e){const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{normState(JSON.parse(r.result));sel=0;queueSave();renderAll();toast("Carrusel cargado")}catch(err){alert("JSON inválido: "+err.message)}};r.readAsText(f);e.target.value=""}
+
+function toggleGuides(){guidesOn=!guidesOn;document.body.classList.toggle("guides",guidesOn);document.getElementById("guidesBtn").style.borderColor=guidesOn?"var(--u-accent)":"";toast(guidesOn?"Guías áureas φ activadas":"Guías áureas φ ocultas")}
+document.addEventListener("keydown",e=>{if(e.target.matches("input,textarea,select,[contenteditable]"))return;
+ if(e.key==="ArrowRight"){selectSlide(Math.min(sel+1,state.slides.length-1))}
+ else if(e.key==="ArrowLeft"){selectSlide(Math.max(sel-1,0))}});
+
+function localKits(){try{return JSON.parse(localStorage.getItem(LS_KITS)||"{}")}catch(e){return{}}}
+function putLocalKit(slugName,kit){const all=localKits();all[slugName]=kit;try{localStorage.setItem(LS_KITS,JSON.stringify(all))}catch(e){toast("No se pudo guardar el kit (localStorage lleno)")}}
+function kitSources(){const out=[];const ls=localKits();for(const sl of Object.keys(ls))out.push({store:"local",slug:sl,kit:ls[sl]});
+ if(window.BRAND_KITS)for(const sl of Object.keys(window.BRAND_KITS))out.push({store:"injected",slug:sl,kit:window.BRAND_KITS[sl]});
+ return out}
+function populateKits(){const pk=document.getElementById("kitPicker");const src=kitSources();
+ let h="";
+ if(src.length){h+=`<optgroup label="Kits disponibles">`+src.map(x=>`<option value="${x.store}:${escAttr(x.slug)}"${state.kitSource&&state.kitSource.slug===x.slug&&state.kitSource.store===x.store?" selected":""}>${esc(x.kit.name||x.slug)}${x.store==="local"?" ★":""}</option>`).join("")+`</optgroup>`}
+ h+=`<option value="builtin:default"${!src.length||(state.kitSource&&state.kitSource.store==="builtin")?" selected":""}>${esc(state.kit.name)} (actual)</option>`;
+ pk.innerHTML=h}
+function fixSlidesForKit(){for(const s of state.slides){if(s.bg.type==="gradient"&&!state.kit.gradients.some(g=>g.name===s.bg.value)){s.bg={type:"gradient",value:state.kit.gradients[0].name};s.overlayLight=!!state.kit.gradients[0].light}}}
+function switchKit(v){const p=v.split(":");const store=p[0],sl=p.slice(1).join(":");
+ let kit=null;
+ if(store==="local")kit=localKits()[sl];
+ else if(store==="injected"&&window.BRAND_KITS)kit=window.BRAND_KITS[sl];
+ else if(store==="builtin")kit=HOOKED_KIT;
+ if(!kit){toast("Kit no encontrado");populateKits();return}
+ state.kit=normKit(clone(kit));state.kitSource={store:store==="builtin"?"builtin":store,slug:sl};
+ fixSlidesForKit();queueSave();renderAll();toast("Kit activo: "+state.kit.name)}
+function openTpl(){document.getElementById("tplDlg").classList.add("open")}
+function closeDlg(id){document.getElementById(id).classList.remove("open")}
+function openKit(){const k=state.kit;
+ v("k_name",k.name);v("k_letter",k.logo.letter);v("k_text",k.logo.text);v("k_imgH",k.logo.imgH||43);
+ v("k_fh",k.fonts.heading);v("k_fb",k.fonts.body);v("k_gf",k.fonts.googleUrl);
+ renderLogoPrev();
+ const cl=document.getElementById("k_colors");cl.innerHTML="";
+ const labels={primary:"Primario",secondary:"Secundario",tertiary:"Terciario / texto",slideBg:"Background base"};
+ for(const key of Object.keys(labels)){const r=document.createElement("div");r.className="colorrow";
+  r.innerHTML=`<input type="color" value="${k.colors[key]}" oninput="kColor('${key}',this.value)"><span style="font-size:12px;font-weight:700" data-c="${key}">${labels[key]} — <code>${k.colors[key]}</code></span>`;cl.appendChild(r)}
+ renderKGrads();document.getElementById("kitDlg").classList.add("open")}
+function v(id,val){document.getElementById(id).value=val==null?"":val}
+function g(id){return document.getElementById(id).value}
+function renderLogoPrev(){const l=state.kit.logo||{};const img=document.getElementById("k_logoPrev");const none=document.getElementById("k_logoNone");
+ if(l.img){img.src=l.img;img.classList.remove("hide");none.classList.add("hide")}else{img.classList.add("hide");none.classList.remove("hide")}}
+function kLogoUpload(e){const f=e.target.files&&e.target.files[0];if(!f)return;
+ shrink(f,f.type==="image/png",src=>{state.kit.logo.img=src;queueSave();renderLogoPrev();applyTheme();renderDeck();toast("Logo aplicado al kit")});e.target.value=""}
+function kLogoH(val){state.kit.logo.imgH=+val||43;queueSave();renderDeck()}
+function kLogoRemove(){delete state.kit.logo.img;queueSave();renderLogoPrev();renderDeck();toast("Logo eliminado — se usa la letra")}
+function kColor(key,val){state.kit.colors[key]=val;queueSave();applyTheme();renderDeck();
+ const span=document.querySelector(`#k_colors [data-c="${key}"] code`);if(span)span.textContent=val}
+function renderKGrads(){const kg=document.getElementById("k_grads");kg.innerHTML=state.kit.gradients.map((gr,i)=>`<div class="arr" style="margin-bottom:8px;border:1px dashed var(--u-border);border-radius:6px;padding:8px"><button class="x" style="float:right;background:none;color:#ff7b72;border:0;cursor:pointer" onclick="kDelGrad(${i})">✕</button>
+ <div class="row"><input type="text" value="${escAttr(gr.name)}" oninput="kGrad(${i},'name',this.value)"></div>
+ <textarea rows="1" style="width:100%;border:1px solid var(--u-border);border-radius:6px;padding:6px;background:var(--u-bg);color:var(--u-text);margin-top:5px" oninput="kGrad(${i},'css',this.value)">${esc(gr.css)}</textarea>
+ <label style="display:flex;gap:6px;align-items:center;font-weight:400;margin-top:4px;font-size:11px"><input type="checkbox" style="width:auto" ${gr.light?"checked":""} onchange="kGrad(${i},'light',this.checked)"> claro (mapa)</label></div>`).join("")}
+function kGrad(i,f,val){state.kit.gradients[i][f]=f==="light"?val:val;queueSave()}
+function kAddGrad(){state.kit.gradients.push({name:"nuevo",css:"linear-gradient(145deg,#000,#333)",light:false});queueSave();renderKGrads()}
+function kDelGrad(i){if(state.kit.gradients.length<=1)return alert("El kit necesita al menos un gradient.");state.kit.gradients.splice(i,1);queueSave();renderKGrads()}
+function kSave(){state.kit.name=g("k_name");state.kit.logo.letter=g("k_letter");state.kit.logo.text=g("k_text");
+ state.kit.fonts.heading=g("k_fh");state.kit.fonts.body=g("k_fb");state.kit.fonts.googleUrl=g("k_gf");
+ const sl=slug(state.kit.name);putLocalKit(sl,clone(state.kit));state.kitSource={store:"local",slug:sl};
+ queueSave();renderAll();closeDlg("kitDlg");toast(`Kit "${state.kit.name}" guardado en esta máquina`)}
+function kDownload(){dl(URL.createObjectURL(new Blob([JSON.stringify(state.kit,null,2)],{type:"application/json"})),slug(state.kit.name)+"-kit.json");toast("Kit descargado — copialo a ~/.carousel-generator/kits/")}
+function importKitFile(e){const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{const kit=normKit(JSON.parse(r.result));const sl=slug(kit.name);putLocalKit(sl,kit);state.kit=clone(kit);state.kitSource={store:"local",slug:sl};fixSlidesForKit();queueSave();renderAll();toast("Kit importado: "+kit.name)}catch(err){alert("Kit inválido: "+err.message)}};r.readAsText(f);e.target.value=""}
+
+(function init(){
+ let d=null;
+ if(window.CAROUSEL_DATA)d=window.CAROUSEL_DATA;
+ else{try{const s=localStorage.getItem(LS_STATE);if(s)d=JSON.parse(s)}catch(e){}}
+ normState(d);
+ if(d&&d.kitSource)state.kitSource=d.kitSource;
+ else if(window.BRAND_KITS){const keys=Object.keys(window.BRAND_KITS);if(keys.length){const first=keys[0];state.kit=normKit(clone(window.BRAND_KITS[first]));state.kitSource={store:"injected",slug:first}}}
+ sel=0;
+ renderAll();
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</body></html>
