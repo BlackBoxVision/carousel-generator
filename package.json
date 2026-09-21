@@ -1,6 +1,6 @@
 {
   "name": "carousel-generator",
-  "version": "2.1.0",
+  "version": "2.3.0",
   "private": true,
   "type": "module",
   "description": "Instagram 4:5 carousel generator with brand kits, golden-ratio calibrated slides, visual editor and MCP server for AI agents",

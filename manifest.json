@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "carousel-generator",
   "display_name": "Carousel Generator",
-  "version": "2.1.0",
-  "description": "Instagram 4:5 carousel generator with brand kits, golden-ratio slides and a visual editor",
-  "long_description": "Generates Instagram carousels (1080x1350, 4:5) as editable HTML pre-loaded with content. Includes a visual editor with golden-ratio calibration, multi brand-kit support with live switching, logo images, and PNG export per slide.",
+  "version": "2.3.0",
+  "description": "Instagram carousel generator with nested block JSON, brand kits, assets and visual editor",
+  "long_description": "Generates editable Instagram carousels as HTML and persists descriptive nested carousel.json documents with per-company assets. Includes a block editor with inline drag/reorder, golden-ratio calibration, multi brand-kit support, logo images, and PNG/PDF export.",
   "author": { "name": "BlackBoxVision" },
   "repository": { "type": "git", "url": "https://github.com/BlackBoxVision/carousel-generator.git" },
   "server": {
@@ -17,10 +17,14 @@
     }
   },
   "tools": [
-    { "name": "generate_carousel", "description": "Generates an Instagram carousel as editable HTML (opens in browser), pre-loaded with slides and brand kit" },
+    { "name": "generate_carousel", "description": "Generates and opens editable HTML, persisting nested carousel.json and assets by company" },
+    { "name": "list_carousels", "description": "Lists persisted carousels grouped by company" },
+    { "name": "load_carousel", "description": "Loads a persisted nested carousel, hydrates assets and opens editable HTML" },
+    { "name": "save_carousel", "description": "Creates or updates nested carousel JSON and its asset folder" },
     { "name": "save_brand_kit", "description": "Saves a brand kit JSON for reuse with generate_carousel" },
     { "name": "list_brand_kits", "description": "Lists the saved brand kits" },
-    { "name": "load_brand_kit", "description": "Returns the full JSON of a saved brand kit" }
+    { "name": "load_brand_kit", "description": "Returns the full JSON of a saved brand kit" },
+    { "name": "brand_kit_from_url", "description": "Generates and saves a brand kit from a website URL (homepage heuristics), with per-field confidence for agent review" }
   ],
   "keywords": ["instagram", "carousel", "brand-kit", "design", "social-media"],
   "license": "UNLICENSED",

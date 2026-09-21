@@ -11,9 +11,11 @@ const APP_PATH = path.join(__dirname, "..", "app", "index.html");
 const REPO_KITS = path.join(__dirname, "kits");
 const HOME_CG = path.join(os.homedir(), ".carousel-generator");
 const BRAND_DIR = path.join(HOME_CG, "brand");
+const CAROUSEL_DIR = path.join(HOME_CG, "carousels");
 const LEGACY_KITS = path.join(HOME_CG, "kits");
 const MARKER = "<!--CAROUSEL_DATA-->";
 const TEMPLATES = ["cover", "fact", "map", "list", "cta"];
+const BLOCK_TYPES = ["brand", "count", "stack", "kicker", "text", "highlight", "body", "items", "item", "box", "pill", "slogan", "foot"];
 const IMG_EXTS = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml" };
 
 const DEFAULT_KIT = {
@@ -49,6 +51,68 @@ function deepMerge(base, over) {
   return out;
 }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+function blockId(type, index) { return `${type || "block"}-${index + 1}`; }
+
+function normalizeBlock(block, index = 0) {
+  if (!block || typeof block !== "object") return { id: blockId("block", index), type: "body", text: String(block || ""), style: {} };
+  const type = BLOCK_TYPES.includes(block.type) ? block.type : "body";
+  const out = { id: String(block.id || blockId(type, index)), type };
+  if (block.text !== undefined) out.text = String(block.text);
+  for (const key of ["emoji", "title", "desc", "layout", "visible"]) {
+    if (block[key] !== undefined) out[key] = key === "visible" ? !!block[key] : String(block[key]);
+  }
+  if (block.style && typeof block.style === "object") out.style = clone(block.style);
+  else out.style = {};
+  out.pos = block.pos && typeof block.pos === "object" ? clone(block.pos) : null;
+  if (block.children !== undefined) out.children = (Array.isArray(block.children) ? block.children : []).map(normalizeBlock);
+  return out;
+}
+
+function legacyElements(s, out) {
+  const align = out.align || { eyebrow: "left", title: "left", body: "left" };
+  const children = [];
+  if (out.eyebrow) children.push({ type: "kicker", text: out.eyebrow, style: { align: align.eyebrow } });
+  if (out.titleWhite) children.push({ type: "text", text: out.titleWhite, style: { align: align.title, sizePct: 60 } });
+  if (out.titleOrange) children.push({ type: "highlight", text: out.titleOrange, style: { align: align.title, sizePct: 100 } });
+  for (const text of out.paragraphs || []) children.push({ type: "body", text, style: { align: align.body } });
+  if (out.items && out.items.length) children.push({
+    type: "items",
+    layout: "stack",
+    style: { align: align.body },
+    children: out.items.map((item, i) => ({ id: `item-${i + 1}`, type: "item", emoji: item.emoji, title: item.title, desc: item.desc, style: { align: align.body } })),
+  });
+  if (out.ctaBox && (out.ctaBox.title || out.ctaBox.text)) children.push({
+    type: "box",
+    style: { align: align.body, background: "secondary" },
+    children: [
+      { type: "text", text: out.ctaBox.title, style: { align: align.body, role: "box-title" } },
+      { type: "body", text: out.ctaBox.text, style: { align: align.body } },
+    ],
+  });
+  if (out.slogan) children.push({ type: "slogan", text: out.slogan, style: { align: align.body } });
+  if (out.foot) children.push({ type: "foot", text: out.foot, style: { align: align.body } });
+  return [
+    { type: "brand", style: { topPct: 3.8, leftPct: 6.2, logoH: 48 } },
+    { type: "count", visible: true, style: { topPct: 3.8, rightPct: 6.2 } },
+    {
+      type: "stack",
+      style: {
+        anchor: out.copyPos && out.copyPos.anchor || "bottom",
+        offsetPct: out.copyPos && out.copyPos.offset || 0,
+        widthPct: 87.6,
+        maxHeightPct: out.template === "cta" ? 76 : 62,
+      },
+      children,
+    },
+    ...(out.pills || []).map((pill, i) => ({
+      id: `pill-${i + 1}`,
+      type: "pill",
+      text: pill.text,
+      pos: { topPct: pill.top, side: pill.side, offsetPct: pill.offset },
+    })),
+  ].map(normalizeBlock);
+}
 
 function companyKitFile(sl) {
   return path.join(BRAND_DIR, sl, "kit.json");
@@ -161,36 +225,64 @@ function brandKitsPayload() {
 function normSlideArg(s) {
   if (typeof s !== "object" || s === null) s = {};
   const out = { template: TEMPLATES.includes(s.template) ? s.template : "list" };
+  out.id = String(s.id || "");
   for (const f of ["eyebrow", "titleWhite", "titleOrange", "slogan", "foot"]) {
-    if (s[f] !== undefined) out[f] = String(s[f]);
+    out[f] = s[f] !== undefined ? String(s[f]) : "";
   }
-  if (s.paragraphs !== undefined) out.paragraphs = (Array.isArray(s.paragraphs) ? s.paragraphs : [s.paragraphs]).map(String);
-  if (s.items !== undefined) out.items = (Array.isArray(s.items) ? s.items : []).map((x) => ({
+  out.paragraphs = (s.paragraphs !== undefined ? (Array.isArray(s.paragraphs) ? s.paragraphs : [s.paragraphs]) : []).map(String);
+  out.items = (s.items !== undefined ? (Array.isArray(s.items) ? s.items : []) : []).map((x) => ({
     emoji: String((x && x.emoji) || "✨"),
     title: String((x && x.title) || ""),
     desc: String((x && x.desc) || ""),
   }));
-  if (s.pills !== undefined) out.pills = (Array.isArray(s.pills) ? s.pills : []).map((x) => ({
+  out.pills = (s.pills !== undefined ? (Array.isArray(s.pills) ? s.pills : []) : []).map((x) => ({
     text: String((x && x.text) || ""),
     top: Number((x && x.top) || 30),
     side: x && x.side === "right" ? "right" : "left",
     offset: Number((x && x.offset) || 8),
   }));
-  if (s.ctaBox !== undefined && s.ctaBox) out.ctaBox = { title: String(s.ctaBox.title || ""), text: String(s.ctaBox.text || "") };
-  if (typeof s.background === "string") {
-    if (s.background.startsWith("file:")) {
-      const fp = expandHome(s.background.replace(/^file:(\/\/)?/, ""));
+  out.ctaBox = s.ctaBox !== undefined && s.ctaBox
+    ? { title: String(s.ctaBox.title || ""), text: String(s.ctaBox.text || "") }
+    : { title: "", text: "" };
+  const background = s.background !== undefined ? s.background : s.bg;
+  if (typeof background === "string") {
+    if (background.startsWith("file:")) {
+      const fp = expandHome(background.replace(/^file:(\/\/)?/, ""));
       if (!fs.existsSync(fp)) throw new Error(`Foto no encontrada: ${fp}`);
-      out.bg = { type: "photo", src: "data:image/jpeg;base64," + fs.readFileSync(fp).toString("base64") };
+      const ext = path.extname(fp).toLowerCase();
+      const mime = IMG_EXTS[ext] || "image/jpeg";
+      out.bg = { type: "photo", src: `data:${mime};base64,` + fs.readFileSync(fp).toString("base64"), sourcePath: fp };
     } else {
-      out.bg = s.background.includes("gradient")
-        ? { type: "css", css: s.background }
-        : { type: "gradient", value: slug(s.background) };
+      out.bg = background.includes("gradient")
+        ? { type: "css", css: background }
+        : { type: "gradient", value: slug(background) };
     }
-  } else if (s.background && typeof s.background === "object") {
-    out.bg = s.background;
+  } else if (background && typeof background === "object") {
+    out.bg = clone(background);
   }
   if (s.overlayLight !== undefined) out.overlayLight = !!s.overlayLight;
+  if (s.scrim !== undefined) out.scrim = Math.max(0, Math.min(85, +s.scrim || 0));
+  if (s.bgPos !== undefined) {
+    const v = String(s.bgPos).trim();
+    out.bgPos = /^(top|bottom|center|left|right|\d+%?|\s|-){1,20}$/.test(v) ? v : "center";
+  }
+  if (s.align !== undefined && s.align) {
+    const va = ["left", "center", "right"];
+    out.align = {
+      eyebrow: va.includes(s.align.eyebrow) ? s.align.eyebrow : "left",
+      title: va.includes(s.align.title) ? s.align.title : "left",
+      body: va.includes(s.align.body) ? s.align.body : "left",
+    };
+  }
+  if (s.copyPos !== undefined && s.copyPos) {
+    const vc = ["top", "center", "bottom"];
+    out.copyPos = {
+      anchor: vc.includes(s.copyPos.anchor) ? s.copyPos.anchor : "bottom",
+      offset: Math.max(-10, Math.min(10, +s.copyPos.offset || 0)),
+    };
+  }
+  out.elements = Array.isArray(s.elements) ? s.elements.map(normalizeBlock) : legacyElements(s, out);
+  out.__mcp = true;
   return out;
 }
 
@@ -198,15 +290,18 @@ const tools = [
   {
     name: "generate_carousel",
     description:
-      "Genera un carrusel como archivo HTML editable y pre-cargado con contenido, y lo abre en el navegador. Ahí se suben fotos, se edita inline, se cambia de formato en vivo y se exportan PNGs o PDF. El HTML incluye TODOS los brand kits guardados (window.BRAND_KITS) para cambiar de kit en vivo desde el picker del editor.",
+      "Genera un carrusel HTML editable y lo abre. La definición se persiste por defecto como carousel.json v2 en un árbol nested de bloques (brand, stack, text, highlight, body, items, box, etc.) con posiciones, tamaños, estilos y assets referenciados por archivo. El HTML incluye TODOS los brand kits guardados para cambiar de kit en vivo.",
     inputSchema: {
       type: "object",
       properties: {
         title: { type: "string", description: "Título del carrusel (se usa en el header y en los nombres de archivo al exportar). Default: 'Carrusel'." },
         fileName: { type: "string", description: "Nombre base del archivo HTML (sin extensión). Default: slug del title + timestamp." },
+        carouselName: { type: "string", description: "Slug persistido del carrusel dentro de ~/.carousel-generator/carousels/{company}/." },
+        company: { type: "string", description: "Empresa/brand slug que agrupa el carrusel. Default: kitName o nombre del kit." },
         outputDir: { type: "string", description: "Directorio de salida. Acepta ~. Default: ~/Downloads." },
         format: { type: "string", enum: ["feed", "square", "story"], description: "Formato inicial: feed (4:5, 1080x1350, default), square (1:1, 1080x1080 para IG/LinkedIn), story (9:16, 1080x1920 para stories/reels/TikTok). Se puede cambiar en vivo en el editor." },
         showNumbers: { type: "boolean", description: "Muestra el chip de numeración N/M arriba a la derecha de cada slide (default true). Pasá false para un look limpio sin números." },
+        persist: { type: "boolean", description: "Guarda carousel.json v2 y copia los assets en ~/.carousel-generator/carousels/{company}/{carouselName}/. Default true." },
         kitName: { type: "string", description: "Nombre del brand kit (ver list_brand_kits). Se busca en ~/.carousel-generator/brand/{empresa}/kit.json y luego en mcp/kits/ del repo. Default: 'hooked' si existe, si no el kit Default." },
         kit: { type: "object", description: "Brand kit inline (se mergea sobre el kit base): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, gradients:[{name,css,light}] }. logo.imagePath: ruta de logo — 'logo.png' relativo a la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/), o 'file:' + ruta absoluta. Se embebe en base64." },
         slides: {
@@ -217,9 +312,9 @@ const tools = [
             properties: {
               template: { type: "string", enum: TEMPLATES, description: "Plantilla base: cover (portada con título hero φ³), fact (dato + items), map (pills de ubicación, fondo claro), list (items con emoji), cta (cierre con box de marca)." },
               eyebrow: { type: "string", description: "Kicker superior en mayúsculas." },
-              titleWhite: { type: "string", description: "Título principal (blanco, monospace, uppercase). '\\n' para cortar línea." },
-              titleOrange: { type: "string", description: "Título resaltado dentro de la caja de color primario." },
-              paragraphs: { type: "array", items: { type: "string" }, description: "Párrafos. Soporta **negrita**." },
+              titleWhite: { type: "string", description: "Formato legacy. Preferí elements con un bloque text blanco más chico; no mezcles el resaltado naranja inline." },
+              titleOrange: { type: "string", description: "Formato legacy. Preferí elements con un bloque highlight naranja más grande debajo del text blanco." },
+              paragraphs: { type: "array", items: { type: "string" }, description: "Párrafos. Soporta **negrita** y ==resaltado==." },
               items: { type: "array", items: { type: "object", properties: { emoji: { type: "string" }, title: { type: "string" }, desc: { type: "string" } } }, description: "Items con emoji (grilla icono + título + descripción)." },
               pills: { type: "array", items: { type: "object", properties: { text: { type: "string" }, top: { type: "number" }, side: { type: "string", enum: ["left", "right"] }, offset: { type: "number" } } }, description: "Pills de ubicación (para template map)." },
               ctaBox: { type: "object", properties: { title: { type: "string" }, text: { type: "string" } }, description: "Box de marca del cierre." },
@@ -227,10 +322,53 @@ const tools = [
               foot: { type: "string", description: "Texto chico del pie." },
               background: { type: "string", description: "Nombre de un gradient del kit ('navy','dusk','mapa',...), CSS de linear-gradient completo, o 'file:' + ruta local a una foto (ej: 'file:/tmp/foto.jpg', acepta ~) que se embebe como background." },
               overlayLight: { type: "boolean", description: "Fondo claro con texto oscuro (estilo mapa)." },
+              scrim: { type: "number", description: "Velo de opacidad oscura sobre foto (0-85, default 45 en fotos). Capa sólida html2canvas-safe para que el texto no se pierda." },
+              bgPos: { type: "string", description: "Punto focal de la foto: 'center', 'center 30%', 'top', 'left bottom', etc. Evita que el sujeto quede cortado al cambiar de formato." },
+              align: { type: "object", description: "Alineación por bloque: {eyebrow,title,body} cada uno left|center|right (default left).", properties: { eyebrow: { type: "string" }, title: { type: "string" }, body: { type: "string" } } },
+              copyPos: { type: "object", description: "Posición estructurada del bloque de texto: {anchor: top|center|bottom, offset: -10..10}.", properties: { anchor: { type: "string" }, offset: { type: "number" } } },
+              elements: { type: "array", description: "Árbol nested v2. Cada nodo es {id,type,style,pos,text,children}; tipos: brand,count,stack,kicker,text,highlight,body,items,item,box,pill,slogan,foot. Si se pasa, reemplaza la forma plana y se persiste tal cual normalizada." },
             },
           },
         },
       },
+    },
+  },
+  {
+    name: "list_carousels",
+    description: "Lista los carouseles persistidos por empresa en ~/.carousel-generator/carousels/. Devuelve company, slug, título, formato, cantidad de slides, fecha y ruta JSON para elegir cuál cargar.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "load_carousel",
+    description: "Carga un carousel.json v2 por empresa/slug, resuelve sus assets, genera un HTML editable y lo abre. Devuelve el JSON nested completo más las rutas render/json. Usalo para inspeccionar y refinar un carrusel existente.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company: { type: "string", description: "Slug de empresa." },
+        name: { type: "string", description: "Slug del carrusel." },
+        slug: { type: "string", description: "Alias de name." },
+        outputDir: { type: "string", description: "Directorio del HTML renderizado. Default ~/Downloads." },
+        fileName: { type: "string", description: "Nombre del HTML renderizado." },
+        open: { type: "boolean", description: "Abrir el HTML en navegador. Default true." },
+      },
+      required: ["company"],
+    },
+  },
+  {
+    name: "save_carousel",
+    description: "Guarda o mergea un carousel.json v2 nested. Acepta carousel completo, slides nested o legacy; copia fotos/logo data URL o file: a assets/ y nunca guarda base64 en carousel.json. Sirve para el ciclo load -> refinar -> save.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company: { type: "string", description: "Slug de empresa." },
+        name: { type: "string", description: "Slug persistido del carrusel." },
+        slug: { type: "string", description: "Alias de name." },
+        carousel: { type: "object", description: "Objeto carousel.json v2 completo, incluyendo meta, kit y slides." },
+        slides: { type: "array", description: "Slides nested o legacy para crear/actualizar el carrusel." },
+        meta: { type: "object", description: "Meta parcial: title, format, showCount." },
+        kit: { type: "object", description: "Snapshot de brand kit opcional." },
+      },
+      required: ["company", "name"],
     },
   },
   {
@@ -258,38 +396,259 @@ const tools = [
     description: "Devuelve el JSON completo de un brand kit guardado (busca en ~/.carousel-generator/brand/{empresa}/kit.json y en mcp/kits/ del repo).",
     inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
   },
+  {
+    name: "brand_kit_from_url",
+    description:
+      "Genera un brand kit desde la homepage de un sitio (fetch + heurística, sin dependencias) y lo guarda en ~/.carousel-generator/brand/{empresa}/kit.json. Extrae nombre, theme-color, colores frecuentes, Google Fonts y logo/favicon. Devuelve resumen con confianza por campo y qué revisar. Loop de ajuste: previsualizá con generate_carousel (kitName) y refiná con save_brand_kit pasando solo los campos a cambiar (ej: {\"colors\":{\"primary\":\"#ff5a00\"}}).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "URL http(s) del sitio (se analiza solo la homepage)." },
+        name: { type: "string", description: "Slug/nombre del kit. Default: og:site_name, <title> o hostname." },
+        save: { type: "boolean", description: "Guardar en ~/.carousel-generator/brand/{empresa}/kit.json (default true). Con false solo devuelve el JSON inferido sin guardar." },
+      },
+      required: ["url"],
+    },
+  },
 ];
 
-function toolGenerate(args) {
-  const a = args || {};
-  const kit = resolveKit(a.kitName, a.kit);
-  const slidesIn = Array.isArray(a.slides) && a.slides.length ? a.slides : TEMPLATES.map((t) => ({ template: t }));
-  const slides = slidesIn.map(normSlideArg);
-  const title = String(a.title || "Carrusel");
-  const format = ["feed", "square", "story"].includes(a.format) ? a.format : "feed";
-  const data = { kit, kitSource: { store: "generated", slug: slug(kit.name || "kit") }, meta: { title, format, showCount: a.showNumbers !== false }, slides };
+function carouselPath(company, name) {
+  return path.join(CAROUSEL_DIR, slug(company), slug(name));
+}
+function dataUrlParts(value) {
+  const m = String(value || "").match(/^data:([^;]+);base64,(.+)$/);
+  return m ? { mime: m[1], buffer: Buffer.from(m[2], "base64") } : null;
+}
+function extensionForMime(mime) {
+  const found = Object.entries(IMG_EXTS).find(([, value]) => value === mime);
+  return found ? found[0] : ".jpg";
+}
+function assetName(stem, ext) {
+  return `${slug(stem).slice(0, 42) || "asset"}${ext || ".jpg"}`;
+}
+function fileDataURL(file) {
+  const ext = path.extname(file).toLowerCase();
+  const mime = IMG_EXTS[ext] || "application/octet-stream";
+  return `data:${mime};base64,${fs.readFileSync(file).toString("base64")}`;
+}
+function imageDimensions(file) {
+  const b = fs.readFileSync(file);
+  if (b.length > 24 && b.readUInt32BE(0) === 0x89504e47) return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) };
+  if (b.length < 4 || b[0] !== 0xff || b[1] !== 0xd8) return { width: null, height: null };
+  let p = 2;
+  while (p + 9 < b.length) {
+    if (b[p] !== 0xff) { p++; continue; }
+    const marker = b[p + 1];
+    const length = b.readUInt16BE(p + 2);
+    if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker)) return { width: b.readUInt16BE(p + 7), height: b.readUInt16BE(p + 5) };
+    p += 2 + length;
+  }
+  return { width: null, height: null };
+}
+function copyImageAsset(ref, assetsDir, stem, baseDir, manifest, kind = "photo") {
+  const sourcePath = ref && ref.sourcePath ? expandHome(ref.sourcePath) : null;
+  const assetRef = ref && ref.asset ? String(ref.asset) : "";
+  const assetPath = assetRef && baseDir ? path.resolve(baseDir, assetRef) : null;
+  const data = ref && dataUrlParts(ref.src);
+  let source = sourcePath && fs.existsSync(sourcePath) ? sourcePath : null;
+  if (!source && assetPath && fs.existsSync(assetPath)) source = assetPath;
+  let ext = source ? path.extname(source).toLowerCase() : data ? extensionForMime(data.mime) : ".jpg";
+  if (!IMG_EXTS[ext]) ext = ".jpg";
+  const name = assetName(stem, ext);
+  const target = path.join(assetsDir, name);
+  if (source) fs.copyFileSync(source, target);
+  else if (data) fs.writeFileSync(target, data.buffer);
+  else if (assetRef) return assetRef;
+  else return null;
+  const rel = `assets/${name}`;
+  const dimensions = imageDimensions(target);
+  manifest.push({ id: slug(stem), file: rel, kind, mime: IMG_EXTS[ext] || "image/jpeg", ...dimensions });
+  return rel;
+}
+function persistCarousel(data, company, name, baseDir) {
+  const dir = carouselPath(company, name);
+  const assetsDir = path.join(dir, "assets");
+  fs.mkdirSync(assetsDir, { recursive: true });
+  const stored = clone(data);
+  const manifest = [];
+  stored.version = 2;
+  stored.company = slug(company);
+  stored.slug = slug(name);
+  stored.updatedAt = new Date().toISOString();
+  stored.createdAt = stored.createdAt || stored.updatedAt;
+  stored.blockVocabulary = BLOCK_TYPES;
+  stored.meta = {
+    ...(stored.meta || {}),
+    canvas: (stored.meta && stored.meta.canvas) || canvasForFormat(stored.meta && stored.meta.format || "feed"),
+    defaults: {
+      brand: { topPct: 3.8, leftPct: 6.2, logoH: 48 },
+      count: { topPct: 3.8, rightPct: 6.2 },
+      copy: { anchor: "bottom", offsetPct: 0, widthPct: 87.6, maxHeightPct: 62 },
+    },
+  };
+  if (stored.kit && stored.kit.logo && (stored.kit.logo.img || stored.kit.logo.asset)) {
+    const logo = copyImageAsset({ src: stored.kit.logo.img, asset: stored.kit.logo.asset }, assetsDir, "logo", baseDir, manifest, "logo");
+    if (logo) stored.kit.logo = { ...stored.kit.logo, asset: logo };
+    delete stored.kit.logo.img;
+  }
+  for (const [index, slide] of (stored.slides || []).entries()) {
+    slide.id = slide.id || `slide-${index + 1}`;
+    for (const legacy of ["eyebrow", "titleWhite", "titleOrange", "paragraphs", "items", "pills", "ctaBox", "slogan", "foot", "align", "copyPos", "__mcp"]) delete slide[legacy];
+    if (slide.bg) {
+      if (slide.scrim !== undefined) slide.bg.scrim = slide.scrim;
+      if (slide.bgPos !== undefined) slide.bg.bgPos = slide.bgPos;
+      if (slide.overlayLight !== undefined) slide.bg.overlayLight = slide.overlayLight;
+      delete slide.scrim;
+      delete slide.bgPos;
+      delete slide.overlayLight;
+    }
+    if (slide.bg && slide.bg.type === "photo") {
+      const asset = copyImageAsset(slide.bg, assetsDir, `${slide.id}-background`, baseDir, manifest);
+      if (asset) slide.bg.asset = asset;
+      delete slide.bg.src;
+      delete slide.bg.sourcePath;
+    }
+  }
+  stored.assets = manifest;
+  fs.writeFileSync(path.join(dir, "carousel.json"), JSON.stringify(stored, null, 2), "utf8");
+  return { dir, file: path.join(dir, "carousel.json"), data: stored };
+}
+function hydrateCarousel(stored, dir) {
+  const data = clone(stored);
+  if (data.kit && data.kit.logo && data.kit.logo.asset) {
+    const file = path.resolve(dir, data.kit.logo.asset);
+    if (fs.existsSync(file)) data.kit.logo.img = fileDataURL(file);
+  }
+  for (const slide of data.slides || []) {
+    if (slide.bg) {
+      if (slide.bg.scrim !== undefined) slide.scrim = slide.bg.scrim;
+      if (slide.bg.bgPos !== undefined) slide.bgPos = slide.bg.bgPos;
+      if (slide.bg.overlayLight !== undefined) slide.overlayLight = slide.bg.overlayLight;
+    }
+    if (slide.bg && slide.bg.type === "photo" && slide.bg.asset) {
+      const file = path.resolve(dir, slide.bg.asset);
+      if (fs.existsSync(file)) slide.bg.src = fileDataURL(file);
+    }
+  }
+  return data;
+}
+function canvasForFormat(format) {
+  return format === "square" ? { w: 1080, h: 1080 } : format === "story" ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
+}
+function renderCarousel(data, args = {}) {
   const brands = brandKitsPayload();
   const html = fs.readFileSync(APP_PATH, "utf8");
   if (!html.includes(MARKER)) throw new Error("La app no contiene el marcador CAROUSEL_DATA.");
   const payload =
-    "<script>window.BRAND_KITS=" +
-    JSON.stringify(brands).replace(/</g, "\\u003c") +
-    ";</script>" +
-    "<script>window.CAROUSEL_DATA=" +
-    JSON.stringify(data).replace(/</g, "\\u003c") +
-    ";</script>";
+    "<script>window.BRAND_KITS=" + JSON.stringify(brands).replace(/</g, "\\u003c") + ";</script>" +
+    "<script>window.CAROUSEL_DATA=" + JSON.stringify(data).replace(/</g, "\\u003c") + ";</script>";
   const out = html.replace(MARKER, payload);
-  const dir = expandHome(a.outputDir || "~/Downloads");
+  const dir = expandHome(args.outputDir || "~/Downloads");
   fs.mkdirSync(dir, { recursive: true });
-  const base = a.fileName ? slug(a.fileName) : slug(title) + "-" + new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+  const base = args.fileName ? slug(args.fileName) : slug(data.meta.title) + "-" + new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
   const file = path.join(dir, base + ".html");
   fs.writeFileSync(file, out, "utf8");
-  try {
-    if (process.platform === "darwin") spawn("open", [file], { stdio: "ignore", detached: true }).unref();
-    else if (process.platform === "linux") spawn("xdg-open", [file], { stdio: "ignore", detached: true }).unref();
-  } catch {}
-  const kitNames = Object.keys(brands);
-  return `Carrusel generado (${slides.length} slides, formato ${format}, kit "${kit.name}"):\n${file}\n\nSe abrió en el navegador. Kits disponibles en el picker: ${kitNames.length ? kitNames.join(", ") : "(solo el activo)"}. Subí las fotos, cambiá de formato (4:5 / 1:1 / 9:16) si querés, y exportá cada slide como PNG o todo como PDF con los botones de exportar. Todo el contenido sigue editable: click directo sobre los textos o desde el panel derecho.`;
+  if (args.open !== false) {
+    try {
+      if (process.platform === "darwin") spawn("open", [file], { stdio: "ignore", detached: true }).unref();
+      else if (process.platform === "linux") spawn("xdg-open", [file], { stdio: "ignore", detached: true }).unref();
+    } catch {}
+  }
+  return file;
+}
+function runtimeDataFromArgs(args) {
+  const a = args || {};
+  const kit = resolveKit(a.kitName, a.kit);
+  const slidesIn = Array.isArray(a.slides) && a.slides.length ? a.slides : TEMPLATES.map((template) => ({ template }));
+  const slides = slidesIn.map((slide, index) => {
+    const out = normSlideArg(slide);
+    out.id = out.id || `slide-${index + 1}`;
+    return out;
+  });
+  const title = String(a.title || "Carrusel");
+  const format = ["feed", "square", "story"].includes(a.format) ? a.format : "feed";
+  return {
+    version: 2,
+    company: slug(a.company || a.kitName || kit.name || "default"),
+    slug: slug(a.carouselName || a.fileName || title),
+    kit,
+    kitSource: { store: "generated", slug: slug(kit.name || "kit") },
+    meta: { title, format, canvas: canvasForFormat(format), showCount: a.showNumbers !== false },
+    slides,
+  };
+}
+function toolGenerate(args) {
+  const a = args || {};
+  const data = runtimeDataFromArgs(a);
+  const company = slug(a.company || a.kitName || data.kit.name || "default");
+  const carouselName = slug(a.carouselName || a.fileName || data.meta.title);
+  let persisted = null;
+  if (a.persist !== false) persisted = persistCarousel(data, company, carouselName);
+  const file = renderCarousel(data, a);
+  const kitNames = Object.keys(brandKitsPayload());
+  return `Carrusel generado (${data.slides.length} slides, formato ${data.meta.format}, kit "${data.kit.name}"):\n${file}\n\nJSON persistido: ${persisted ? persisted.file : "no (persist:false)"}\nEmpresa: ${company} · Carrusel: ${carouselName}\n\nSe abrió en el navegador. Kits disponibles en el picker: ${kitNames.length ? kitNames.join(", ") : "(solo el activo)"}. El árbol nested de bloques sigue editable y el HTML se puede exportar a PNG/PDF.`;
+}
+function readCarousel(company, name) {
+  const dir = carouselPath(company, name);
+  const file = path.join(dir, "carousel.json");
+  if (!fs.existsSync(file)) throw new Error(`Carrusel "${slug(company)}/${slug(name)}" no existe.`);
+  return { dir, file, stored: JSON.parse(fs.readFileSync(file, "utf8")) };
+}
+function toolListCarousels() {
+  if (!fs.existsSync(CAROUSEL_DIR)) return JSON.stringify({ root: CAROUSEL_DIR, carousels: [] }, null, 2);
+  const carousels = [];
+  for (const company of fs.readdirSync(CAROUSEL_DIR)) {
+    const companyDir = path.join(CAROUSEL_DIR, company);
+    if (!fs.statSync(companyDir).isDirectory()) continue;
+    for (const name of fs.readdirSync(companyDir)) {
+      const file = path.join(companyDir, name, "carousel.json");
+      if (!fs.existsSync(file)) continue;
+      try {
+        const data = JSON.parse(fs.readFileSync(file, "utf8"));
+        carousels.push({ company, slug: name, title: data.meta && data.meta.title, format: data.meta && data.meta.format, slides: (data.slides || []).length, updatedAt: data.updatedAt, file });
+      } catch {}
+    }
+  }
+  return JSON.stringify({ root: CAROUSEL_DIR, carousels }, null, 2);
+}
+function toolLoadCarousel(args) {
+  const a = args || {};
+  const company = slug(a.company || "");
+  const name = slug(a.name || a.slug || "");
+  if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+  const record = readCarousel(company, name);
+  const runtime = hydrateCarousel(record.stored, record.dir);
+  const file = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName || name, open: a.open !== false });
+  return JSON.stringify({ ...record.stored, render: { html: file, json: record.file } }, null, 2);
+}
+function toolSaveCarousel(args) {
+  const a = args || {};
+  const input = a.carousel && typeof a.carousel === "object" ? a.carousel : {};
+  const existing = a.company && (a.name || a.slug) ? (() => { try { return readCarousel(a.company, a.name || a.slug).stored; } catch { return null; } })() : null;
+  const company = slug(a.company || input.company || input.kitSource && input.kitSource.slug || input.kit && input.kit.name || "default");
+  const name = slug(a.name || a.slug || input.slug || input.meta && input.meta.title || "carrusel");
+  const sourceDir = existing ? carouselPath(company, name) : input.company && input.slug ? carouselPath(input.company, input.slug) : null;
+  const kitBase = existing && existing.kit ? existing.kit : resolveKit(company);
+  const kit = deepMerge(kitBase, input.kit || a.kit || {});
+  const rawSlides = a.slides || input.slides || existing && existing.slides || [];
+  const slides = rawSlides.map((slide, index) => {
+    const out = normSlideArg(slide);
+    out.id = slide.id || out.id || `slide-${index + 1}`;
+    return out;
+  });
+  const requestedFormat = a.format || input.meta && input.meta.format || a.meta && a.meta.format || existing && existing.meta && existing.meta.format;
+  const format = ["feed", "square", "story"].includes(requestedFormat) ? requestedFormat : "feed";
+  const data = {
+    version: 2,
+    company,
+    slug: name,
+    kit,
+    kitSource: input.kitSource || { store: "saved", slug: slug(kit.name || company) },
+    meta: { ...(existing && existing.meta || {}), ...(input.meta || {}), ...(a.meta || {}), format, canvas: canvasForFormat(format) },
+    slides,
+  };
+  const saved = persistCarousel(data, company, name, sourceDir);
+  return JSON.stringify({ saved: saved.file, company, slug: name, title: data.meta.title || name, slides: slides.length, assets: saved.data.assets }, null, 2);
 }
 function toolSaveKit(args) {
   const a = args || {};
@@ -325,12 +684,196 @@ function toolLoadKit(args) {
   return fs.readFileSync(found.file, "utf8");
 }
 
-function callTool(name, args) {
+function hexNorm(h) {
+  h = String(h).toLowerCase();
+  if (/^#[0-9a-f]{3}$/.test(h)) h = "#" + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+  return h;
+}
+function hexRgb(h) {
+  const n = parseInt(hexNorm(h).slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbHex(r, g, b) {
+  const c = (x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0");
+  return "#" + c(r) + c(g) + c(b);
+}
+function hexMix(h1, h2, t) {
+  const a = hexRgb(h1), b = hexRgb(h2);
+  return rgbHex(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
+}
+function hexLum(h) {
+  const [r, g, b] = hexRgb(h).map((x) => x / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function isGray(h) {
+  const [r, g, b] = hexRgb(h);
+  return Math.max(r, g, b) - Math.min(r, g, b) < 14;
+}
+function metaContent(html, attr, val) {
+  const re = new RegExp(`<meta[^>]*${attr}=["']${val}["'][^>]*>`, "i");
+  const m = html.match(re);
+  if (!m) return null;
+  const c = m[0].match(/content=["']([^"']+)["']/i);
+  return c ? c[1].trim() : null;
+}
+function linksHref(html, relRe) {
+  const out = [];
+  const re = /<link[^>]*>/gi;
+  let m;
+  while ((m = re.exec(html))) {
+    const tag = m[0];
+    const rel = (tag.match(/rel=["']([^"']+)["']/i) || [])[1] || "";
+    if (!relRe.test(rel)) continue;
+    const href = (tag.match(/href=["']([^"']+)["']/i) || [])[1];
+    if (href) out.push(href.trim());
+  }
+  return out;
+}
+async function fetchBrandHTML(url) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 15000);
+  try {
+    const res = await globalThis.fetch(url, {
+      signal: ctl.signal,
+      headers: { "User-Agent": "carousel-generator/2.2 (+brand-kit)", Accept: "text/html" },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} al pedir ${url}`);
+    const ct = res.headers.get("content-type") || "";
+    if (ct && !/text\/html|text\/plain|application\/xhtml/i.test(ct)) throw new Error(`Contenido no-HTML (${ct})`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > 1500000) throw new Error("HTML mayor a 1.5MB, abortado por seguridad.");
+    return buf.toString("utf8");
+  } catch (e) {
+    if (e && e.name === "AbortError") throw new Error("Timeout (15s) al pedir " + url);
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+async function downloadLogoDataURL(logoUrl) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 12000);
+  try {
+    const res = await globalThis.fetch(logoUrl, {
+      signal: ctl.signal,
+      headers: { "User-Agent": "carousel-generator/2.2 (+brand-kit)" },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const ct = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    const ext = logoUrl.split("?")[0].split(".").pop().toLowerCase();
+    const mime = ct.startsWith("image/") ? ct : IMG_EXTS["." + ext];
+    if (!mime) throw new Error(`MIME no-imagen (${ct || "?"})`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (!buf.length || buf.length > 500000) throw new Error("logo vacío o mayor a 500KB");
+    return { dataURL: `data:${mime};base64,` + buf.toString("base64"), source: logoUrl };
+  } finally {
+    clearTimeout(t);
+  }
+}
+function inferKitFromHTML(html, pageUrl) {
+  const conf = {};
+  const title = (html.match(/<title[^>]*>([^<]{1,120})<\/title>/i) || [])[1];
+  const siteName = metaContent(html, "property", "og:site_name") || metaContent(html, "name", "application-name");
+  const theme = metaContent(html, "name", "theme-color") || metaContent(html, "name", "msapplication-TileColor");
+  const counts = {};
+  const re = /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b/g;
+  let m;
+  while ((m = re.exec(html))) {
+    const h = hexNorm(m[0]);
+    counts[h] = (counts[h] || 0) + 1;
+  }
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 40);
+  const saturated = ranked.filter(([h]) => !isGray(h) && h !== "#ffffff" && h !== "#000000");
+  const pick = (list, fb) => (list.length ? list[0][0] : fb);
+  let primary, primarySrc;
+  if (theme && /^#[0-9a-f]{3,6}$/i.test(theme)) { primary = hexNorm(theme); primarySrc = "meta theme-color"; conf.primary = "alta"; }
+  else if (saturated.length) { primary = saturated[0][0]; primarySrc = `color frecuente (×${saturated[0][1]})`; conf.primary = "media"; }
+  else { primary = DEFAULT_KIT.colors.primary; primarySrc = "fallback Default"; conf.primary = "baja"; }
+  const darks = ranked.filter(([h]) => hexLum(h) < 0.12 && h !== primary);
+  const secondary = darks.length ? darks[0][0] : "#0f172a";
+  conf.secondary = darks.length ? "media" : "baja";
+  const lights = ranked.filter(([h]) => hexLum(h) > 0.75 && !isGray(h));
+  const lightHit = lights.length ? lights[0][0] : null;
+  const gFonts = linksHref(html, /stylesheet/i).filter((h) => h.includes("fonts.googleapis.com"));
+  let googleUrl = gFonts.length ? (gFonts[0].startsWith("http") ? gFonts[0] : new URL(gFonts[0], pageUrl).href) : null;
+  conf.fonts = googleUrl ? "media (Google Fonts detectado)" : "baja (fallback Inter)";
+  const fams = [];
+  const fre = /font-family\s*:\s*([^;}]{1,160})/gi;
+  let fm;
+  while ((fm = fre.exec(html)) && fams.length < 20) fams.push(fm[1].trim());
+  const stack = fams.find((f) => /inter|roboto|poppins|montserrat|manrope|dm sans|archivo|jetbrains|space|playfair|serif/i.test(f));
+  const body = stack ? stack.split(",")[0].replace(/['"]/g, "").trim() : "Inter";
+  const icons = linksHref(html, /apple-touch-icon|icon/i);
+  const ogImg = metaContent(html, "property", "og:image");
+  const logoCands = [...icons.filter((h) => !/\.ico(\?|$)/i.test(h)).slice(0, 2), ...(ogImg ? [ogImg] : [])].slice(0, 3);
+  const brandName = (siteName || (title || "").split(/[|·–—-]/)[0] || new URL(pageUrl).hostname.replace(/^www\./, "")).trim().slice(0, 60);
+  return { brandName, title, primary, primarySrc, secondary, lightHit, googleUrl, body, logoCands, conf };
+}
+async function toolBrandKitFromURL(args) {
+  const a = args || {};
+  const raw = String(a.url || "").trim();
+  if (!raw) throw new Error("Falta `url`.");
+  let u;
+  try { u = new URL(raw); } catch { throw new Error(`URL inválida: "${raw}". Incluí el esquema https://`); }
+  if (!/^https?:$/.test(u.protocol)) throw new Error("Solo se aceptan URLs http(s).");
+  const html = await fetchBrandHTML(u.href);
+  const inf = inferKitFromHTML(html, u.href);
+  const sl = slug(a.name || inf.brandName || u.hostname);
+  const sec = inf.secondary, dark = hexMix(sec, "#000000", 0.45);
+  const kit = clone(DEFAULT_KIT);
+  kit.name = String(a.name || inf.brandName || sl).slice(0, 60);
+  kit.colors = { primary: inf.primary, secondary: sec, tertiary: "#ffffff", slideBg: hexMix(sec, "#ffffff", 0.08) };
+  kit.fonts = {
+    heading: `'${inf.body}', system-ui, sans-serif`,
+    body: `'${inf.body}', system-ui, sans-serif`,
+    googleUrl: inf.googleUrl || DEFAULT_KIT.fonts.googleUrl,
+  };
+  kit.logo = { letter: (kit.name[0] || "c").toLowerCase(), text: kit.name };
+  kit.gradients = [
+    { name: "deep", css: `linear-gradient(145deg,${sec},${dark} 70%)` },
+    { name: "brand", css: `linear-gradient(145deg,${hexMix(sec, inf.primary, 0.35)},${sec} 60%,${dark})` },
+    { name: "accent", css: `linear-gradient(145deg,${inf.primary},${sec} 55%,${dark})` },
+    inf.lightHit
+      ? { name: "light", css: `linear-gradient(135deg,${inf.lightHit},${hexMix(inf.lightHit, sec, 0.45)} 60%,${hexMix(sec, "#ffffff", 0.25)})`, light: true }
+      : { name: "mint", css: "linear-gradient(135deg,#bfe3d8,#dcead2 55%,#5ea3b8)", light: true },
+  ];
+  let logoNote = "sin logo (se usa letra fallback)";
+  let logoConf = "baja";
+  for (const cand of inf.logoCands) {
+    try {
+      const abs = new URL(cand, u.href).href;
+      const dl = await downloadLogoDataURL(abs);
+      kit.logo.img = dl.dataURL;
+      logoNote = `logo embebido desde ${abs}`;
+      logoConf = "media";
+      break;
+    } catch (e) {
+      logoNote = `logo no descargable (${(e && e.message) || e}), se usa letra fallback`;
+    }
+  }
+  if (a.save === false) {
+    return `Kit inferido (NO guardado, save:false):\n${JSON.stringify(kit, null, 2).slice(0, 4000)}\n\nConfianza — primario: ${inf.conf.primary} (${inf.primarySrc}) · secundario: ${inf.conf.secondary} · fonts: ${inf.conf.fonts} · logo: ${logoConf} (${logoNote}).\nPara guardarlo pasá save:true o usá save_brand_kit con este JSON.`;
+  }
+  const existing = findKitFile(sl);
+  const base = existing ? JSON.parse(fs.readFileSync(existing.file, "utf8")) : clone(DEFAULT_KIT);
+  const merged = deepMerge(base, kit);
+  merged.name = kit.name;
+  const dir = path.join(BRAND_DIR, sl);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "kit.json"), JSON.stringify(merged, null, 2), "utf8");
+  return `Kit "${sl}" generado desde ${u.href} y guardado en ${path.join(dir, "kit.json")}${existing ? " (mergeado sobre el existente)" : ""}.\n\n- Marca: ${kit.name}\n- Primario: ${kit.colors.primary} [confianza ${inf.conf.primary}: ${inf.primarySrc}]\n- Secundario: ${kit.colors.secondary} [confianza ${inf.conf.secondary}]\n- Fonts: ${kit.fonts.heading} [${inf.conf.fonts}]\n- Logo: ${logoNote} [confianza ${logoConf}]\n- Gradients: ${kit.gradients.map((g) => g.name).join(", ")}\n\nRevisar: contraste del primario sobre blanco, logo (¿es el correcto o un favicon chico?), y tipografía.\nAjuste con feedback: previsualizá con generate_carousel {kitName:"${sl}"} y refiná con save_brand_kit {name:"${sl}", kit:{...solo lo que cambia...}} (ej: {"colors":{"primary":"#ff5a00"}}). Los cambios se ven en vivo en el picker del editor.`;
+}
+
+async function callTool(name, args) {
   switch (name) {
     case "generate_carousel": return toolGenerate(args);
+    case "list_carousels": return toolListCarousels();
+    case "load_carousel": return toolLoadCarousel(args);
+    case "save_carousel": return toolSaveCarousel(args);
     case "save_brand_kit": return toolSaveKit(args);
     case "list_brand_kits": return toolListKits();
     case "load_brand_kit": return toolLoadKit(args);
+    case "brand_kit_from_url": return await toolBrandKitFromURL(args);
     default: throw new Error(`Herramienta desconocida: ${name}`);
   }
 }
@@ -345,7 +888,7 @@ async function handle(msg) {
       result: {
         protocolVersion: (params && params.protocolVersion) || "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "carousel-generator", version: "2.1.0" },
+        serverInfo: { name: "carousel-generator", version: "2.3.0" },
       },
     };
   }
@@ -355,7 +898,7 @@ async function handle(msg) {
     const name = params && params.name;
     const args = (params && params.arguments) || {};
     try {
-      return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: callTool(name, args) }] } };
+      return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: await callTool(name, args) }] } };
     } catch (e) {
       return {
         jsonrpc: "2.0", id,
