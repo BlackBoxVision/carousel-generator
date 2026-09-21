@@ -10,8 +10,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const APP_PATH = path.join(__dirname, "..", "app", "index.html");
 const REPO_KITS = path.join(__dirname, "kits");
 const HOME_CG = path.join(os.homedir(), ".carousel-generator");
-const HOME_KITS = path.join(HOME_CG, "kits");
 const BRAND_DIR = path.join(HOME_CG, "brand");
+const LEGACY_KITS = path.join(HOME_CG, "kits");
 const MARKER = "<!--CAROUSEL_DATA-->";
 const TEMPLATES = ["cover", "fact", "map", "list", "cta"];
 const IMG_EXTS = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml" };
@@ -50,18 +50,20 @@ function deepMerge(base, over) {
 }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
-function kitDirs() {
-  return [
-    { dir: HOME_KITS, source: "personal" },
-    { dir: REPO_KITS, source: "repo" },
-  ];
+function companyKitFile(sl) {
+  return path.join(BRAND_DIR, sl, "kit.json");
 }
 function findKitFile(name) {
-  const file = slug(name) + ".json";
-  for (const { dir } of kitDirs()) {
-    const f = path.join(dir, file);
-    if (fs.existsSync(f)) return f;
+  const sl = slug(name);
+  const company = companyKitFile(sl);
+  if (fs.existsSync(company)) return { file: company, scope: sl };
+  const legacy = path.join(LEGACY_KITS, sl + ".json");
+  if (fs.existsSync(legacy)) {
+    process.stderr.write(`[carousel-mcp] kit "${sl}" en layout anterior (${legacy}); movelo a ${company}\n`);
+    return { file: legacy, scope: sl };
   }
+  const repo = path.join(REPO_KITS, sl + ".json");
+  if (fs.existsSync(repo)) return { file: repo, scope: null };
   return null;
 }
 function availableKitNames() {
@@ -69,60 +71,88 @@ function availableKitNames() {
 }
 function allKitsRaw() {
   const out = {};
-  for (const { dir, source } of kitDirs()) {
-    if (!fs.existsSync(dir)) continue;
-    for (const f of fs.readdirSync(dir).filter((x) => x.endsWith(".json"))) {
+  if (fs.existsSync(BRAND_DIR)) {
+    for (const sl of fs.readdirSync(BRAND_DIR).filter((x) => !x.startsWith("."))) {
+      const f = companyKitFile(sl);
+      if (!fs.existsSync(f) || out[sl]) continue;
+      try {
+        out[sl] = { kit: JSON.parse(fs.readFileSync(f, "utf8")), source: "personal", scope: sl };
+      } catch {
+        out[sl] = { kit: null, source: "personal", broken: f };
+      }
+    }
+  }
+  if (fs.existsSync(LEGACY_KITS)) {
+    for (const f of fs.readdirSync(LEGACY_KITS).filter((x) => x.endsWith(".json"))) {
       const sl = f.replace(/\.json$/, "");
       if (out[sl]) continue;
       try {
-        out[sl] = { kit: JSON.parse(fs.readFileSync(path.join(dir, f), "utf8")), source };
+        out[sl] = { kit: JSON.parse(fs.readFileSync(path.join(LEGACY_KITS, f), "utf8")), source: "personal-legacy", scope: sl };
       } catch {
-        out[sl] = { kit: null, source, broken: f };
+        out[sl] = { kit: null, source: "personal-legacy", broken: f };
+      }
+    }
+  }
+  if (fs.existsSync(REPO_KITS)) {
+    for (const f of fs.readdirSync(REPO_KITS).filter((x) => x.endsWith(".json"))) {
+      const sl = f.replace(/\.json$/, "");
+      if (out[sl]) continue;
+      try {
+        out[sl] = { kit: JSON.parse(fs.readFileSync(path.join(REPO_KITS, f), "utf8")), source: "repo", scope: null };
+      } catch {
+        out[sl] = { kit: null, source: "repo", broken: f };
       }
     }
   }
   return out;
 }
-function loadImageDataURL(ref) {
+function loadImageDataURL(ref, scope) {
   let p = String(ref);
   if (/^file:/.test(p)) p = p.replace(/^file:(\/\/)?/, "");
   p = expandHome(p);
-  if (!path.isAbsolute(p)) p = path.join(BRAND_DIR, p);
-  if (!fs.existsSync(p)) throw new Error(`Logo no encontrado: ${p}. Para rutas relativas se busca en ~/.carousel-generator/brand/ (ej: "mi-marca/logo.png").`);
+  if (!path.isAbsolute(p)) {
+    const scoped = scope ? path.join(BRAND_DIR, scope, p) : null;
+    if (scoped && fs.existsSync(scoped)) p = scoped;
+    else p = path.join(BRAND_DIR, p);
+  }
+  if (!fs.existsSync(p)) throw new Error(`Logo no encontrado: ${p}. Rutas relativas se buscan en la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/) y luego en ~/.carousel-generator/brand/.`);
   const ext = path.extname(p).toLowerCase();
   const mime = IMG_EXTS[ext];
   if (!mime) throw new Error(`Formato de logo no soportado: "${ext}". Usá PNG, JPG, WEBP, GIF o SVG.`);
   return `data:${mime};base64,` + fs.readFileSync(p).toString("base64");
 }
-function resolveLogo(kit) {
+function resolveLogo(kit, scope) {
   const l = kit && kit.logo;
   if (l && typeof l.imagePath === "string" && l.imagePath.trim()) {
-    l.img = loadImageDataURL(l.imagePath.trim());
+    l.img = loadImageDataURL(l.imagePath.trim(), scope);
     delete l.imagePath;
   }
   return kit;
 }
 function resolveKit(name, inline) {
-  let base;
+  let base, scope = null;
   if (!name) {
-    const f = findKitFile("hooked");
-    base = f ? JSON.parse(fs.readFileSync(f, "utf8")) : clone(DEFAULT_KIT);
+    const found = findKitFile("hooked");
+    if (found) { base = JSON.parse(fs.readFileSync(found.file, "utf8")); scope = found.scope; }
+    else base = clone(DEFAULT_KIT);
   } else {
-    const f = findKitFile(name);
-    if (!f) {
+    const found = findKitFile(name);
+    if (!found) {
       const avail = availableKitNames();
       throw new Error(`Brand kit "${name}" no existe. Disponibles: ${avail.length ? avail.join(", ") : "(ninguno)"}. Usá save_brand_kit para crear uno.`);
     }
-    base = JSON.parse(fs.readFileSync(f, "utf8"));
+    base = JSON.parse(fs.readFileSync(found.file, "utf8"));
+    scope = found.scope;
   }
   if (inline && typeof inline === "object") base = deepMerge(base, inline);
-  return resolveLogo(base);
+  if (!scope && base && base.name) scope = slug(base.name);
+  return resolveLogo(base, scope);
 }
 function brandKitsPayload() {
   const out = {};
   for (const [sl, entry] of Object.entries(allKitsRaw())) {
     if (!entry.kit) continue;
-    try { out[sl] = resolveLogo(clone(entry.kit)); }
+    try { out[sl] = resolveLogo(clone(entry.kit), entry.scope || sl); }
     catch (e) { process.stderr.write(`[carousel-mcp] kit "${sl}" sin logo (${e.message})\n`); out[sl] = entry.kit; }
   }
   return out;
@@ -168,15 +198,16 @@ const tools = [
   {
     name: "generate_carousel",
     description:
-      "Genera un carrusel de Instagram (slides 1080x1350, formato 4:5) como archivo HTML editable y pre-cargado con contenido, y lo abre en el navegador. Ahí se suben fotos, se edita inline y se exportan los PNGs por slide. El HTML incluye TODOS los brand kits guardados (window.BRAND_KITS) para cambiar de kit en vivo desde el picker del editor.",
+      "Genera un carrusel como archivo HTML editable y pre-cargado con contenido, y lo abre en el navegador. Ahí se suben fotos, se edita inline, se cambia de formato en vivo y se exportan PNGs o PDF. El HTML incluye TODOS los brand kits guardados (window.BRAND_KITS) para cambiar de kit en vivo desde el picker del editor.",
     inputSchema: {
       type: "object",
       properties: {
         title: { type: "string", description: "Título del carrusel (se usa en el header y en los nombres de archivo al exportar). Default: 'Carrusel'." },
         fileName: { type: "string", description: "Nombre base del archivo HTML (sin extensión). Default: slug del title + timestamp." },
         outputDir: { type: "string", description: "Directorio de salida. Acepta ~. Default: ~/Downloads." },
-        kitName: { type: "string", description: "Nombre del brand kit (ver list_brand_kits). Se busca en ~/.carousel-generator/kits/ y luego en mcp/kits/ del repo. Default: 'hooked' si existe, si no el kit Default." },
-        kit: { type: "object", description: "Brand kit inline (se mergea sobre el kit base): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, gradients:[{name,css,light}] }. logo.imagePath: ruta de logo — 'marca/logo.png' relativo a ~/.carousel-generator/brand/, o 'file:' + ruta absoluta. Se embebe en base64." },
+        format: { type: "string", enum: ["feed", "square", "story"], description: "Formato inicial: feed (4:5, 1080x1350, default), square (1:1, 1080x1080 para IG/LinkedIn), story (9:16, 1080x1920 para stories/reels/TikTok). Se puede cambiar en vivo en el editor." },
+        kitName: { type: "string", description: "Nombre del brand kit (ver list_brand_kits). Se busca en ~/.carousel-generator/brand/{empresa}/kit.json y luego en mcp/kits/ del repo. Default: 'hooked' si existe, si no el kit Default." },
+        kit: { type: "object", description: "Brand kit inline (se mergea sobre el kit base): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, gradients:[{name,css,light}] }. logo.imagePath: ruta de logo — 'logo.png' relativo a la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/), o 'file:' + ruta absoluta. Se embebe en base64." },
         slides: {
           type: "array",
           description: "Slides del carrusel. Si se omite, genera 5 slides default (una de cada plantilla).",
@@ -203,7 +234,7 @@ const tools = [
   },
   {
     name: "save_brand_kit",
-    description: "Guarda un brand kit JSON en ~/.carousel-generator/kits/ para reutilizarlo con generate_carousel y verlo en el picker multi-kit del editor. Acepta logo.imagePath (ruta de imagen: 'marca/logo.png' relativo a ~/.carousel-generator/brand/, o 'file:' + absoluta) que se embebe en base64 dentro del kit. Si el kit ya existe, se mergea sobre él.",
+    description: "Guarda un brand kit en ~/.carousel-generator/brand/{empresa}/kit.json para reutilizarlo con generate_carousel y verlo en el picker multi-kit del editor. Acepta logo.imagePath (ruta de imagen relativa a la carpeta de la empresa, o 'file:' + absoluta) que se embebe en base64 dentro del kit. Si el kit ya existe, se mergea sobre él.",
     inputSchema: {
       type: "object",
       properties: {
@@ -218,12 +249,12 @@ const tools = [
   },
   {
     name: "list_brand_kits",
-    description: "Lista los brand kits disponibles: primero ~/.carousel-generator/kits/ (personales), luego mcp/kits/ del repo (ejemplos). Los personales tienen prioridad ante colisiones de nombre.",
+    description: "Lista los brand kits disponibles: primero las carpetas de empresa en ~/.carousel-generator/brand/ (personales), luego mcp/kits/ del repo (ejemplos). Los personales tienen prioridad ante colisiones de nombre.",
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "load_brand_kit",
-    description: "Devuelve el JSON completo de un brand kit guardado (busca en ~/.carousel-generator/kits/ y en mcp/kits/ del repo).",
+    description: "Devuelve el JSON completo de un brand kit guardado (busca en ~/.carousel-generator/brand/{empresa}/kit.json y en mcp/kits/ del repo).",
     inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
   },
 ];
@@ -234,7 +265,8 @@ function toolGenerate(args) {
   const slidesIn = Array.isArray(a.slides) && a.slides.length ? a.slides : TEMPLATES.map((t) => ({ template: t }));
   const slides = slidesIn.map(normSlideArg);
   const title = String(a.title || "Carrusel");
-  const data = { kit, kitSource: { store: "generated", slug: slug(kit.name || "kit") }, meta: { title }, slides };
+  const format = ["feed", "square", "story"].includes(a.format) ? a.format : "feed";
+  const data = { kit, kitSource: { store: "generated", slug: slug(kit.name || "kit") }, meta: { title, format }, slides };
   const brands = brandKitsPayload();
   const html = fs.readFileSync(APP_PATH, "utf8");
   if (!html.includes(MARKER)) throw new Error("La app no contiene el marcador CAROUSEL_DATA.");
@@ -256,7 +288,7 @@ function toolGenerate(args) {
     else if (process.platform === "linux") spawn("xdg-open", [file], { stdio: "ignore", detached: true }).unref();
   } catch {}
   const kitNames = Object.keys(brands);
-  return `Carrusel generado (${slides.length} slides, kit "${kit.name}"):\n${file}\n\nSe abrió en el navegador. Kits disponibles en el picker: ${kitNames.length ? kitNames.join(", ") : "(solo el activo)"}. Subí las fotos y exportá cada slide como PNG 1080x1350 con el botón "⬇ PNG". Todo el contenido sigue editable: click directo sobre los textos o desde el panel derecho.`;
+  return `Carrusel generado (${slides.length} slides, formato ${format}, kit "${kit.name}"):\n${file}\n\nSe abrió en el navegador. Kits disponibles en el picker: ${kitNames.length ? kitNames.join(", ") : "(solo el activo)"}. Subí las fotos, cambiá de formato (4:5 / 1:1 / 9:16) si querés, y exportá cada slide como PNG o todo como PDF con los botones de exportar. Todo el contenido sigue editable: click directo sobre los textos o desde el panel derecho.`;
 }
 function toolSaveKit(args) {
   const a = args || {};
@@ -264,18 +296,19 @@ function toolSaveKit(args) {
   if (!name) throw new Error("Falta el nombre del kit.");
   if (!a.kit || typeof a.kit !== "object") throw new Error("Falta el objeto kit.");
   const existing = findKitFile(name);
-  const base = existing ? JSON.parse(fs.readFileSync(existing, "utf8")) : clone(DEFAULT_KIT);
-  const kit = resolveLogo(deepMerge(base, a.kit));
+  const base = existing ? JSON.parse(fs.readFileSync(existing.file, "utf8")) : clone(DEFAULT_KIT);
+  const kit = resolveLogo(deepMerge(base, a.kit), name);
   kit.name = (a.kit && a.kit.name) || base.name || name;
-  fs.mkdirSync(HOME_KITS, { recursive: true });
-  const file = path.join(HOME_KITS, name + ".json");
+  const dir = path.join(BRAND_DIR, name);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, "kit.json");
   fs.writeFileSync(file, JSON.stringify(kit, null, 2), "utf8");
   return `Kit "${name}" guardado en ${file}${existing ? " (mergeado sobre el existente)" : " (nuevo, basado en Default)"}${kit.logo && kit.logo.img ? " — logo embebido en base64" : ""}`;
 }
 function toolListKits() {
   const all = allKitsRaw();
   const slugs = Object.keys(all).sort();
-  if (!slugs.length) return "No hay kits guardados. Directorios: " + HOME_KITS + " (personal), " + REPO_KITS + " (repo).";
+  if (!slugs.length) return "No hay kits guardados. Carpetas de empresa en " + BRAND_DIR + " (cada una con kit.json), ejemplos en " + REPO_KITS + ".";
   const lines = slugs.map((sl) => {
     const entry = all[sl];
     if (!entry.kit) return `- ${sl} (JSON inválido en ${entry.source})`;
@@ -286,9 +319,9 @@ function toolListKits() {
 }
 function toolLoadKit(args) {
   const name = slug((args && args.name) || "");
-  const file = findKitFile(name);
-  if (!file) throw new Error(`Kit "${name}" no existe. Usá list_brand_kits. Disponibles: ${availableKitNames().join(", ") || "(ninguno)"}.`);
-  return fs.readFileSync(file, "utf8");
+  const found = findKitFile(name);
+  if (!found) throw new Error(`Kit "${name}" no existe. Usá list_brand_kits. Disponibles: ${availableKitNames().join(", ") || "(ninguno)"}.`);
+  return fs.readFileSync(found.file, "utf8");
 }
 
 function callTool(name, args) {
@@ -311,7 +344,7 @@ async function handle(msg) {
       result: {
         protocolVersion: (params && params.protocolVersion) || "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "carousel-generator", version: "2.0.0" },
+        serverInfo: { name: "carousel-generator", version: "2.1.0" },
       },
     };
   }

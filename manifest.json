@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "carousel-generator",
   "display_name": "Carousel Generator",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Instagram 4:5 carousel generator with brand kits, golden-ratio slides and a visual editor",
   "long_description": "Generates Instagram carousels (1080x1350, 4:5) as editable HTML pre-loaded with content. Includes a visual editor with golden-ratio calibration, multi brand-kit support with live switching, logo images, and PNG export per slide.",
   "author": { "name": "BlackBoxVision" },

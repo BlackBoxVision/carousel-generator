@@ -1,14 +1,26 @@
 {
   "name": "carousel-generator",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "description": "Instagram 4:5 carousel generator with brand kits, golden-ratio calibrated slides, visual editor and MCP server for AI agents",
   "scripts": {
     "mcp": "node mcp/server.mjs",
     "install:mcp": "node install.mjs",
-    "bundle": "npx -y @anthropic-ai/mcpb pack . dist/carousel-generator.mcpb"
+    "bundle": "npx -y @anthropic-ai/mcpb pack . dist/carousel-generator.mcpb",
+    "prepare": "husky"
   },
-  "keywords": ["mcp", "mcpb", "instagram", "carousel", "brand-kit"],
-  "license": "UNLICENSED"
+  "keywords": [
+    "mcp",
+    "mcpb",
+    "instagram",
+    "carousel",
+    "brand-kit"
+  ],
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "husky": "^9.1.7"
+  }
 }

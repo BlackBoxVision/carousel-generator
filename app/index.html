@@ -38,6 +38,17 @@ main{flex:1;display:grid;grid-template-columns:172px 1fr 372px;min-height:0}
 .wrap{flex:0 0 auto}
 .wrap.sel .slide{outline:3px solid var(--u-accent);outline-offset:6px}
 .slide{width:540px;height:675px;position:relative;overflow:hidden;background:var(--slidebg);color:var(--tertiary);isolation:isolate;font-family:var(--fb);cursor:pointer}
+.slide.fmt-feed{width:540px;height:675px}
+.slide.fmt-square{width:540px;height:540px}
+.slide.fmt-story{width:540px;height:960px}
+.slide.fmt-story .copy{bottom:20%}
+.safe{display:none;position:absolute;inset:0;z-index:6;pointer-events:none}
+.safe .ztop{position:absolute;top:0;left:0;right:0;height:13%;background:rgba(255,77,109,.13);border-bottom:1.5px dashed rgba(255,77,109,.85)}
+.safe .zbot{position:absolute;bottom:0;left:0;right:0;height:17%;background:rgba(255,77,109,.13);border-top:1.5px dashed rgba(255,77,109,.85)}
+.safe .t{position:absolute;font-size:10px;font-weight:800;color:#ff8fa3;background:rgba(20,4,8,.88);padding:2px 6px;border-radius:3px}
+.safe .ztop .t{bottom:3px;left:6px}
+.safe .zbot .t{top:3px;left:6px}
+body.guides .slide.fmt-story .safe{display:block}
 .photo{position:absolute;inset:0;background-position:center;background-size:cover;background-color:#173449;z-index:-2}
 .photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.02) 0%,rgba(0,0,0,.06) 61.8%,rgba(0,0,0,.9) 100%)}
 .slide.light .photo:after{background:linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.12) 61.8%,rgba(0,0,0,.17) 100%)}
@@ -128,11 +139,13 @@ body.guides .phig{display:block}
 <header>
   <div class="t"><span style="font-size:20px">🪄</span><input id="metaTitle" oninput="setTitle(this.value)" placeholder="Título del carrusel"></div>
   <div class="toolbar">
+    <select id="fmtPicker" onchange="setFormat(this.value)" title="Formato de slides"></select>
     <select id="kitPicker" onchange="switchKit(this.value)" title="Brand kit activo"></select>
     <button class="primary" onclick="openTpl()">+ Slide</button>
     <button onclick="openKit()">🎨 Kit</button>
     <button id="guidesBtn" class="ghost" onclick="toggleGuides()">📐 φ</button>
-    <button onclick="exportAll()">⬇ Exportar PNGs</button>
+    <button onclick="exportAll()">⬇ PNGs</button>
+    <button onclick="exportPDF()">⬇ PDF</button>
     <button class="ghost" onclick="saveJSON()">💾 JSON</button>
     <label class="btn" style="background:#223755">📂 Cargar<input type="file" accept=".json,application/json" style="display:none" onchange="loadJSONFile(event)"></label>
     <button class="danger" onclick="newCarousel()">🗑</button>
@@ -161,7 +174,7 @@ body.guides .phig{display:block}
 <div class="ovl" id="kitDlg" onclick="if(event.target===this)closeDlg('kitDlg')">
   <div class="panel">
     <h2>Brand kit</h2>
-    <p class="note">Se guarda en esta máquina (este navegador). Para usar el kit con el MCP, descargalo y guardalo en <b>~/.carousel-generator/kits/</b></p>
+    <p class="note">Se guarda en esta máquina (este navegador). Para usar el kit con el MCP, descargalo y guardalo en <b>~/.carousel-generator/brand/{empresa}/kit.json</b></p>
     <label>Nombre del kit</label><input type="text" id="k_name">
     <label>Logo — imagen (PNG con transparencia recomendado)</label>
     <div class="logoprev"><img id="k_logoPrev" class="hide" alt="logo"><span id="k_logoNone" style="font-size:12px;color:var(--u-dim)">Sin imagen — se usa la letra</span>
@@ -219,6 +232,8 @@ const TEMPLATES={
  cta:{template:"cta",bg:{type:"gradient",value:"gold"},eyebrow:"",titleWhite:"¿Ya viviste",titleOrange:"esta experiencia?",paragraphs:["**Pregunta de cierre.** Invitá a comentar y etiquetar."],items:[],pills:[],ctaBox:{title:"Marca",text:"Una línea de cierre con tu propuesta de valor."},slogan:"EL TAGLINE DE TU MARCA.",foot:"DEJÁ TU EXPERIENCIA EN LOS COMENTARIOS"}
 };
 const ORDER=["cover","fact","map","list","cta"];
+const FORMATS={feed:{label:"4:5 Feed",px:"1080×1350",w:1080,h:1350},square:{label:"1:1 Cuadrado",px:"1080×1080",w:1080,h:1080},story:{label:"9:16 Stories",px:"1080×1920",w:1080,h:1920}};
+function validFormat(f){return FORMATS[f]?f:"feed"}
 const TPL_LABEL={cover:"Portada",fact:"Dato",map:"Mapa",list:"Lista",cta:"Cierre"};
 const TPL_EMOJI={cover:"🚀",fact:"💡",map:"🗺️",list:"📋",cta:"📣"};
 const LS_STATE="cg:state",LS_KITS="cg:kits";
@@ -240,7 +255,7 @@ function normSlide(s){const t=TEMPLATES[s.template]||TEMPLATES.list;const n=clon
  n.bg=bg;
  if(s.overlayLight!==undefined)n.overlayLight=!!s.overlayLight;else n.overlayLight=!!(bg.type==="gradient"&&(state.kit.gradients.find(g=>g.name===bg.value)||{}).light);
  return n}
-function normState(d){const k=normKit(d&&d.kit);state={kit:k,kitSource:(d&&d.kitSource)||{store:"builtin",slug:"hooked"},meta:{title:(d&&d.meta&&d.meta.title)||"Carrusel nuevo"},slides:[]};state.slides=(d&&d.slides&&d.slides.length?d.slides:ORDER.map(t=>({template:t}))).map(normSlide)}
+function normState(d){const k=normKit(d&&d.kit);state={kit:k,kitSource:(d&&d.kitSource)||{store:"builtin",slug:"hooked"},meta:{title:(d&&d.meta&&d.meta.title)||"Carrusel nuevo",format:validFormat(d&&d.meta&&d.meta.format)},slides:[]};state.slides=(d&&d.slides&&d.slides.length?d.slides:ORDER.map(t=>({template:t}))).map(normSlide)}
 
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 function escAttr(s){return esc(s).replace(/'/g,"&#39;")}
@@ -270,7 +285,7 @@ function slideHTML(s,i){
  if(s.ctaBox.title||s.ctaBox.text)copy+=`<div class="ctabox"><b${ed?` contenteditable="true" data-cta="title" data-single="1" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${esc(s.ctaBox.title)}</b>${`<p${ed?` contenteditable="true" data-cta="text" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${md(s.ctaBox.text)}</p>`}</div>`;
  if(s.slogan)copy+=`<p class="slogan"${eb("slogan",true)}>${esc(s.slogan)}</p>`;
  if(s.foot)copy+=`<div class="foot"${eb("foot",true)}>${esc(s.foot)}</div>`;
- return`<section class="slide ${s.template}${light}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div><div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="brand">${logoHTML()} ${esc(state.kit.logo.text||"")}</div><span class="count">${i+1}/${n}</span>${pillsHTML(s,ed)}<div class="copy">${copy}</div></section>`}
+ return`<section class="slide fmt-${state.meta.format} ${s.template}${light}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div><div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div><div class="brand">${logoHTML()} ${esc(state.kit.logo.text||"")}</div><span class="count">${i+1}/${n}</span>${pillsHTML(s,ed)}<div class="copy">${copy}</div></section>`}
 
 function controlsHTML(i){const n=state.slides.length;return`<div class="controls">
  <label class="btn upload">📷 Foto<input type="file" accept="image/*" onchange="onPhoto(event,${i})"></label>
@@ -296,7 +311,7 @@ function editorHTML(){
  let pills=s.pills.map((p,i)=>`<div class="arr"><button class="x" onclick="delPill(${i})">✕</button>
   <div class="row"><input type="text" id="ed_pl${i}_text" value="${escAttr(p.text)}" oninput="setPill(${i},'text',this.value)" placeholder="Texto del pill"><input class="mini" type="number" value="${+p.top||30}" oninput="setPill(${i},'top',this.value)" placeholder="top%"><select class="mid" oninput="setPill(${i},'side',this.value)"><option value="left"${p.side!=="right"?" selected":""}>Izq</option><option value="right"${p.side==="right"?" selected":""}>Der</option></select><input class="mini" type="number" value="${+p.offset||8}" oninput="setPill(${i},'offset',this.value)" placeholder="off%"></div></div>`).join("");
  return`
- <div class="who"><b>Slide ${sel+1} / ${state.slides.length}</b><span style="font-size:11px;color:var(--u-dim)">${TPL_EMOJI[s.template]||""} ${esc(TPL_LABEL[s.template]||s.template)}</span>
+ <div class="who"><b>Slide ${sel+1} / ${state.slides.length}</b><span style="font-size:11px;color:var(--u-dim)">${TPL_EMOJI[s.template]||""} ${esc(TPL_LABEL[s.template]||s.template)} · ${FORMATS[state.meta.format].px}</span>
   <span class="prevnext"><button class="ghost" onclick="selectSlide(${Math.max(0,sel-1)})"${sel===0?" disabled":""}>◀</button><button class="ghost" onclick="selectSlide(${Math.min(state.slides.length-1,sel+1)})"${sel===state.slides.length-1?" disabled":""}>▶</button></span></div>
  <details><summary>Plantilla</summary><div class="bd">
   <div class="row"><select id="tplSel">${ORDER.map(t=>`<option value="${t}"${t===s.template?" selected":""}>${TPL_EMOJI[t]} ${TPL_LABEL[t]}</option>`).join("")}</select><button style="background:#223755;flex:0 0 auto" onclick="applyTemplate()">Aplicar</button></div>
@@ -321,7 +336,8 @@ function editorHTML(){
   <label>Foot (texto chico)</label><input type="text" id="ed_foot" value="${escAttr(s.foot)}" oninput="setF('foot',this.value)"></div></details>`}
 
 function renderEditor(){document.getElementById("editor").innerHTML=editorHTML()}
-function renderAll(){applyTheme();populateKits();renderNav();renderDeck();renderEditor();document.getElementById("metaTitle").value=state.meta.title}
+function renderAll(){applyTheme();populateKits();document.getElementById("fmtPicker").innerHTML=Object.keys(FORMATS).map(f=>`<option value="${f}"${state.meta.format===f?" selected":""}>${FORMATS[f].label} · ${FORMATS[f].px}</option>`).join("");renderNav();renderDeck();renderEditor();document.getElementById("metaTitle").value=state.meta.title}
+function setFormat(f){state.meta.format=validFormat(f);queueSave();renderDeck();renderEditor();toast("Formato: "+FORMATS[state.meta.format].label+" ("+FORMATS[state.meta.format].px+")")}
 function applyTheme(){const r=document.documentElement.style,k=state.kit;
  r.setProperty("--primary",k.colors.primary);r.setProperty("--secondary",k.colors.secondary);r.setProperty("--tertiary",k.colors.tertiary);r.setProperty("--slidebg",k.colors.slideBg);
  r.setProperty("--fh",k.fonts.heading);r.setProperty("--fb",k.fonts.body);
@@ -388,7 +404,7 @@ function addSlide(t){state.slides.push(normSlide({template:t}));sel=state.slides
 function dupSlide(i){state.slides.splice(i+1,0,clone(state.slides[i]));sel=i+1;queueSave();renderDeck();renderNav();renderEditor();toast("Slide duplicada")}
 function delSlide(i){if(!confirm("¿Eliminar slide "+(i+1)+"?"))return;state.slides.splice(i,1);sel=Math.min(sel,state.slides.length-1);queueSave();renderDeck();renderNav();renderEditor()}
 function moveSlide(i,dir){const j=i+dir;if(j<0||j>=state.slides.length)return;const a=state.slides;[a[i],a[j]]=[a[j],a[i]];sel=j;queueSave();renderDeck();renderNav();renderEditor()}
-function newCarousel(){if(!confirm("¿Empezar un carrusel nuevo? (se mantiene el brand kit actual)"))return;const kit=state.kit,ks=state.kitSource;normState({kit,meta:{title:"Carrusel nuevo"},slides:ORDER.map(t=>({template:t}))});state.kit=kit;state.kitSource=ks;sel=0;queueSave();renderAll()}
+function newCarousel(){if(!confirm("¿Empezar un carrusel nuevo? (se mantiene el brand kit actual)"))return;const kit=state.kit,ks=state.kitSource,fm=state.meta.format;normState({kit,meta:{title:"Carrusel nuevo",format:fm},slides:ORDER.map(t=>({template:t}))});state.kit=kit;state.kitSource=ks;sel=0;queueSave();renderAll()}
 function navDrag(e){e.dataTransfer.setData("text/plain",e.currentTarget.dataset.i)}
 function navOver(e){e.preventDefault();e.currentTarget.classList.add("drop")}
 function navDrop(e,i){e.preventDefault();e.currentTarget.classList.remove("drop");const from=+e.dataTransfer.getData("text/plain");if(from===i||isNaN(from))return;const a=state.slides;const m=a.splice(from,1)[0];a.splice(i,0,m);sel=i;queueSave();renderDeck();renderNav();renderEditor()}
@@ -400,7 +416,12 @@ async function toCanvas(i){if(!window.html2canvas){alert("Necesitás conexión a
  if(document.fonts&&document.fonts.ready)await document.fonts.ready;
  try{return await html2canvas(document.getElementById("s"+i),{scale:2,useCORS:true,backgroundColor:null})}finally{if(hadGuides)document.body.classList.add("guides")}}
 async function exportSlide(i){const c=await toCanvas(i);if(!c)return;dl(c.toDataURL("image/png"),`${slug(state.meta.title)}-${String(i+1).padStart(2,"0")}.png`);toast(`PNG ${i+1}/${state.slides.length} descargado`)}
-async function exportAll(){toast("Exportando PNGs…");for(let i=0;i<state.slides.length;i++){const c=await toCanvas(i);if(!c)return;dl(c.toDataURL("image/png"),`${slug(state.meta.title)}-${String(i+1).padStart(2,"0")}.png`);toast(`Exportando ${i+1}/${state.slides.length}…`);await new Promise(r=>setTimeout(r,350))}toast("Listo — "+state.slides.length+" PNGs descargados")}
+async function exportAll(){toast("Exportando PNGs…");for(let i=0;i<state.slides.length;i++){const c=await toCanvas(i);if(!c)return;dl(c.toDataURL("image/png"),`${slug(state.meta.title)}-${String(i+1).padStart(2,"0")}.png`);toast(`Exportando ${i+1}/${state.slides.length}…`);await new Promise(r=>setTimeout(r,350))}toast("Listo — "+state.slides.length+" PNGs descargados ("+FORMATS[state.meta.format].px+")")}
+async function exportPDF(){if(!window.jspdf){alert("Necesitás conexión a internet para cargar jsPDF (CDN).");return}
+ const F=FORMATS[state.meta.format];toast("Generando PDF…");
+ const pdf=new window.jspdf.jsPDF({unit:"px",format:[F.w,F.h],hotfix:["px_scaling"]});
+ for(let i=0;i<state.slides.length;i++){const c=await toCanvas(i);if(!c)return;if(i>0)pdf.addPage([F.w,F.h]);pdf.addImage(c.toDataURL("image/png"),"PNG",0,0,F.w,F.h);toast(`PDF ${i+1}/${state.slides.length}…`)}
+ pdf.save(slug(state.meta.title)+".pdf");toast(`PDF descargado (${F.px}, ${state.slides.length} páginas)`)}
 function saveJSON(){dl(URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"})),slug(state.meta.title)+".json");toast("JSON guardado")}
 function loadJSONFile(e){const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{normState(JSON.parse(r.result));sel=0;queueSave();renderAll();toast("Carrusel cargado")}catch(err){alert("JSON inválido: "+err.message)}};r.readAsText(f);e.target.value=""}
 
@@ -460,7 +481,7 @@ function kSave(){state.kit.name=g("k_name");state.kit.logo.letter=g("k_letter");
  state.kit.fonts.heading=g("k_fh");state.kit.fonts.body=g("k_fb");state.kit.fonts.googleUrl=g("k_gf");
  const sl=slug(state.kit.name);putLocalKit(sl,clone(state.kit));state.kitSource={store:"local",slug:sl};
  queueSave();renderAll();closeDlg("kitDlg");toast(`Kit "${state.kit.name}" guardado en esta máquina`)}
-function kDownload(){dl(URL.createObjectURL(new Blob([JSON.stringify(state.kit,null,2)],{type:"application/json"})),slug(state.kit.name)+"-kit.json");toast("Kit descargado — copialo a ~/.carousel-generator/kits/")}
+function kDownload(){dl(URL.createObjectURL(new Blob([JSON.stringify(state.kit,null,2)],{type:"application/json"})),slug(state.kit.name)+"-kit.json");toast("Kit descargado — copialo a ~/.carousel-generator/brand/{empresa}/kit.json")}
 function importKitFile(e){const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();
  r.onload=()=>{try{const kit=normKit(JSON.parse(r.result));const sl=slug(kit.name);putLocalKit(sl,kit);state.kit=clone(kit);state.kitSource={store:"local",slug:sl};fixSlidesForKit();queueSave();renderAll();toast("Kit importado: "+kit.name)}catch(err){alert("Kit inválido: "+err.message)}};r.readAsText(f);e.target.value=""}
 
@@ -476,4 +497,5 @@ function importKitFile(e){const f=e.target.files&&e.target.files[0];if(!f)return
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </body></html>
