@@ -39,9 +39,16 @@ main{flex:1;display:grid;grid-template-columns:172px 1fr 372px;min-height:0}
 .wrap.sel .slide{outline:3px solid var(--u-accent);outline-offset:6px}
 .slide{width:540px;height:675px;position:relative;overflow:hidden;background:var(--slidebg);color:var(--tertiary);isolation:isolate;font-family:var(--fb);cursor:pointer}
 .slide.fmt-feed{width:540px;height:675px}
-.slide.fmt-square{width:540px;height:540px}
+.slide.fmt-square{width:540px;height:540px;--fs-title:30px;--fs-sub:19px;--fs-hero:48px}
 .slide.fmt-story{width:540px;height:960px}
 .slide.fmt-story .copy{bottom:20%}
+.slide.fmt-square .copy{height:54%}
+.slide.cta .copy{height:52%}
+.slide.fmt-square.cta .copy{height:64%}
+.slide.fmt-story.cta .copy{height:48%}
+.slide.cta .ctabox{padding:10px 13px;margin-top:var(--sp2)}
+.slide.cta .slogan{margin-top:var(--sp2)}
+.slide.cta .foot{margin-top:8px}
 .safe{display:none;position:absolute;inset:0;z-index:6;pointer-events:none}
 .safe .ztop{position:absolute;top:0;left:0;right:0;height:13%;background:rgba(255,77,109,.13);border-bottom:1.5px dashed rgba(255,77,109,.85)}
 .safe .zbot{position:absolute;bottom:0;left:0;right:0;height:17%;background:rgba(255,77,109,.13);border-top:1.5px dashed rgba(255,77,109,.85)}
@@ -59,7 +66,7 @@ body.guides .slide.fmt-story .safe{display:block}
 .logo:after{content:"";position:absolute;bottom:7px;left:10px;width:22px;height:3px;background:var(--primary);transform:rotate(-5deg)}
 .brand .logoimg{height:43px;width:auto;display:block;filter:drop-shadow(0 1px 6px rgba(0,0,0,.4))}
 .count{position:absolute;right:6.2%;top:3.8%;background:rgba(6,17,29,.78);border-radius:5px;padding:6px 9px;font-size:12px;font-weight:700;color:#fff;z-index:4}
-.copy{position:absolute;left:6.2%;right:6.2%;bottom:6.2%;max-height:38.2%;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.35)}
+.copy{position:absolute;left:6.2%;right:6.2%;bottom:6.2%;height:38.2%;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.35)}
 h1{font-family:var(--fh);text-transform:uppercase;font-weight:900;font-size:var(--fs-title);line-height:.94;letter-spacing:-.02em;margin:0 0 var(--sp2);color:var(--tertiary)}
 .slide.cover h1.big{font-size:var(--fs-hero)}
 .slide.light h1{color:var(--secondary)}
@@ -90,8 +97,8 @@ p{font-size:var(--fs-body);line-height:1.28;margin:var(--sp1) 0;max-width:98%}
   linear-gradient(90deg,transparent calc(61.8% - 1px),rgba(0,229,255,.6) 61.8%,transparent calc(61.8% + 1px)),
   linear-gradient(0deg,transparent calc(38.2% - 1px),rgba(0,229,255,.6) 38.2%,transparent calc(38.2% + 1px)),
   linear-gradient(0deg,transparent calc(61.8% - 1px),rgba(0,229,255,.6) 61.8%,transparent calc(61.8% + 1px))}
-.phig .safe{position:absolute;left:6.2%;right:6.2%;bottom:6.2%;height:30%;border:1.5px dashed rgba(64,230,140,.85);background:rgba(64,230,140,.10);border-radius:4px}
-.phig .tag{position:absolute;left:6.2%;bottom:calc(6.2% + 30% + 3px);font-size:10px;font-weight:800;color:#40e68c;background:rgba(4,12,10,.85);padding:2px 6px;border-radius:3px}
+.phig .safe{position:absolute;left:6.2%;right:6.2%;bottom:6.2%;height:38.2%;border:1.5px dashed rgba(64,230,140,.85);background:rgba(64,230,140,.10);border-radius:4px}
+.phig .tag{position:absolute;left:6.2%;bottom:calc(6.2% + 38.2% + 3px);font-size:10px;font-weight:800;color:#40e68c;background:rgba(4,12,10,.85);padding:2px 6px;border-radius:3px}
 body.guides .phig{display:block}
 .controls{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .controls button,.controls .btn{font-size:11px;padding:7px 9px}
@@ -144,6 +151,7 @@ body.guides .phig{display:block}
     <button class="primary" onclick="openTpl()">+ Slide</button>
     <button onclick="openKit()">🎨 Kit</button>
     <button id="guidesBtn" class="ghost" onclick="toggleGuides()">📐 φ</button>
+    <button id="countBtn" class="ghost" onclick="toggleCount()" title="Numeración N/M en slides">🔢</button>
     <button onclick="exportAll()">⬇ PNGs</button>
     <button onclick="exportPDF()">⬇ PDF</button>
     <button class="ghost" onclick="saveJSON()">💾 JSON</button>
@@ -255,7 +263,7 @@ function normSlide(s){const t=TEMPLATES[s.template]||TEMPLATES.list;const n=clon
  n.bg=bg;
  if(s.overlayLight!==undefined)n.overlayLight=!!s.overlayLight;else n.overlayLight=!!(bg.type==="gradient"&&(state.kit.gradients.find(g=>g.name===bg.value)||{}).light);
  return n}
-function normState(d){const k=normKit(d&&d.kit);state={kit:k,kitSource:(d&&d.kitSource)||{store:"builtin",slug:"hooked"},meta:{title:(d&&d.meta&&d.meta.title)||"Carrusel nuevo",format:validFormat(d&&d.meta&&d.meta.format)},slides:[]};state.slides=(d&&d.slides&&d.slides.length?d.slides:ORDER.map(t=>({template:t}))).map(normSlide)}
+function normState(d){const k=normKit(d&&d.kit);state={kit:k,kitSource:(d&&d.kitSource)||{store:"builtin",slug:"hooked"},meta:{title:(d&&d.meta&&d.meta.title)||"Carrusel nuevo",format:validFormat(d&&d.meta&&d.meta.format),showCount:!d||!d.meta||d.meta.showCount!==false},slides:[]};state.slides=(d&&d.slides&&d.slides.length?d.slides:ORDER.map(t=>({template:t}))).map(normSlide)}
 
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 function escAttr(s){return esc(s).replace(/'/g,"&#39;")}
@@ -285,7 +293,7 @@ function slideHTML(s,i){
  if(s.ctaBox.title||s.ctaBox.text)copy+=`<div class="ctabox"><b${ed?` contenteditable="true" data-cta="title" data-single="1" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${esc(s.ctaBox.title)}</b>${`<p${ed?` contenteditable="true" data-cta="text" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${md(s.ctaBox.text)}</p>`}</div>`;
  if(s.slogan)copy+=`<p class="slogan"${eb("slogan",true)}>${esc(s.slogan)}</p>`;
  if(s.foot)copy+=`<div class="foot"${eb("foot",true)}>${esc(s.foot)}</div>`;
- return`<section class="slide fmt-${state.meta.format} ${s.template}${light}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div><div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div><div class="brand">${logoHTML()} ${esc(state.kit.logo.text||"")}</div><span class="count">${i+1}/${n}</span>${pillsHTML(s,ed)}<div class="copy">${copy}</div></section>`}
+ return`<section class="slide fmt-${state.meta.format} ${s.template}${light}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div><div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div><div class="brand">${logoHTML()} ${esc(state.kit.logo.text||"")}</div>${state.meta.showCount===false?"":`<span class="count">${i+1}/${n}</span>`}${pillsHTML(s,ed)}<div class="copy">${copy}</div></section>`}
 
 function controlsHTML(i){const n=state.slides.length;return`<div class="controls">
  <label class="btn upload">📷 Foto<input type="file" accept="image/*" onchange="onPhoto(event,${i})"></label>
@@ -336,7 +344,7 @@ function editorHTML(){
   <label>Foot (texto chico)</label><input type="text" id="ed_foot" value="${escAttr(s.foot)}" oninput="setF('foot',this.value)"></div></details>`}
 
 function renderEditor(){document.getElementById("editor").innerHTML=editorHTML()}
-function renderAll(){applyTheme();populateKits();document.getElementById("fmtPicker").innerHTML=Object.keys(FORMATS).map(f=>`<option value="${f}"${state.meta.format===f?" selected":""}>${FORMATS[f].label} · ${FORMATS[f].px}</option>`).join("");renderNav();renderDeck();renderEditor();document.getElementById("metaTitle").value=state.meta.title}
+function renderAll(){applyTheme();populateKits();syncCountBtn();document.getElementById("fmtPicker").innerHTML=Object.keys(FORMATS).map(f=>`<option value="${f}"${state.meta.format===f?" selected":""}>${FORMATS[f].label} · ${FORMATS[f].px}</option>`).join("");renderNav();renderDeck();renderEditor();document.getElementById("metaTitle").value=state.meta.title}
 function setFormat(f){state.meta.format=validFormat(f);queueSave();renderDeck();renderEditor();toast("Formato: "+FORMATS[state.meta.format].label+" ("+FORMATS[state.meta.format].px+")")}
 function applyTheme(){const r=document.documentElement.style,k=state.kit;
  r.setProperty("--primary",k.colors.primary);r.setProperty("--secondary",k.colors.secondary);r.setProperty("--tertiary",k.colors.tertiary);r.setProperty("--slidebg",k.colors.slideBg);
@@ -426,6 +434,8 @@ function saveJSON(){dl(URL.createObjectURL(new Blob([JSON.stringify(state,null,2
 function loadJSONFile(e){const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{normState(JSON.parse(r.result));sel=0;queueSave();renderAll();toast("Carrusel cargado")}catch(err){alert("JSON inválido: "+err.message)}};r.readAsText(f);e.target.value=""}
 
 function toggleGuides(){guidesOn=!guidesOn;document.body.classList.toggle("guides",guidesOn);document.getElementById("guidesBtn").style.borderColor=guidesOn?"var(--u-accent)":"";toast(guidesOn?"Guías áureas φ activadas":"Guías áureas φ ocultas")}
+function syncCountBtn(){document.getElementById("countBtn").style.borderColor=state.meta.showCount===false?"":"var(--u-accent)"}
+function toggleCount(){state.meta.showCount=state.meta.showCount===false;queueSave();renderDeck();syncCountBtn();toast(state.meta.showCount?"Numeración de slides activada":"Numeración de slides oculta")}
 document.addEventListener("keydown",e=>{if(e.target.matches("input,textarea,select,[contenteditable]"))return;
  if(e.key==="ArrowRight"){selectSlide(Math.min(sel+1,state.slides.length-1))}
  else if(e.key==="ArrowLeft"){selectSlide(Math.max(sel-1,0))}});

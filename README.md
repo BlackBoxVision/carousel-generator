@@ -7,7 +7,7 @@ Instagram carousel generator with brand kits, golden-ratio calibrated slides, a 
 - **`generate_carousel`** (MCP tool) renders a ready-to-edit HTML file with your content pre-loaded, opens it in the browser, and embeds **all** your saved brand kits so you can switch kits live.
 - **Visual editor** (`app/index.html`): slide navigator with drag reorder, canvas with click-to-edit text directly on slides, inspector panel, per-slide backgrounds (kit gradient / custom CSS / photo), PNG export and PDF export.
 - **Formats**: `feed` 4:5 (1080×1350) · `square` 1:1 (1080×1080, IG/LinkedIn) · `story` 9:16 (1080×1920, stories/reels/TikTok) — switchable live in the editor or via the `format` MCP param. Stories include IG/TikTok UI safe-zone guides.
-- **Golden-ratio (φ) calibration**: type scale 11 → 14 → 22.6 → 36.6 → 59.2 (hero on covers), φ spacing series (8/13/21/34), copy anchored in the bottom 38.2%, overlay transition at 61.8%, toggleable φ guides + safe area.
+- **Golden-ratio (φ) calibration**: type scale 11 → 14 → 22.6 → 36.6 → 59.2 (hero on covers), φ spacing series (8/13/21/34), copy zone fixed-height per format so every slide's text starts at the same height (feed/square share the φ start line; story clears the IG/TikTok UI safe zones), overlay transition at 61.8%, toggleable φ guides + safe area.
 - **Multi-kit**: one folder per brand/company, pick between them from the editor header or via `kitName`.
 - **Logo images**: brand kits accept a logo image (transparent PNG recommended) with a letter fallback.
 
@@ -44,7 +44,7 @@ One-click install in Claude Desktop and any MCPB-compatible client. Ships the se
 | `list_brand_kits` | Lists personal company folders first, then repo examples |
 | `load_brand_kit` | Returns a kit's full JSON |
 
-Slide templates: `cover` (hero title), `fact`, `map` (location pills, light background), `list`, `cta` (brand box). Paragraphs support `**bold**`. Photos via `background: "file:/path/to/photo.jpg"` (embedded as base64).
+Slide templates: `cover` (hero title), `fact`, `map` (location pills, light background), `list`, `cta` (brand box, gets a taller copy zone so nothing clips). Paragraphs support `**bold**`. Photos via `background: "file:/path/to/photo.jpg"` (embedded as base64). Pass `showNumbers: false` to hide the N/M counter chip (toggleable live with the 🔢 button).
 
 ## Brand kits
 

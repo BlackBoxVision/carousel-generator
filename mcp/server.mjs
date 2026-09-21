@@ -206,6 +206,7 @@ const tools = [
         fileName: { type: "string", description: "Nombre base del archivo HTML (sin extensión). Default: slug del title + timestamp." },
         outputDir: { type: "string", description: "Directorio de salida. Acepta ~. Default: ~/Downloads." },
         format: { type: "string", enum: ["feed", "square", "story"], description: "Formato inicial: feed (4:5, 1080x1350, default), square (1:1, 1080x1080 para IG/LinkedIn), story (9:16, 1080x1920 para stories/reels/TikTok). Se puede cambiar en vivo en el editor." },
+        showNumbers: { type: "boolean", description: "Muestra el chip de numeración N/M arriba a la derecha de cada slide (default true). Pasá false para un look limpio sin números." },
         kitName: { type: "string", description: "Nombre del brand kit (ver list_brand_kits). Se busca en ~/.carousel-generator/brand/{empresa}/kit.json y luego en mcp/kits/ del repo. Default: 'hooked' si existe, si no el kit Default." },
         kit: { type: "object", description: "Brand kit inline (se mergea sobre el kit base): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, gradients:[{name,css,light}] }. logo.imagePath: ruta de logo — 'logo.png' relativo a la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/), o 'file:' + ruta absoluta. Se embebe en base64." },
         slides: {
@@ -266,7 +267,7 @@ function toolGenerate(args) {
   const slides = slidesIn.map(normSlideArg);
   const title = String(a.title || "Carrusel");
   const format = ["feed", "square", "story"].includes(a.format) ? a.format : "feed";
-  const data = { kit, kitSource: { store: "generated", slug: slug(kit.name || "kit") }, meta: { title, format }, slides };
+  const data = { kit, kitSource: { store: "generated", slug: slug(kit.name || "kit") }, meta: { title, format, showCount: a.showNumbers !== false }, slides };
   const brands = brandKitsPayload();
   const html = fs.readFileSync(APP_PATH, "utf8");
   if (!html.includes(MARKER)) throw new Error("La app no contiene el marcador CAROUSEL_DATA.");
