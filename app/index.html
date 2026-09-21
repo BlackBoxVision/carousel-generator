@@ -70,7 +70,7 @@ md-dialog{--md-dialog-container-color:var(--ed-surface);--md-dialog-headline-col
 /* ===== SLIDE TOKENS — solo se usan dentro de .slide ===== */
 :root{
  --phi:1.618;
- --fs-foot:11px;--fs-body:14px;--fs-sub:22.6px;--fs-title:36.6px;--fs-hero:59.2px;
+ --fs-foot:11px;--fs-body:15px;--fs-sub:calc(var(--fs-body) * var(--phi));--fs-title:calc(var(--fs-sub) * var(--phi));--fs-hero:calc(var(--fs-title) * var(--phi));
  --sp1:8px;--sp2:13px;--sp3:21px;--sp4:34px;
  --primary:#f45b16;--secondary:#071522;--tertiary:#fff;--slidebg:#14283a;
  --fh:'JetBrains Mono',monospace;--fb:'Archivo Narrow',Arial,sans-serif;
@@ -204,9 +204,17 @@ body.exporting .block-tools{display:none!important}
 .slide.copy-bottom .copy{bottom:6.2%}
 
 /* ===== SLIDE CONTROLS (under each slide) ===== */
-.controls{display:flex;gap:4px;min-height:44px;margin-top:10px;padding:4px 8px;flex-wrap:nowrap;align-items:center;background:var(--ed-surface);border:1px solid var(--ed-border);border-radius:var(--md-shape-corner-s);width:100%;overflow:hidden}
-.controls md-icon-button{width:28px;height:28px}
-.controls md-icon-button .material-symbols-outlined{font-size:16px}
+.controls{position:relative;display:flex;gap:8px;min-height:46px;margin-top:10px;padding:4px 8px;flex-wrap:wrap;align-items:center;justify-content:center;background:var(--ed-surface);border:1px solid var(--ed-border);border-radius:var(--md-shape-corner-s);width:100%;overflow:visible}
+.controls .control-group{display:flex;gap:4px;align-items:center;height:32px;flex:0 0 auto}
+.controls .control-sep{width:1px;height:22px;background:var(--ed-border);align-self:center;flex:0 0 auto}
+.controls md-icon-button{width:32px;height:32px;flex:0 0 32px;align-self:center}
+.controls md-icon-button .material-symbols-outlined{font-size:17px;line-height:1;vertical-align:0}
+.controls md-tonal-button,.controls md-outlined-button{height:32px;align-self:center;flex:0 0 auto;--md-outlined-button-container-height:32px;--md-tonal-button-container-height:32px}
+.controls .control-group .material-symbols-outlined{vertical-align:0}
+.controls .control-delete{position:absolute;right:8px;top:50%;margin-left:0;transform:translateY(-50%);--md-icon-button-icon-color:var(--ed-error)}
+.controls .control-delete:hover{--md-icon-button-icon-color:#ff7b72}
+.controls md-icon-button[disabled]{opacity:.4}
+@media (max-width:600px){.controls{gap:6px;padding:4px 6px}.controls .control-sep{display:none}.controls .control-delete{position:static;margin-left:0;transform:none}}
 
 /* ===== EDITOR PANEL ===== */
 #editor{overflow-y:auto;background:var(--ed-surface);border-left:1px solid var(--ed-border);padding:0;display:flex;flex-direction:column}
@@ -242,7 +250,7 @@ body.exporting .block-tools{display:none!important}
 .block-row-head button{border:1px solid var(--ed-border);background:var(--ed-surface3);color:var(--ed-text2);border-radius:4px;width:22px;height:22px;cursor:pointer}
 .block-row-head button:hover{color:var(--ed-text);border-color:var(--ed-accent)}
 .block-row-handle{color:var(--ed-text3);font-size:16px}.block-children{border-left:1px solid var(--ed-border2);padding-left:5px}
-.block-field{display:block;margin-top:6px}.block-row-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:6px}.block-row-fields>*{min-width:0;width:100%}.block-row-fields md-outlined-text-field,.block-row-fields md-outlined-select{min-width:0;width:100%}
+.block-field{display:block;margin-top:6px}.sec-body .row.block-row-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start;margin-top:12px}.sec-body .row.block-row-fields>*{flex:none;min-width:0;width:100%;margin-top:0}.sec-body .row.block-row-fields md-outlined-text-field,.sec-body .row.block-row-fields md-outlined-select{min-width:0;width:100%;--md-outlined-field-top-space:6px;--md-outlined-field-bottom-space:6px}
 .sec-body .arr md-icon-button.x{position:absolute;top:4px;right:4px}
 .sec-body .row{display:flex;gap:8px;align-items:flex-start}
 .sec-body .row>*{flex:1}
@@ -487,13 +495,15 @@ function slideHTMLLegacy(s,i){
   return`<section class="slide fmt-${state.meta.format} ${s.template}${light} ${anchorCls}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div>${scrimStyle?`<div class="scrim" style="${scrimStyle}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div><div class="brand">${logoHTML()} ${esc(state.kit.logo.text||"")}</div>${state.meta.showCount===false?"":`<span class="count">${i+1}/${n}</span>`}${pillsHTML(s,ed)}<div class="copy" style="${offStyle}">${copy}</div></section>`}
 
 function slideHTML(s,i){const ed=i===sel;const photoStyle=s.bg.type==="photo"?`background-image:url('${s.bg.src||""}');background-position:${s.bgPos||"center"}`:`background-image:${gradCss(s)}`;const scrimStyle=s.bg.type==="photo"&&s.scrim>0?`background:rgba(4,12,20,${(s.scrim/100).toFixed(2)})`:"";const light=lightOn(s)?" light":"";return`<section class="slide fmt-${state.meta.format} ${s.template}${light}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div>${scrimStyle?`<div class="scrim" style="${scrimStyle}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div>${blocksHTML(s,ed,i)}</section>`}
-function controlsHTML(i){const n=state.slides.length;return`<div class="controls">
-  <md-icon-button onclick="moveSlide(${i},-1)"${i===0?" disabled":""} title="Mover atrás"><span class="material-symbols-outlined">arrow_back</span></md-icon-button>
-  <md-icon-button onclick="moveSlide(${i},1)"${i===n-1?" disabled":""} title="Mover adelante"><span class="material-symbols-outlined">arrow_forward</span></md-icon-button>
-  <md-icon-button onclick="dupSlide(${i})" title="Duplicar"><span class="material-symbols-outlined">content_copy</span></md-icon-button>
-  <md-tonal-button onclick="document.getElementById('ph${i}').click()"><span slot="icon" class="material-symbols-outlined">photo_camera</span>Foto</md-tonal-button><input type="file" id="ph${i}" accept="image/*" style="display:none" onchange="onPhoto(event,${i})">
-  <md-outlined-button onclick="exportSlide(${i})"><span slot="icon" class="material-symbols-outlined">image</span>PNG</md-outlined-button>
-  <md-icon-button onclick="delSlide(${i})" title="Eliminar" style="--md-icon-button-icon-color:var(--ed-error)"><span class="material-symbols-outlined">delete</span></md-icon-button></div>`}
+ function controlsHTML(i){const n=state.slides.length;return`<div class="controls" aria-label="Acciones de la slide">
+   <div class="control-group" aria-label="Navegación"><md-icon-button onclick="moveSlide(${i},-1)"${i===0?" disabled":""} title="Mover atrás" aria-label="Mover slide atrás"><span class="material-symbols-outlined">arrow_back</span></md-icon-button>
+   <md-icon-button onclick="moveSlide(${i},1)"${i===n-1?" disabled":""} title="Mover adelante" aria-label="Mover slide adelante"><span class="material-symbols-outlined">arrow_forward</span></md-icon-button>
+   <md-icon-button onclick="dupSlide(${i})" title="Duplicar" aria-label="Duplicar slide"><span class="material-symbols-outlined">content_copy</span></md-icon-button></div>
+   <span class="control-sep" aria-hidden="true"></span>
+   <div class="control-group" aria-label="Media y exportación"><md-tonal-button class="control-photo" onclick="document.getElementById('ph${i}').click()"><span slot="icon" class="material-symbols-outlined">photo_camera</span>Foto</md-tonal-button><input type="file" id="ph${i}" accept="image/*" style="display:none" onchange="onPhoto(event,${i})">
+   <md-outlined-button class="control-export" onclick="exportSlide(${i})"><span slot="icon" class="material-symbols-outlined">image</span>PNG</md-outlined-button></div>
+   <span class="control-sep" aria-hidden="true"></span>
+   <md-icon-button class="control-delete" onclick="delSlide(${i})" title="Eliminar" aria-label="Eliminar slide"><span class="material-symbols-outlined">delete</span></md-icon-button></div>`}
 function thumbBg(s){if(s.bg.type==="photo"&&s.bg.src)return`background-image:url('${s.bg.src}')`;if(s.bg.type==="css")return`background-image:${s.bg.css}`;const g=state.kit.gradients.find(g=>g.name===s.bg.value);return g?`background-image:${g.css}`:""}
 
 function renderDeck(){const d=document.getElementById("deck");d.innerHTML=state.slides.map((s,i)=>`<div class="wrap${i===sel?" sel":""}" id="w${i}">${slideHTML(s,i)}${controlsHTML(i)}</div>`).join("")||`<div class="empty">Sin slides. Usá “+ Slide” para empezar.</div>`}
