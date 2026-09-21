@@ -87,15 +87,21 @@ main{flex:1;display:grid;grid-template-columns:192px 1fr 380px;min-height:0}
 #nav::-webkit-scrollbar{width:4px}
 #nav::-webkit-scrollbar-thumb{background:var(--ed-border);border-radius:2px}
 .nav-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ed-text3);padding:0 4px 6px}
-.navitem{position:relative;border:1px solid var(--ed-border);border-radius:var(--md-shape-corner-m);overflow:hidden;cursor:pointer;height:96px;background:var(--ed-surface2);transition:border-color .15s,box-shadow .15s}
+.navitem{position:relative;border:1px solid var(--ed-border);border-radius:var(--md-shape-corner-m);overflow:hidden;cursor:pointer;height:112px;background:var(--ed-surface2);transition:border-color .15s,box-shadow .15s}
 .navitem:hover{border-color:var(--ed-border2)}
 .navitem .tb{position:absolute;inset:0;background-size:cover;background-position:center}
-.navitem .num{position:absolute;top:4px;left:4px;font-size:9px;font-weight:700;background:rgba(0,0,0,.75);border-radius:3px;padding:2px 5px;color:#fff;z-index:2;font-variant-numeric:tabular-nums}
-.navitem .meta{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.85));font-size:9px;padding:12px 5px 4px;display:flex;justify-content:space-between;color:rgba(255,255,255,.75);z-index:2;font-weight:600}
+.navitem .thumb-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,10,17,.08) 20%,rgba(3,10,17,.18) 42%,rgba(3,10,17,.9) 100%);z-index:1;pointer-events:none}
+.navitem .thumb-copy{position:absolute;left:8px;right:8px;bottom:27px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;z-index:2;pointer-events:none;text-shadow:0 1px 4px rgba(0,0,0,.7)}
+.navitem .thumb-kicker{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.78);font-size:7px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.navitem .thumb-title,.navitem .thumb-highlight{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--fh);font-size:12px;line-height:.95;font-weight:900;text-transform:uppercase}
+.navitem .thumb-highlight{background:var(--primary);color:#fff;padding:3px 5px 4px;text-shadow:none}
+.navitem .thumb-body{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.9);font-size:8px;line-height:1.15;font-weight:600}
+.navitem .num{position:absolute;top:6px;left:6px;font-size:10px;font-weight:700;background:rgba(0,0,0,.78);border-radius:4px;padding:3px 6px;color:#fff;z-index:3;font-variant-numeric:tabular-nums}
+.navitem .meta{position:absolute;left:0;right:0;bottom:0;background:rgba(3,10,17,.82);font-size:9px;padding:5px 8px;display:flex;justify-content:space-between;color:rgba(255,255,255,.82);z-index:3;font-weight:600}
 .navitem .meta .tpl{color:rgba(255,255,255,.5);font-size:8px}
 .navitem.sel{border-color:var(--ed-accent);box-shadow:0 0 0 1px var(--ed-accent)}
 .navitem.drop{border-color:var(--ed-accent);opacity:.7}
-#nav .add-slide{margin-top:4px}
+#nav .add-slide{margin-top:6px}
 
 /* ===== DECK (slide canvas) ===== */
 #deckwrap{overflow:auto;padding:32px;background:var(--ed-bg);display:flex}
@@ -204,17 +210,23 @@ body.exporting .block-tools{display:none!important}
 .slide.copy-bottom .copy{bottom:6.2%}
 
 /* ===== SLIDE CONTROLS (under each slide) ===== */
-.controls{position:relative;display:flex;gap:8px;min-height:46px;margin-top:10px;padding:4px 8px;flex-wrap:wrap;align-items:center;justify-content:center;background:var(--ed-surface);border:1px solid var(--ed-border);border-radius:var(--md-shape-corner-s);width:100%;overflow:visible}
-.controls .control-group{display:flex;gap:4px;align-items:center;height:32px;flex:0 0 auto}
-.controls .control-sep{width:1px;height:22px;background:var(--ed-border);align-self:center;flex:0 0 auto}
-.controls md-icon-button{width:32px;height:32px;flex:0 0 32px;align-self:center}
-.controls md-icon-button .material-symbols-outlined{font-size:17px;line-height:1;vertical-align:0}
-.controls md-tonal-button,.controls md-outlined-button{height:32px;align-self:center;flex:0 0 auto;--md-outlined-button-container-height:32px;--md-tonal-button-container-height:32px}
+.controls{display:flex;gap:12px;min-height:52px;margin-top:10px;padding:7px 10px;flex-wrap:wrap;align-items:center;justify-content:flex-start;background:var(--ed-surface);border:1px solid var(--ed-border);border-radius:var(--md-shape-corner-m);width:100%;overflow:visible}
+.controls-main,.controls-end,.control-group{display:flex;align-items:center}
+.controls-main{gap:10px;min-width:0;flex:0 1 auto}
+.controls-end{gap:10px;flex:0 0 auto;margin-left:auto}
+.control-group{gap:4px;height:36px;flex:0 0 auto}
+.control-sep{width:1px;height:24px;background:var(--ed-border);align-self:center;flex:0 0 auto}
+.control-sep-danger{background:var(--ed-border2)}
+.controls md-icon-button{width:36px;height:36px;flex:0 0 36px;align-self:center}
+.controls md-icon-button .material-symbols-outlined{font-size:18px;line-height:1;vertical-align:0}
+.controls md-tonal-button,.controls md-outlined-button{height:36px;align-self:center;flex:0 0 auto;--md-outlined-button-container-height:36px;--md-tonal-button-container-height:36px}
 .controls .control-group .material-symbols-outlined{vertical-align:0}
-.controls .control-delete{position:absolute;right:8px;top:50%;margin-left:0;transform:translateY(-50%);--md-icon-button-icon-color:var(--ed-error)}
+.controls .control-photo{--md-outlined-button-label-text-color:var(--ed-text);--md-outlined-button-outline-color:var(--ed-border2)}
+.controls .control-export{--md-outlined-button-label-text-color:var(--ed-text2)}
+.controls .control-delete{--md-icon-button-icon-color:var(--ed-error)}
 .controls .control-delete:hover{--md-icon-button-icon-color:#ff7b72}
 .controls md-icon-button[disabled]{opacity:.4}
-@media (max-width:600px){.controls{gap:6px;padding:4px 6px}.controls .control-sep{display:none}.controls .control-delete{position:static;margin-left:0;transform:none}}
+@media (max-width:600px){.controls{gap:8px;padding:6px 8px}.controls-main{flex:1 1 100%;justify-content:center}.controls-end{margin-left:auto}.control-sep-danger{display:none}}
 
 /* ===== EDITOR PANEL ===== */
 #editor{overflow-y:auto;background:var(--ed-surface);border-left:1px solid var(--ed-border);padding:0;display:flex;flex-direction:column}
@@ -496,19 +508,23 @@ function slideHTMLLegacy(s,i){
 
 function slideHTML(s,i){const ed=i===sel;const photoStyle=s.bg.type==="photo"?`background-image:url('${s.bg.src||""}');background-position:${s.bgPos||"center"}`:`background-image:${gradCss(s)}`;const scrimStyle=s.bg.type==="photo"&&s.scrim>0?`background:rgba(4,12,20,${(s.scrim/100).toFixed(2)})`:"";const light=lightOn(s)?" light":"";return`<section class="slide fmt-${state.meta.format} ${s.template}${light}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div>${scrimStyle?`<div class="scrim" style="${scrimStyle}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div>${blocksHTML(s,ed,i)}</section>`}
  function controlsHTML(i){const n=state.slides.length;return`<div class="controls" aria-label="Acciones de la slide">
-   <div class="control-group" aria-label="Navegación"><md-icon-button onclick="moveSlide(${i},-1)"${i===0?" disabled":""} title="Mover atrás" aria-label="Mover slide atrás"><span class="material-symbols-outlined">arrow_back</span></md-icon-button>
-   <md-icon-button onclick="moveSlide(${i},1)"${i===n-1?" disabled":""} title="Mover adelante" aria-label="Mover slide adelante"><span class="material-symbols-outlined">arrow_forward</span></md-icon-button>
-   <md-icon-button onclick="dupSlide(${i})" title="Duplicar" aria-label="Duplicar slide"><span class="material-symbols-outlined">content_copy</span></md-icon-button></div>
-   <span class="control-sep" aria-hidden="true"></span>
-   <div class="control-group" aria-label="Media y exportación"><md-tonal-button class="control-photo" onclick="document.getElementById('ph${i}').click()"><span slot="icon" class="material-symbols-outlined">photo_camera</span>Foto</md-tonal-button><input type="file" id="ph${i}" accept="image/*" style="display:none" onchange="onPhoto(event,${i})">
-   <md-outlined-button class="control-export" onclick="exportSlide(${i})"><span slot="icon" class="material-symbols-outlined">image</span>PNG</md-outlined-button></div>
-   <span class="control-sep" aria-hidden="true"></span>
-   <md-icon-button class="control-delete" onclick="delSlide(${i})" title="Eliminar" aria-label="Eliminar slide"><span class="material-symbols-outlined">delete</span></md-icon-button></div>`}
-function thumbBg(s){if(s.bg.type==="photo"&&s.bg.src)return`background-image:url('${s.bg.src}')`;if(s.bg.type==="css")return`background-image:${s.bg.css}`;const g=state.kit.gradients.find(g=>g.name===s.bg.value);return g?`background-image:${g.css}`:""}
+   <div class="controls-main">
+    <div class="control-group" aria-label="Navegación"><md-icon-button onclick="moveSlide(${i},-1)"${i===0?" disabled":""} title="Mover atrás" aria-label="Mover slide atrás"><span class="material-symbols-outlined">arrow_back</span></md-icon-button>
+    <md-icon-button onclick="moveSlide(${i},1)"${i===n-1?" disabled":""} title="Mover adelante" aria-label="Mover slide adelante"><span class="material-symbols-outlined">arrow_forward</span></md-icon-button>
+    <md-icon-button onclick="dupSlide(${i})" title="Duplicar" aria-label="Duplicar slide"><span class="material-symbols-outlined">content_copy</span></md-icon-button></div>
+    <span class="control-sep" aria-hidden="true"></span>
+    <div class="control-group" aria-label="Media y exportación"><md-outlined-button class="control-photo" onclick="document.getElementById('ph${i}').click()"><span slot="icon" class="material-symbols-outlined">photo_camera</span>Foto</md-outlined-button><input type="file" id="ph${i}" accept="image/*" style="display:none" onchange="onPhoto(event,${i})">
+    <md-outlined-button class="control-export" onclick="exportSlide(${i})"><span slot="icon" class="material-symbols-outlined">image</span>PNG</md-outlined-button></div>
+   </div>
+   <div class="controls-end"><span class="control-sep control-sep-danger" aria-hidden="true"></span><md-icon-button class="control-delete" onclick="delSlide(${i})" title="Eliminar" aria-label="Eliminar slide"><span class="material-symbols-outlined">delete</span></md-icon-button></div></div>`}
+ function thumbBg(s){if(s.bg.type==="photo"&&s.bg.src)return`background-image:url('${s.bg.src}')`;if(s.bg.type==="css")return`background-image:${s.bg.css}`;const g=state.kit.gradients.find(g=>g.name===s.bg.value);return g?`background-image:${g.css}`:""}
+ function thumbText(value){return String(value||"").replace(/\*\*(.+?)\*\*/g,"$1").replace(/==(.+?)==/g,"$1").replace(/\s+/g," ").trim()}
+ function thumbContent(s){const out={kicker:"",title:"",highlight:"",body:""};const walk=nodes=>{for(const b of nodes||[]){if(b.type==="kicker"&&!out.kicker)out.kicker=thumbText(b.text);if(b.type==="text"&&!out.title)out.title=thumbText(b.text);if(b.type==="highlight"&&!out.highlight)out.highlight=thumbText(b.text);if(b.type==="body"&&!out.body)out.body=thumbText(b.text);if(b.type==="item"&&!out.body)out.body=thumbText(b.title||b.desc);if(b.children)walk(b.children)}};walk(s.elements);return out}
+ function thumbHTML(s,i){const c=thumbContent(s);return`<div class="tb" style="${thumbBg(s)}"></div><div class="thumb-scrim"></div><div class="thumb-copy">${c.kicker?`<span class="thumb-kicker">${esc(c.kicker)}</span>`:""}${c.title?`<span class="thumb-title">${esc(c.title)}</span>`:""}${c.highlight?`<span class="thumb-highlight">${esc(c.highlight)}</span>`:""}${c.body?`<span class="thumb-body">${esc(c.body)}</span>`:""}</div><span class="num">${i+1}</span><span class="meta"><span class="tpl">${TPL_EMOJI[s.template]||"•"}</span><span>${esc(TPL_LABEL[s.template]||s.template)}</span></span>`}
 
 function renderDeck(){const d=document.getElementById("deck");d.innerHTML=state.slides.map((s,i)=>`<div class="wrap${i===sel?" sel":""}" id="w${i}">${slideHTML(s,i)}${controlsHTML(i)}</div>`).join("")||`<div class="empty">Sin slides. Usá “+ Slide” para empezar.</div>`}
 function renderSlide(i){const w=document.getElementById("w"+i);if(!w)return;w.className="wrap"+(i===sel?" sel":"");w.innerHTML=slideHTML(state.slides[i],i)+controlsHTML(i)}
-function renderNav(){const v=document.getElementById("nav");v.innerHTML=`<div class="nav-label">Slides (${state.slides.length})</div>`+state.slides.map((s,i)=>`<div class="navitem${i===sel?" sel":""}" draggable="true" data-i="${i}" onclick="selectSlide(${i})" ondragstart="navDrag(event)" ondragover="navOver(event)" ondragleave="this.classList.remove('drop')" ondrop="navDrop(event,${i})"><div class="tb" style="${thumbBg(s)}"></div><span class="num">${i+1}</span><span class="meta"><span class="tpl">${TPL_EMOJI[s.template]||"•"}</span><span>${esc(TPL_LABEL[s.template]||s.template)}</span></span></div>`).join("")+`<md-outlined-button class="add-slide" onclick="openTpl()"><span slot="icon" class="material-symbols-outlined">add</span>Nueva slide</md-outlined-button>`}
+ function renderNav(){const v=document.getElementById("nav");v.innerHTML=`<div class="nav-label">Slides (${state.slides.length})</div>`+state.slides.map((s,i)=>`<div class="navitem${i===sel?" sel":""}" draggable="true" data-i="${i}" onclick="selectSlide(${i})" ondragstart="navDrag(event)" ondragover="navOver(event)" ondragleave="this.classList.remove('drop')" ondrop="navDrop(event,${i})">${thumbHTML(s,i)}</div>`).join("")+`<md-outlined-button class="add-slide" onclick="openTpl()"><span slot="icon" class="material-symbols-outlined">add</span>Nueva slide</md-outlined-button>`}
 
 function blockInfo(id,nodes=state.slides[sel].elements,parent=null){for(let i=0;i<nodes.length;i++){const block=nodes[i];if(block.id===id)return{block,parent,list:nodes,index:i};if(block.children){const hit=blockInfo(id,block.children,block);if(hit)return hit}}return null}
 function blockLabel(b){return({brand:"Marca",count:"Numeración",stack:"Contenedor / flujo",kicker:"Kicker",text:"Título blanco",highlight:"Título naranja",body:"Body",items:"Lista",item:"Item",box:"Box",pill:"Pill",slogan:"Slogan",foot:"Foot"}[b.type]||b.type)}
@@ -582,10 +598,10 @@ function edInput(el){const s=state.slides[sel];const v=serialize(el);
  else if(el.dataset.item!==undefined){s.items[+el.dataset.item][el.dataset.field]=v;syncIns("ed_it"+el.dataset.item+"_"+el.dataset.field,v)}
  else if(el.dataset.cta){s.ctaBox[el.dataset.cta]=v;syncIns("ed_cta_"+el.dataset.cta,v)}
   queueSave()}
-function blockSet(id,field,value){const hit=blockInfo(id);if(!hit)return;hit.block[field]=String(value==null?"":value);queueSave();renderSlide(sel)}
+ function blockSet(id,field,value){const hit=blockInfo(id);if(!hit)return;hit.block[field]=String(value==null?"":value);queueSave();renderSlide(sel);renderNav()}
 function blockSetStyle(id,field,value){const hit=blockInfo(id);if(!hit)return;if(!hit.block.style)hit.block.style={};hit.block.style[field]=field==="sizePct"?Math.max(10,Math.min(300,+value||100)):String(value||"");queueSave();renderSlide(sel);renderEditor()}
 function blockSetPos(id,field,value){const hit=blockInfo(id);if(!hit)return;if(!hit.block.pos)hit.block.pos={};hit.block.pos[field]=Math.max(0,Math.min(100,+value||0));queueSave();renderSlide(sel);renderEditor()}
-function blockInput(el){const hit=blockInfo(el.dataset.blockId);if(!hit)return;hit.block[el.dataset.blockField]=serialize(el);queueSave();renderSlide(sel)}
+ function blockInput(el){const hit=blockInfo(el.dataset.blockId);if(!hit)return;hit.block[el.dataset.blockField]=serialize(el);queueSave();renderSlide(sel);renderNav()}
 function blockKeys(e,el){if(el.dataset.single&&e.key==="Enter"){e.preventDefault();el.blur();return}if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="b"){e.preventDefault();document.execCommand("bold");blockInput(el)}}
 function blockRender(){queueSave();renderDeck();renderNav();renderEditor()}
 function blockMove(e,id,dir){if(e){e.preventDefault();e.stopPropagation()}const hit=blockInfo(id);if(!hit||hit.index+dir<0||hit.index+dir>=hit.list.length)return;[hit.list[hit.index],hit.list[hit.index+dir]]=[hit.list[hit.index+dir],hit.list[hit.index]];blockRender()}
