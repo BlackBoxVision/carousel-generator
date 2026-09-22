@@ -143,10 +143,13 @@ body.guides .slide.fmt-story .safe{display:block}
 .brand .logo{width:var(--logo-size, 43px);height:var(--logo-size, 43px);border-radius:var(--logo-radius, 10px);background:var(--logo-bg, transparent);display:grid;place-items:center;color:var(--secondary);font-family:var(--fh);font-size:calc(var(--logo-size, 43px) * .65);font-weight:900;position:relative}
 .brand .logo.has-bg{padding:var(--logo-pad, 5px 6px)}
 .brand .logo.shape-square{--logo-radius:8px;--logo-pad:6px;aspect-ratio:1}
-.brand .logoimg.shape-square{aspect-ratio:1;object-fit:contain;border-radius:var(--logo-radius,8px)}
 .brand .logo.shape-rectangular{--logo-radius:12px;--logo-pad:5px 10px}
+.brand .logoimgbox{height:43px;width:auto;display:inline-grid;place-items:center;border-radius:var(--logo-radius,8px);background:var(--logo-bg,transparent);position:relative}
+.brand .logoimgbox.has-bg{padding:var(--logo-pad,5px 6px)}
+.brand .logoimgbox.shape-square{--logo-radius:8px;--logo-pad:6px}
+.brand .logoimgbox.shape-rectangular{--logo-radius:12px;--logo-pad:5px 10px}
 .logo:after{content:"";position:absolute;bottom:7px;left:10px;width:22px;height:3px;background:var(--primary);transform:rotate(-5deg)}
-.brand .logoimg{height:43px;width:auto;display:block;filter:drop-shadow(0 1px 6px rgba(0,0,0,.4))}
+.brand .logoimgbox .logoimg{max-width:100%;max-height:100%;width:auto;height:auto;display:block;filter:drop-shadow(0 1px 6px rgba(0,0,0,.4))}
 .count{position:absolute;right:6.2%;top:3.8%;background:rgba(6,17,29,.78);border-radius:5px;padding:6px 9px;font-size:12px;font-weight:700;color:#fff;z-index:4}
 .copy{position:absolute;left:6.2%;right:6.2%;bottom:6.2%;height:38.2%;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.35);z-index:3}
 h1{font-family:var(--fh);text-transform:uppercase;font-weight:900;font-size:var(--fs-title);line-height:.94;letter-spacing:-.02em;margin:0 0 var(--sp2);color:var(--tertiary)}
@@ -478,7 +481,7 @@ function slug(s){return String(s||"carrusel").toLowerCase().normalize("NFD").rep
 
 function gradCss(s){if(s.bg.type==="css")return s.bg.css;if(s.bg.type==="photo")return"none";const g=state.kit.gradients.find(g=>g.name===s.bg.value);return g?g.css:"none"}
 function lightOn(s){return s.bg.type==="gradient"&&(state.kit.gradients.find(g=>g.name===s.bg.value)||{}).light||s.overlayLight}
-function logoHTML(height,bg){const l=state.kit.logo||{},h=+height||+l.imgH||+state.kit.logoSize||43;const bgVal=bg||state.kit.logoBackground||"transparent";const hasBg=bgVal&&bgVal!=="transparent";const shape=state.kit.logoShape||"square";const shapeClass=hasBg?` shape-${shape}`:"";if(l.img)return`<img class="logoimg${shapeClass}" src="${l.img}" style="height:${h}px${hasBg?`;background:${bgVal};border-radius:var(--logo-radius,8px);padding:var(--logo-pad,6px)`:``}" alt="logo">`;return`<span class="logo${hasBg?` has-bg`:``}${shapeClass}" style="--logo-size:${h}px;${hasBg?`background:${bgVal}`:``}">${esc(l.letter||"")}</span>`}
+function logoHTML(height,bg){const l=state.kit.logo||{},h=+height||+l.imgH||+state.kit.logoSize||43;const bgVal=bg||state.kit.logoBackground||"transparent";const hasBg=bgVal&&bgVal!=="transparent";const shape=state.kit.logoShape||"square";const shapeClass=hasBg?` shape-${shape}`:"";if(l.img){const box=shape==="square"?`height:${h}px;width:${h}px;`:`height:${h}px;`;return`<span class="logoimgbox${hasBg?` has-bg`:``}${shapeClass}" style="${box}${hasBg?`background:${bgVal};border-radius:var(--logo-radius,8px);padding:var(--logo-pad,6px)`:``}"><img class="logoimg" src="${l.img}" alt="logo"></span>`}return`<span class="logo${hasBg?` has-bg`:``}${shapeClass}" style="--logo-size:${h}px;${hasBg?`background:${bgVal}`:``}">${esc(l.letter||"")}</span>`}
 function pillsHTML(s,ed){return(s.pills||[]).map((p,i)=>`<div class="pill" data-pill="${i}"${ed?` onpointerdown="pillDown(event,${i})" ondblclick="pillDbl(this)" onblur="pillDone(this,${i})"`:""} style="top:${+p.top||30}%;${p.side==="right"?`right:${+p.offset||6}%`:`left:${+p.offset||8}%`}">${esc(p.text)}</div>`).join("")}
 
 function blockEdit(el,field,single,ed){return ed?` contenteditable="true" data-block-id="${escAttr(el.id)}" data-block-field="${field}"${single?' data-single="1"':''} oninput="blockInput(this)" onkeydown="blockKeys(event,this)" onpaste="edPaste(event)"`:""}
