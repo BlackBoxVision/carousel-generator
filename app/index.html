@@ -133,10 +133,10 @@ main{flex:1;display:grid;grid-template-columns:192px 1fr 380px;min-height:0}
 .safe .ztop .t{bottom:3px;left:6px}
 .safe .zbot .t{top:3px;left:6px}
 body.guides .slide.fmt-story .safe{display:block}
-.photo{position:absolute;inset:0;background-position:center;background-size:cover;background-color:#173449;z-index:-2}
+.photo{position:absolute;inset:0;background-position:center;background-size:cover;background-color:#173449;z-index:0}
 .photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.02) 0%,rgba(0,0,0,.06) 61.8%,rgba(0,0,0,.9) 100%)}
 .slide.light .photo:after{background:linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.12) 61.8%,rgba(0,0,0,.17) 100%)}
-.photo-overlay{position:absolute;inset:0;z-index:0;pointer-events:none}
+.photo-overlay{position:absolute;inset:0;z-index:1;pointer-events:none}
 .slide.light{color:var(--secondary)}
 .slide.light .copy{text-shadow:none}
 .slide .brand{position:absolute;top:3.8%;left:6.2%;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;z-index:4}
@@ -183,7 +183,7 @@ p{font-size:var(--fs-body);line-height:1.28;margin:var(--sp1) 0;max-width:98%}
 .phig .tag{position:absolute;left:6.2%;bottom:calc(6.2% + 38.2% + 3px);font-size:10px;font-weight:800;color:#40e68c;background:rgba(4,12,10,.85);padding:2px 6px;border-radius:3px}
 body.guides .phig{display:block}
 .hl{background:var(--primary);color:#fff;padding:.02em .22em .1em;box-decoration-break:clone;-webkit-box-decoration-break:clone;text-shadow:none;border-radius:2px}
-.scrim{position:absolute;inset:0;z-index:1;background:rgba(4,12,20,.45);pointer-events:none}
+.scrim{position:absolute;inset:0;z-index:2;background:rgba(4,12,20,.45);pointer-events:none}
 .copy{height:auto!important;max-height:62%;overflow:visible;right:auto}
 .block-node{position:relative;min-width:0}
 .slide .block-node.copy{position:absolute}
@@ -209,9 +209,11 @@ body.guides .phig{display:block}
 .slide .block-node.dragging{opacity:.45}
 .slide .block-node.drop-target{outline:2px dashed var(--primary);outline-offset:3px}
 body.exporting .block-tools{display:none!important}
+body.exporting .wrap.sel .slide{outline:none!important}
+body.exporting .slide{cursor:default!important}
 .slide .block-brand{z-index:4}
-.slide .block-count{z-index:4}
-.slide .block-pill{z-index:3}
+.slide .block-count{position:absolute;z-index:4}
+.slide .block-pill{position:absolute;z-index:3}
 .slide.copy-top .copy{top:16%;bottom:auto}
 .slide.copy-center .copy{top:50%;bottom:auto;transform:translateY(-50%)}
 .slide.copy-bottom .copy{bottom:6.2%}
@@ -677,11 +679,12 @@ function navOver(e){e.preventDefault();e.currentTarget.classList.add("drop")}
 function navDrop(e,i){e.preventDefault();e.currentTarget.classList.remove("drop");const from=+e.dataTransfer.getData("text/plain");if(from===i||isNaN(from))return;const a=state.slides;const m=a.splice(from,1)[0];a.splice(i,0,m);sel=i;queueSave();renderDeck();renderNav();renderEditor()}
 
 function dl(url,name){const a=document.createElement("a");a.download=name;a.href=url;a.click()}
+function fontFamily(fontStack){const first=String(fontStack||"").split(",")[0].trim();return first||"sans-serif"}
+async function waitForExportFonts(){if(!document.fonts)return;const families=[fontFamily(state.kit.fonts.heading),fontFamily(state.kit.fonts.body)];const loads=[];for(const family of new Set(families))for(const weight of[400,500,600,700,800,900])loads.push(document.fonts.load(`${weight} 16px ${family}`));await Promise.all(loads);await document.fonts.ready}
 async function toCanvas(i){if(!window.html2canvas){alert("Necesitás conexión a internet para cargar html2canvas (CDN).");return null}
- if(document.activeElement)document.activeElement.blur();
- const hadGuides=guidesOn;if(hadGuides)document.body.classList.remove("guides");document.body.classList.add("exporting");
- if(document.fonts&&document.fonts.ready)await document.fonts.ready;
- try{return await html2canvas(document.getElementById("s"+i),{scale:2,useCORS:true,backgroundColor:null})}finally{document.body.classList.remove("exporting");if(hadGuides)document.body.classList.add("guides")}}
+  if(document.activeElement)document.activeElement.blur();
+  const hadGuides=guidesOn;if(hadGuides)document.body.classList.remove("guides");document.body.classList.add("exporting");
+  try{await waitForExportFonts();const source=document.getElementById("s"+i);if(!source)return null;const rect=source.getBoundingClientRect(),F=FORMATS[state.meta.format],scale=rect.width?F.w/rect.width:2;return await html2canvas(source,{scale,useCORS:true,backgroundColor:null,onclone:doc=>{doc.body.classList.add("exporting");const slide=doc.getElementById("s"+i);if(!slide)return;slide.querySelectorAll(".block-tools,.safe,.phig").forEach(el=>el.remove());slide.querySelectorAll("[contenteditable]").forEach(el=>el.removeAttribute("contenteditable"));slide.removeAttribute("onclick")}})}finally{document.body.classList.remove("exporting");if(hadGuides)document.body.classList.add("guides")}}
 async function exportSlide(i){const c=await toCanvas(i);if(!c)return;dl(c.toDataURL("image/png"),`${slug(state.meta.title)}-${String(i+1).padStart(2,"0")}.png`);toast(`PNG ${i+1}/${state.slides.length} descargado`)}
 async function exportAll(){toast("Exportando PNGs…");for(let i=0;i<state.slides.length;i++){const c=await toCanvas(i);if(!c)return;dl(c.toDataURL("image/png"),`${slug(state.meta.title)}-${String(i+1).padStart(2,"0")}.png`);toast(`Exportando ${i+1}/${state.slides.length}…`);await new Promise(r=>setTimeout(r,350))}toast("Listo — "+state.slides.length+" PNGs descargados ("+FORMATS[state.meta.format].px+")")}
 async function exportPDF(){if(!window.jspdf){alert("Necesitás conexión a internet para cargar jsPDF (CDN).");return}
