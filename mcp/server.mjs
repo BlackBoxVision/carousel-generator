@@ -316,6 +316,58 @@ function applyBoldify(slides) {
   }
   return slides;
 }
+function applyCategoryColors(slides, kit, category) {
+  if (!category) return slides;
+  const color = kit && kit.highlightColors && kit.highlightColors[category];
+  if (!color) return slides;
+  const walk = (nodes) => {
+    for (const el of nodes || []) {
+      if (el.type === "highlight") {
+        el.style = el.style || {};
+        if (!el.style.background) el.style.background = color;
+      }
+      if (el.children) walk(el.children);
+    }
+  };
+  for (const s of slides) walk(s.elements);
+  return slides;
+}
+function detectCategory(html) {
+  const section = metaContent(html, "property", "article:section");
+  if (section && section.trim()) return { category: decodeEntities(section.trim()), source: "article:section" };
+  const ldMatches = html.match(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi) || [];
+  for (const block of ldMatches) {
+    try {
+      const raw = block.replace(/<\/?script[^>]*>/gi, "").trim();
+      const data = JSON.parse(raw);
+      const graph = Array.isArray(data["@graph"]) ? data["@graph"] : [data];
+      for (const node of graph) {
+        if (node && node["@type"] === "BreadcrumbList" && Array.isArray(node.itemListElement)) {
+          const names = node.itemListElement.map((x) => {
+            const it = x && (x.item || x);
+            return it && (typeof it === "string" ? it : (it.name || (typeof it.item === "string" ? null : it.item && it.item.name)));
+          }).filter(Boolean).map((n) => String(n).trim());
+          const pick = names.filter((n) => n && !/^(home|inicio|portada|principal)$/i.test(n) && !/^https?:/i.test(n)).pop();
+          if (pick) return { category: decodeEntities(pick), source: "BreadcrumbList" };
+        }
+      }
+    } catch {}
+  }
+  const bodyHtml = (html.match(/<body[\s\S]*<\/body>/i) || [html])[0];
+  const mainHtml = (bodyHtml.match(/<(?:article|main)[^>]*>([\s\S]*?)<\/(?:article|main)>/i) || [bodyHtml])[1] || bodyHtml;
+  const counts = {};
+  const re = /<a[^>]+href=["'][^"']*\/(?:categor(?:y|ies|ia|ias)|secci[oó]n|seccion|tema|tags?)\/([a-z0-9\-_%]+)\/?["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = re.exec(mainHtml))) {
+    const label = decodeEntities(m[2].replace(/<[^>]+>/g, " ")).trim();
+    const key = (label || decodeURIComponent(m[1]).replace(/-/g, " ")).toLowerCase();
+    if (!key || key.length > 40) continue;
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  if (best) return { category: best[0].replace(/\b\w/g, (c) => c.toUpperCase()), source: "taxonomy-links" };
+  return null;
+}
 function findItemsBlock(slide) {
   for (const el of slide.elements || []) {
     if (el.type === "items") return el;
@@ -517,6 +569,7 @@ async function toolCarouselFromURL(args) {
   });
   // Fotos: candidatos del artículo → asignar por orden; slides sin foto → photoNeeds
   const candidates = pickPhotoCandidates(art);
+  const detected = detectCategory(html);
   const assigned = [];
   const photoNeeds = [];
   const slots = [];
@@ -541,7 +594,7 @@ async function toolCarouselFromURL(args) {
   if (!photoNeeds.length && !assigned.length) {
     photoNeeds.push({ slide: 1, template: "cover", query: art.title });
   }
-  const runtime = runtimeDataFromArgs({ ...a, title: art.title, company, carouselName, slides });
+  const runtime = runtimeDataFromArgs({ ...a, title: art.title, company, carouselName, slides, category: a.category || detected && detected.category });
   let persisted = null;
   if (a.persist !== false) persisted = persistCarousel(runtime, company, carouselName);
   const file = renderCarousel(runtime, a);
@@ -549,6 +602,10 @@ async function toolCarouselFromURL(args) {
     `Carrusel desde URL creado (${runtime.slides.length} slides):`,
     file,
     `JSON persistido: ${persisted ? persisted.file : "no (persist:false)"}`,
+    "",
+    detected
+      ? `Categoría detectada: "${runtime.meta.category || detected.category}" (señal: ${detected.source})${runtime.kit.highlightColors && runtime.kit.highlightColors[runtime.meta.category || detected.category] ? ` → highlight: ${runtime.kit.highlightColors[runtime.meta.category || detected.category]}` : " (sin color en kit.highlightColors — se usa el primario)"}`
+      : "Categoría no detectada — seteá meta.category manualmente si el kit define highlightColors.",
     "",
     `Fotos del artículo asignadas: ${assigned.length ? assigned.map((x) => `slide ${x.slide} ← ${x.source}`).join("; ") : "(ninguna candidata válida)"}`,
   ];
@@ -680,6 +737,7 @@ const tools = [
         outputDir: { type: "string", description: "Directorio de salida. Acepta ~. Default: ~/Downloads." },
         format: { type: "string", enum: ["feed", "square", "story"], description: "Formato inicial: feed (4:5, 1080x1350, default), square (1:1, 1080x1080 para IG/LinkedIn), story (9:16, 1080x1920 para stories/reels/TikTok). Se puede cambiar en vivo en el editor." },
         showNumbers: { type: "boolean", description: "Muestra el chip de numeración N/M arriba a la derecha de cada slide (default true). Pasá false para un look limpio sin números." },
+        category: { type: "string", description: "Categoría de la nota (ej: Turismo, Diplomacia, Comercio Internacional). Si el kit define highlightColors[category], los bloques highlight sin override usan ese color de fondo. Se guarda en meta.category." },
         persist: { type: "boolean", description: "Guarda carousel.json v2 y copia los assets en ~/.carousel-generator/carousels/{company}/{carouselName}/. Default true." },
         kitName: { type: "string", description: "Nombre del brand kit (ver list_brand_kits). Se busca en ~/.carousel-generator/brand/{empresa}/kit.json y luego en mcp/kits/ del repo. Default: primer kit del usuario, o Default si no hay ninguno." },
         kit: { type: "object", description: "Brand kit inline (se mergea sobre el kit base): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, logoSize, photoOverlay:{enabled,css}, gradients:[{name,css,light}] }. logo.imagePath: ruta de logo — 'logo.png' relativo a la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/), o 'file:' + ruta absoluta. Se embebe en base64. logoBackground: color de fondo del logo (ej: '#fff', 'transparent'). Default: transparent. logoShape: forma del fondo del logo ('square' o 'rectangular'). Default: square. logoSize: tamaño del logo en px (default: 43). photoOverlay: gradiente entre foto y texto {enabled:boolean, css:string}. Default: gradiente oscuro inferior." },
@@ -1017,13 +1075,15 @@ function runtimeDataFromArgs(args) {
   })));
   const title = String(a.title || "Carrusel");
   const format = ["feed", "square", "story"].includes(a.format) ? a.format : "feed";
+  const category = String((a.meta && a.meta.category) || a.category || "").trim();
+  applyCategoryColors(slides, kit, category);
   return {
     version: 2,
     company: slug(a.company || a.kitName || kit.name || "default"),
     slug: slug(a.carouselName || a.fileName || title),
     kit,
     kitSource: { store: "generated", slug: slug(kit.name || "kit") },
-    meta: { title, format, canvas: canvasForFormat(format), showCount: a.showNumbers !== false },
+    meta: { title, format, canvas: canvasForFormat(format), showCount: a.showNumbers !== false, ...(category ? { category } : {}) },
     slides,
   };
 }

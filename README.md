@@ -189,6 +189,42 @@ local heuristics only (it cannot see images), so the agent is responsible for:
 infographics/logos/banners (`flyer`, `infograf`, `logo`, `banner`, `icon`,
 etc.) and reports every discarded candidate to stderr for diagnostics.
 
+### Highlight colors by category
+
+The background color of **highlight** blocks is not hard-wired to the kit's primary color. It is resolved per slide with this cascade:
+
+1. `style.background` on the highlight block itself (manual per-slide override).
+2. `kit.highlightColors[meta.category]` — an optional category → color map defined in the brand kit.
+3. `kit.colors.primary` — the kit's primary color (current default behavior).
+
+**Set it up:**
+
+- Add a `highlightColors` object to the brand kit (or edit it in the kit dialog of the browser editor):
+
+```json
+{
+  "name": "Acercando Naciones",
+  "colors": { "primary": "#be0f0f", "..." : "..." },
+  "highlightColors": {
+    "turismo": "#0e7c66",
+    "diplomacia": "#1f4e79",
+    "comercio internacional": "#be0f0f"
+  }
+}
+```
+
+- Set the carousel's category via `generate_carousel { category: "Turismo" }` (stored as `meta.category`), or edit it in the editor's **Categoría** section. Category matching is case-insensitive.
+- Per-slide overrides always win: change the color of a single highlight with the color picker next to the block in the editor.
+
+**Category detection in `carousel_from_url`** (best-effort, generic — not site-specific):
+
+1. `<meta property="article:section" content="...">` (Open Graph standard).
+2. A schema.org `BreadcrumbList` JSON-LD block (first non-home item).
+3. Taxonomy links inside the article (`<article>`/`<main>` only, so global nav is excluded) with common path segments: `/category/`, `/categories/`, `/categoria/`, `/categorias/`, `/seccion/`, `/tema/`, `/tag/`. The most frequent label wins.
+4. Nothing found → the tool reports `categoría no detectada` and the carousel is generated without a category (highlights fall back to the primary color).
+
+The tool output always states which signal detected the category and which color was applied.
+
 ### Automatic content rules
 
 - **List partitioning** — a `list` slide accepts at most **3 items**. When generating or saving, longer lists are automatically split into consecutive slides (same photo, kicker annotated with `PARTE X`). In the editor, lists over the limit show a warning and a **Dividir** button in the slide controls.
