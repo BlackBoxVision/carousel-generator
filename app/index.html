@@ -137,7 +137,11 @@ body.guides .slide.fmt-story .safe{display:block}
 .slide.light{color:var(--secondary)}
 .slide.light .copy{text-shadow:none}
 .slide .brand{position:absolute;top:3.8%;left:6.2%;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;z-index:4}
-.brand .logo{width:43px;height:43px;border-radius:10px;background:#fff;display:grid;place-items:center;color:var(--secondary);font-family:var(--fh);font-size:28px;font-weight:900;position:relative}
+.brand .logo{width:43px;height:43px;border-radius:var(--logo-radius, 10px);background:var(--logo-bg, transparent);display:grid;place-items:center;color:var(--secondary);font-family:var(--fh);font-size:28px;font-weight:900;position:relative}
+.brand .logo.has-bg{padding:var(--logo-pad, 5px 6px)}
+.brand .logo.shape-square{--logo-radius:8px;--logo-pad:6px;aspect-ratio:1}
+.brand .logoimg.shape-square{aspect-ratio:1;object-fit:contain;border-radius:var(--logo-radius,8px)}
+.brand .logo.shape-rectangular{--logo-radius:12px;--logo-pad:5px 10px}
 .logo:after{content:"";position:absolute;bottom:7px;left:10px;width:22px;height:3px;background:var(--primary);transform:rotate(-5deg)}
 .brand .logoimg{height:43px;width:auto;display:block;filter:drop-shadow(0 1px 6px rgba(0,0,0,.4))}
 .count{position:absolute;right:6.2%;top:3.8%;background:rgba(6,17,29,.78);border-radius:5px;padding:6px 9px;font-size:12px;font-weight:700;color:#fff;z-index:4}
@@ -399,20 +403,16 @@ body.exporting .block-tools{display:none!important}
 
 <div id="toast"></div>
 <script>
-const HOOKED_KIT={
- name:"Hooked",
- colors:{primary:"#f45b16",secondary:"#071522",tertiary:"#ffffff",slideBg:"#14283a"},
- fonts:{heading:"'JetBrains Mono', monospace",body:"'Archivo Narrow', Arial, sans-serif",googleUrl:"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700;800;900&family=Archivo+Narrow:wght@400;500;600;700&display=swap"},
- logo:{letter:"h",text:"Hooked"},
+const DEFAULT_KIT={
+ name:"Default",
+ colors:{primary:"#0ea5e9",secondary:"#0f172a",tertiary:"#ffffff",slideBg:"#1e293b"},
+ fonts:{heading:"'Inter', system-ui, sans-serif",body:"'Inter', system-ui, sans-serif",googleUrl:"https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap"},
+ logo:{letter:"c",text:"Carousel"},
  gradients:[
-  {name:"navy",css:"linear-gradient(145deg,#173b53,#071522 60%,#8c593a)"},
-  {name:"sunset",css:"linear-gradient(145deg,#a76b46,#283744 48%,#06111d)"},
-  {name:"gold",css:"linear-gradient(130deg,#e8a45d,#172d3d 38%,#06111d 75%)"},
-  {name:"river",css:"linear-gradient(160deg,#477b9e 0%,#122a3d 48%,#071522 100%)"},
-  {name:"dusk",css:"linear-gradient(180deg,#f4a15c 0%,#8b5b52 35%,#123047 47%,#06111d 100%)"},
-  {name:"mapa",css:"linear-gradient(135deg,#b8ddd7,#d9e9cf 55%,#68a9bd)",light:true},
-  {name:"deep",css:"linear-gradient(145deg,#0d2233,#071522 70%)"},
-  {name:"sandy",css:"linear-gradient(150deg,#c9a26b,#35506a 45%,#071522 85%)"}
+  {name:"navy",css:"linear-gradient(145deg,#1e3a5f,#0f172a 65%)"},
+  {name:"sunset",css:"linear-gradient(145deg,#b4653a,#1c2b3a 50%,#0b1420 100%)"},
+  {name:"mint",css:"linear-gradient(135deg,#bfe3d8,#dcead2 55%,#5ea3b8)",light:true},
+  {name:"deep",css:"linear-gradient(145deg,#16283c,#0b1420 70%)"},
  ]
 };
 const TEMPLATES={
@@ -435,7 +435,7 @@ const LS_STATE="cg:state",LS_KITS="cg:kits";
 let state=null,sel=0,uid=1,guidesOn=false,saveT=null,renderT=null,toastT=null,openSecs={};
 
 function clone(o){return JSON.parse(JSON.stringify(o))}
-function normKit(k){const d=HOOKED_KIT;k=k||{};return{name:k.name||d.name,colors:Object.assign({},d.colors,k.colors||{}),fonts:Object.assign({},d.fonts,k.fonts||{}),logo:Object.assign({},d.logo,k.logo||{}),gradients:(k.gradients&&k.gradients.length?k.gradients:d.gradients).map(g=>({name:g.name||"grad",css:g.css||"",light:!!g.light}))}}
+function normKit(k){const d=DEFAULT_KIT;k=k||{};return{name:k.name||d.name,colors:Object.assign({},d.colors,k.colors||{}),fonts:Object.assign({},d.fonts,k.fonts||{}),logo:Object.assign({},d.logo,k.logo||{}),logoBackground:k.logoBackground||"transparent",logoShape:k.logoShape||"square",gradients:(k.gradients&&k.gradients.length?k.gradients:d.gradients).map(g=>({name:g.name||"grad",css:g.css||"",light:!!g.light}))}}
  function normSlide(s){const t=TEMPLATES[s.template]||TEMPLATES.list;const n=clone(t);n.id=s.id||`slide-${uid++}`;n.template=s.template||t.template;
  for(const f of["eyebrow","titleWhite","titleOrange","slogan","foot"])if(s[f]!==undefined)n[f]=String(s[f]);
  if(s.paragraphs)n.paragraphs=s.paragraphs.map(x=>String(x));
@@ -461,7 +461,7 @@ function normKit(k){const d=HOOKED_KIT;k=k||{};return{name:k.name||d.name,colors
    n.copyPos={anchor:validC.includes(sc.anchor)?sc.anchor:"bottom",offset:Math.max(-10,Math.min(10,+sc.offset||0))};
    n.elements=(Array.isArray(s.elements)?s.elements:legacyElements(n)).map(normalizeBlock);
    return n}
- function normState(d){const k=normKit(d&&d.kit);const format=validFormat(d&&d.meta&&d.meta.format);state={version:2,company:(d&&d.company)||((d&&d.kitSource&&d.kitSource.slug)||slug(k.name)),kit:k,kitSource:(d&&d.kitSource)||{store:"builtin",slug:"hooked"},meta:{title:(d&&d.meta&&d.meta.title)||"Carrusel nuevo",format,canvas:(d&&d.meta&&d.meta.canvas)||FORMATS[format],showCount:!d||!d.meta||d.meta.showCount!==false},slides:[]};state.assets=(d&&d.assets)||[];state.slides=(d&&d.slides&&d.slides.length?d.slides:ORDER.map(t=>({template:t}))).map(normSlide)}
+ function normState(d){const k=normKit(d&&d.kit);const format=validFormat(d&&d.meta&&d.meta.format);state={version:2,company:(d&&d.company)||((d&&d.kitSource&&d.kitSource.slug)||slug(k.name)),kit:k,kitSource:(d&&d.kitSource)||{store:"builtin",slug:"default"},meta:{title:(d&&d.meta&&d.meta.title)||"Carrusel nuevo",format,canvas:(d&&d.meta&&d.meta.canvas)||FORMATS[format],showCount:!d||!d.meta||d.meta.showCount!==false},slides:[]};state.assets=(d&&d.assets)||[];state.slides=(d&&d.slides&&d.slides.length?d.slides:ORDER.map(t=>({template:t}))).map(normSlide)}
 
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 function escAttr(s){return esc(s).replace(/'/g,"&#39;")}
@@ -471,7 +471,7 @@ function slug(s){return String(s||"carrusel").toLowerCase().normalize("NFD").rep
 
 function gradCss(s){if(s.bg.type==="css")return s.bg.css;if(s.bg.type==="photo")return"none";const g=state.kit.gradients.find(g=>g.name===s.bg.value);return g?g.css:"none"}
 function lightOn(s){return s.bg.type==="gradient"&&(state.kit.gradients.find(g=>g.name===s.bg.value)||{}).light||s.overlayLight}
-function logoHTML(height){const l=state.kit.logo||{},h=+height||+l.imgH||43;if(l.img)return`<img class="logoimg" src="${l.img}" style="height:${h}px" alt="logo">`;return`<span class="logo" style="width:${h}px;height:${h}px;font-size:${Math.round(h*.65)}px">${esc(l.letter||"")}</span>`}
+function logoHTML(height,bg){const l=state.kit.logo||{},h=+height||+l.imgH||43;const bgVal=bg||state.kit.logoBackground||"transparent";const hasBg=bgVal&&bgVal!=="transparent";const shape=state.kit.logoShape||"square";const shapeClass=hasBg?` shape-${shape}`:"";if(l.img)return`<img class="logoimg${shapeClass}" src="${l.img}" style="height:${h}px${hasBg?`;background:${bgVal};border-radius:var(--logo-radius,8px);padding:var(--logo-pad,6px)`:``}" alt="logo">`;return`<span class="logo${hasBg?` has-bg`:``}${shapeClass}" style="width:${h}px;height:${h}px;font-size:${Math.round(h*.65)}px${hasBg?`;background:${bgVal}`:``}">${esc(l.letter||"")}</span>`}
 function pillsHTML(s,ed){return(s.pills||[]).map((p,i)=>`<div class="pill" data-pill="${i}"${ed?` onpointerdown="pillDown(event,${i})" ondblclick="pillDbl(this)" onblur="pillDone(this,${i})"`:""} style="top:${+p.top||30}%;${p.side==="right"?`right:${+p.offset||6}%`:`left:${+p.offset||8}%`}">${esc(p.text)}</div>`).join("")}
 
 function blockEdit(el,field,single,ed){return ed?` contenteditable="true" data-block-id="${escAttr(el.id)}" data-block-field="${field}"${single?' data-single="1"':''} oninput="blockInput(this)" onkeydown="blockKeys(event,this)" onpaste="edPaste(event)"`:""}
@@ -709,7 +709,7 @@ function switchKit(v){const p=v.split(":");const store=p[0],sl=p.slice(1).join("
  let kit=null;
  if(store==="local")kit=localKits()[sl];
  else if(store==="injected"&&window.BRAND_KITS)kit=window.BRAND_KITS[sl];
- else if(store==="builtin")kit=HOOKED_KIT;
+ else if(store==="builtin")kit=DEFAULT_KIT;
  if(!kit){toast("Kit no encontrado");populateKits();return}
  state.kit=normKit(clone(kit));state.kitSource={store:store==="builtin"?"builtin":store,slug:sl};
  fixSlidesForKit();queueSave();renderAll();toast("Kit activo: "+state.kit.name)}
