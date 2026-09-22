@@ -152,28 +152,42 @@ The server exposes twelve tools. You can ask the AI to use them in plain languag
 
 **Start from a website**
 
-```text
-brand_kit_from_url -> generate_carousel -> edit in browser -> save_carousel
+```mermaid
+flowchart LR
+    A[brand_kit_from_url] --> B[generate_carousel]
+    B --> C[edit in browser]
+    C --> D[save_carousel]
 ```
 
 **Continue an existing project**
 
-```text
-list_carousels -> load_carousel -> refine -> save_carousel
+```mermaid
+flowchart LR
+    A[list_carousels] --> B[load_carousel]
+    B --> C[refine]
+    C --> D[save_carousel]
 ```
 
 **Try a new look without changing the saved kit**
 
-```text
-generate_carousel with an inline kit -> review -> save_brand_kit if approved
+```mermaid
+flowchart LR
+    A[generate_carousel<br/>with an inline kit] --> B[review]
+    B --> C{approved?}
+    C -->|yes| D[save_brand_kit]
+    C -->|no| A
 ```
 
 **Build a carousel from an article URL**
 
-```text
-carousel_from_url -> agent verifies photos visually -> set_slide_photo for
-photos that do not fit (stock searched with the suggested queries) ->
-review_slide_images to re-audit -> edit in browser -> save_carousel
+```mermaid
+flowchart LR
+    A[carousel_from_url] --> B{photos<br/>verified?}
+    B -->|no| C[set_slide_photo<br/>stock from photoNeeds queries]
+    C --> D[review_slide_images]
+    D --> B
+    B -->|yes| E[edit in browser]
+    E --> F[save_carousel]
 ```
 
 ### Photo verification protocol
