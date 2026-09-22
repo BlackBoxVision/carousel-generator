@@ -227,6 +227,7 @@ The tool output always states which signal detected the category and which color
 
 ### Automatic content rules
 
+- **Long words auto-shrink** — a highlighted word wider than the slide (e.g. "FINANCIAMIENTO" at hero size) is never broken mid-word. After every render, headlines are measured and any word that would not fit gets its font size reduced proportionally (min 60%). Phrases that wrap normally are left untouched.
 - **List partitioning** — a `list` slide accepts at most **3 items**. When generating or saving, longer lists are automatically split into consecutive slides (same photo, kicker annotated with `PARTE X`). In the editor, lists over the limit show a warning and a **Dividir** button in the slide controls.
 - **Bold key figures** — when generating, numeric data in body copy is wrapped in bold automatically: currency amounts (`US$ 1.099 millones`), percentages (`+6,9%`), figures with units (`6 meses`), and spelled-out numbers (`seis meses`). Texts that already contain manual `**bold**` or `==highlight==` markup are left untouched.
 

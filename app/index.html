@@ -158,7 +158,7 @@ h1{font-family:var(--fh);text-transform:uppercase;font-weight:900;font-size:var(
 .slide.cover h1.big{font-size:var(--fs-hero)}
 .slide.light h1{color:var(--secondary)}
 .orange{display:table;max-width:100%;background:var(--hl-bg,var(--primary));padding:4px 10px 7px;margin:4px 0 var(--sp2);text-shadow:none}
-.orange h1{color:#fff;margin:0;overflow-wrap:anywhere}
+.orange h1{color:#fff;margin:0;overflow-wrap:normal;word-break:keep-all}
 p{font-size:var(--fs-body);line-height:1.28;margin:var(--sp1) 0;max-width:98%}
 .slide.light p{color:var(--secondary)}
 .eyebrow{font-size:12px;letter-spacing:.13em;font-weight:800;text-transform:uppercase;margin-bottom:var(--sp2)}
@@ -541,9 +541,10 @@ function slideHTML(s,i){const ed=i===sel;const photoStyle=s.bg.type==="photo"?`b
 function listItemsOf(s){for(const el of s.elements||[]){if(el.type==="items")return el.children||[];for(const ch of el.children||[])if(ch.type==="items")return ch.children||[]}return Array.isArray(s.items)?s.items:[]}
  function thumbHTML(s,i){const c=thumbContent(s);const nItems=listItemsOf(s).length;const warn=nItems>3;return`<div class="tb" style="${thumbBg(s)}"></div><div class="thumb-scrim"></div><div class="thumb-copy">${c.kicker?`<span class="thumb-kicker">${esc(c.kicker)}</span>`:""}${c.title?`<span class="thumb-title">${esc(c.title)}</span>`:""}${c.highlight?`<span class="thumb-highlight">${esc(c.highlight)}</span>`:""}${c.body?`<span class="thumb-body">${esc(c.body)}</span>`:""}</div><span class="num">${i+1}</span><span class="meta"><span class="tpl">${TPL_EMOJI[s.template]||"•"}</span><span>${esc(TPL_LABEL[s.template]||s.template)}${warn?` <b style="color:#ff8fa3">· ${nItems} items</b>`:""}</span></span>`}
 
-function renderDeck(){const d=document.getElementById("deck");d.innerHTML=state.slides.map((s,i)=>`<div class="wrap${i===sel?" sel":""}" id="w${i}">${slideHTML(s,i)}${controlsHTML(i)}</div>`).join("")||`<div class="empty">Sin slides. Usá “+ Slide” para empezar.</div>`;fitCopyBlocks(d)}
+function renderDeck(){const d=document.getElementById("deck");d.innerHTML=state.slides.map((s,i)=>`<div class="wrap${i===sel?" sel":""}" id="w${i}">${slideHTML(s,i)}${controlsHTML(i)}</div>`).join("")||`<div class="empty">Sin slides. Usá “+ Slide” para empezar.</div>`;fitWordWidth(d);fitCopyBlocks(d)}
 function fitCopyBlocks(root){(root||document).querySelectorAll(".slide .copy").forEach(el=>{const slide=el.closest(".slide");if(!slide)return;const m=slide.className.match(/copy-(bottom|top|center)/);const anchor=m?m[1]:"bottom";const capped=el.clientHeight;let natural=0;const prevMh=el.style.maxHeight;el.style.maxHeight="none";natural=el.offsetHeight;el.style.maxHeight=prevMh;let t="";if(natural>capped+1&&capped>0){const k=Math.max(.5,Math.min(1,capped/natural));t=anchor==="center"?`translateY(-50%) scale(${k})`:`scale(${k})`}else if(anchor==="center")t="translateY(-50%)";el.style.transformOrigin="left top";if(t)el.style.transform=t;else el.style.removeProperty("transform")})}
-function renderSlide(i){const w=document.getElementById("w"+i);if(!w)return;w.className="wrap"+(i===sel?" sel":"");w.innerHTML=slideHTML(state.slides[i],i)+controlsHTML(i);fitCopyBlocks(w)}
+function fitWordWidth(root){(root||document).querySelectorAll(".slide .copy h1").forEach(h=>{const copy=h.closest(".copy");if(!copy)return;const cs=getComputedStyle(h);const baseSize=parseFloat(cs.fontSize)||0;if(!baseSize)return;h.style.fontSize="";const words=String(h.textContent||"").split(/\s+/).filter(Boolean);if(!words.length)return;const probe=document.createElement("span");probe.style.cssText="position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:0";probe.style.fontStyle=cs.fontStyle;probe.style.fontWeight=cs.fontWeight;probe.style.fontSize=cs.fontSize;probe.style.fontFamily=cs.fontFamily;probe.style.letterSpacing=cs.letterSpacing;probe.style.textTransform=cs.textTransform;copy.appendChild(probe);let widest=0;for(const w of words){probe.textContent=w;widest=Math.max(widest,probe.offsetWidth)}probe.remove();const box=h.closest(".orange");const avail=(box||copy).clientWidth-(box?20:0)-2;if(widest>avail+1&&avail>0){const factor=Math.max(.6,Math.min(1,(avail/widest)*.97));h.style.fontSize=(baseSize*factor).toFixed(1)+"px"}})}
+function renderSlide(i){const w=document.getElementById("w"+i);if(!w)return;w.className="wrap"+(i===sel?" sel":"");w.innerHTML=slideHTML(state.slides[i],i)+controlsHTML(i);fitWordWidth(w);fitCopyBlocks(w)}
  function renderNav(){const v=document.getElementById("nav");v.innerHTML=`<div class="nav-label">Slides (${state.slides.length})</div>`+state.slides.map((s,i)=>`<div class="navitem${i===sel?" sel":""}" draggable="true" data-i="${i}" onclick="selectSlide(${i})" ondragstart="navDrag(event)" ondragover="navOver(event)" ondragleave="this.classList.remove('drop')" ondrop="navDrop(event,${i})">${thumbHTML(s,i)}</div>`).join("")+`<md-outlined-button class="add-slide" onclick="openTpl()"><span slot="icon" class="material-symbols-outlined">add</span>Nueva slide</md-outlined-button>`}
 
 function blockInfo(id,nodes=state.slides[sel].elements,parent=null){for(let i=0;i<nodes.length;i++){const block=nodes[i];if(block.id===id)return{block,parent,list:nodes,index:i};if(block.children){const hit=blockInfo(id,block.children,block);if(hit)return hit}}return null}
@@ -808,7 +809,7 @@ function importKitFile(e){const f=e.target.files&&e.target.files[0];if(!f)return
  else if(window.BRAND_KITS){const keys=Object.keys(window.BRAND_KITS);if(keys.length){const first=keys[0];state.kit=normKit(clone(window.BRAND_KITS[first]));state.kitSource={store:"injected",slug:first}}}
  sel=0;
  renderAll();
- if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>fitCopyBlocks());
+ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{fitWordWidth();fitCopyBlocks()});
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
