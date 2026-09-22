@@ -103,6 +103,7 @@ You can change the format later in the editor.
 The editor supports:
 
 - Click-to-edit text directly on a slide.
+- Live mini-slide previews in the sidebar: each thumbnail is the real slide rendered at the selected format's aspect ratio (4:5, 1:1, 9:16), so what you see in the nav is what you get.
 - An inspector panel for backgrounds, layout, and nested blocks.
 - Drag and drop to reorder slides and content blocks.
 - Add, remove, or reorder text, highlights, body copy, lists, pills, and CTA boxes.
