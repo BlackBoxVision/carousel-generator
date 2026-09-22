@@ -44,9 +44,11 @@ md-icon-button:hover{--md-icon-button-icon-color:var(--ed-text)}
 md-tonal-button{--md-tonal-button-container-color:var(--ed-surface3);--md-tonal-button-label-text-color:var(--ed-text);--md-tonal-button-container-shape:var(--md-shape-corner-s);font-size:12px;font-weight:500;--md-tonal-button-container-height:30px}
 md-outlined-select{--md-outlined-field-container-color:var(--ed-surface2);--md-outlined-field-container-outline-color:var(--ed-border);--md-outlined-field-container-shape:var(--md-shape-corner-s);--md-outlined-field-top-space:4px;--md-outlined-field-bottom-space:4px;font-size:12px}
 md-outlined-text-field{--md-outlined-field-container-color:var(--ed-surface2);--md-outlined-field-container-outline-color:var(--ed-border);--md-outlined-field-container-shape:var(--md-shape-corner-s);--md-outlined-field-top-space:6px;--md-outlined-field-bottom-space:6px;font-size:12px}
-#fmtPicker{width:150px}#kitPicker{width:180px}
-#kitPicker::part(display){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fmtPicker{width:150px}
+#kitPicker{width:220px;height:48px;min-height:48px;max-height:48px;overflow:hidden;--md-outlined-select-text-field-input-text-size:13px;--md-outlined-select-text-field-input-text-line-height:18px}
+#kitPicker::part(field){height:48px;min-height:48px;max-height:48px;white-space:nowrap;overflow:hidden;--md-outlined-field-content-size:13px;--md-outlined-field-content-line-height:18px}
 #kitPicker md-select-option::part(headline){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#newSlideBtn{white-space:nowrap;--md-filled-button-with-leading-icon-leading-space:10px;--md-filled-button-with-leading-icon-trailing-space:12px}
 header md-outlined-text-field{width:160px}
 md-outlined-text-field:focus-within{--md-outlined-field-container-outline-color:var(--ed-accent)}
 md-switch{--md-switch-selected-track-color:var(--ed-accent2);--md-switch-selected-handle-color:#fff;--md-switch-track-color:var(--ed-border)}
@@ -322,7 +324,7 @@ body.exporting .slide{cursor:default!important}
   <div class="hdr-group"><md-outlined-select id="fmtPicker" label="Formato" onchange="setFormat(this.value)"></md-outlined-select></div>
   <div class="hdr-group"><md-outlined-select id="kitPicker" label="Kit" onchange="switchKit(this.value)"></md-outlined-select></div>
   <div class="hdr-sep"></div>
-  <div class="hdr-group"><md-filled-button onclick="openTpl()"><span class="material-symbols-outlined">add</span>Nueva slide</md-filled-button></div>
+  <div class="hdr-group"><md-filled-button id="newSlideBtn" onclick="openTpl()"><span class="material-symbols-outlined">add</span>Nueva slide</md-filled-button></div>
   <div class="hdr-sep"></div>
   <div class="toolbar">
     <md-outlined-button onclick="exportAll()"><span class="material-symbols-outlined">image</span>PNGs</md-outlined-button>
