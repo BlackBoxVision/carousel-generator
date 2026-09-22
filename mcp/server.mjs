@@ -291,6 +291,17 @@ function normSlideArg(s) {
 }
 
 const MAX_LIST_ITEMS = 3;
+const PHOTO_REVIEW_PROTOCOL = [
+  "PHOTO REVIEW PROTOCOL (ejecutalo antes de entregar el carrusel al usuario):",
+  "1. VERIFY — para cada slide con foto: abrí/miniaturizá la imagen y verificá VISUALMENTE que coincida con el mensaje de la slide (kicker/título/body).",
+  "2. REPLACE — si una foto no tiene sentido (infografía, logo, fuera de tema):",
+  "   a. usá la query sugerida en photoNeeds (o refinála),",
+  "   b. buscá fotos de stock con websearch (licencia libre: Unsplash/Pexels),",
+  "   c. descargá la candidata y VERIFICALA VISUALMENTE antes de aplicarla,",
+  "   d. aplicala con set_slide_photo(company, slug, slide, source).",
+  "3. RE-AUDIT — volvé a correr review_slide_images y confirmá que cada slide tiene una foto coherente.",
+  "Nunca entregues un carrusel con fotos sin verificar.",
+].join("\n");
 function boldifyData(text) {
   let t = String(text == null ? "" : text);
   if (!t || /\*\*|==/.test(t)) return t;
@@ -337,6 +348,292 @@ function partitionListSlides(slides) {
     }
   }
   return out;
+}
+
+function decodeEntities(t) {
+  return String(t || "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (x, n) => { try { return String.fromCodePoint(+n); } catch { return x; } })
+    .replace(/\s+/g, " ").trim();
+}
+function imageSize(file) {
+  let buf;
+  try { buf = fs.readFileSync(file); } catch { return null; }
+  if (buf.length > 24 && buf.toString("ascii", 1, 4) === "PNG") return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+    let off = 2;
+    while (off + 9 < buf.length) {
+      if (buf[off] !== 0xff) { off++; continue; }
+      const marker = buf[off + 1];
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { w: buf.readUInt16BE(off + 7), h: buf.readUInt16BE(off + 5) };
+      }
+      off += 2 + buf.readUInt16BE(off + 2);
+    }
+  }
+  return null;
+}
+const BAD_IMG_HINTS = /flyer|infograf|logo|banner|icon|sprite|avatar|emoji|badge|placeholder|\bads?[-_/]|pixel|tracking/i;
+const DATA_FIG_RE = /(?:US\s?\$|USD|R\$|AR\$|€|£|\$)\s?[\d][\d.,]*|[+-]?\d+(?:[.,]\d+)?\s?%|\b\d[\d.,]*(?:\s?(?:millones|millón|miles|mil))\b/i;
+function normalizeImageUrl(raw, pageUrl) {
+  let u = String(raw || "").trim();
+  if (!u || u.startsWith("data:")) return null;
+  try {
+    const parsed = new URL(u, pageUrl);
+    if (/\/_next\/image$/.test(parsed.pathname)) {
+      const inner = parsed.searchParams.get("url");
+      if (inner) return new URL(decodeURIComponent(inner), pageUrl).href;
+    }
+    return parsed.href;
+  } catch { return null; }
+}
+function extractArticle(html, pageUrl) {
+  const u = new URL(pageUrl);
+  const site = metaContent(html, "property", "og:site_name") || u.hostname.replace(/^www\./, "");
+  const title = decodeEntities(metaContent(html, "property", "og:title") || (html.match(/<title[^>]*>([\s\S]{1,200}?)<\/title>/i) || [])[1] || "");
+  const dek = decodeEntities(metaContent(html, "property", "og:description") || metaContent(html, "name", "description") || "");
+  const ogImage = metaContent(html, "property", "og:image") || metaContent(html, "name", "twitter:image") || "";
+  const bodyHtml = (html.match(/<body[\s\S]*<\/body>/i) || [html])[0];
+  const clean = (raw) => decodeEntities(String(raw || "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " "));
+  const paras = [];
+  const pre = /<(?:p|h2|h3)[^>]*>([\s\S]*?)<\/(?:p|h2|h3)>/gi;
+  let m;
+  while ((m = pre.exec(bodyHtml))) {
+    const txt = clean(m[1]);
+    if (txt.length >= 80 && txt.length <= 600 && paras.length < 40) paras.push(txt);
+  }
+  const items = [];
+  const lis = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+  while ((m = lis.exec(bodyHtml))) {
+    const txt = clean(m[1]);
+    if (txt.length >= 15 && txt.length <= 140 && items.length < 12) items.push(txt);
+  }
+  const imgs = [];
+  const imgRe = /<img[^>]+(?:src|data-src|data-lazy-src)=["']([^"']+)["']/gi;
+  while ((m = imgRe.exec(bodyHtml))) { const n = normalizeImageUrl(m[1], pageUrl); if (n) imgs.push(n); }
+  const wpRe = /(?:https?:\/\/)?(?:i\d|wp\d?|s\d)?\.?wp\.com\/[^\s"'<>\\]+?\.(?:jpe?g|png|webp)/gi;
+  while ((m = wpRe.exec(html))) {
+    let u2 = m[0];
+    if (!/^https?:\/\//i.test(u2)) u2 = "https://" + u2;
+    const n = normalizeImageUrl(u2, pageUrl);
+    if (n) imgs.push(n);
+  }
+  return { site, title, dek, ogImage: normalizeImageUrl(ogImage, pageUrl) || "", paras, items, imgs: [...new Set(imgs)] };
+}
+function pickPhotoCandidates(article) {
+  const out = [];
+  const seen = new Set();
+  for (const raw of [article.ogImage, ...article.imgs].filter(Boolean)) {
+    let u = raw;
+    if (seen.has(u)) continue;
+    seen.add(u);
+    if (!/\.(jpe?g|png|webp)(\?|$)/i.test(u)) continue;
+    if (BAD_IMG_HINTS.test(u)) continue;
+    if (/w=\d+/.test(u)) u = u.replace(/w=\d+/, "w=1920");
+    out.push(u);
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+async function downloadPhotoToTmp(url) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 15000);
+  try {
+    const res = await globalThis.fetch(url, { signal: ctl.signal, headers: { "User-Agent": "carousel-generator/2.2 (+carousel-from-url)" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const ct = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!ct.startsWith("image/")) throw new Error(`no es imagen (${ct})`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 15000) throw new Error("imagen muy chica (¿icono?)");
+    if (buf.length > 6000000) throw new Error("imagen mayor a 6MB");
+    const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
+    const dir = path.join(os.tmpdir(), "carousel-from-url");
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
+    fs.writeFileSync(file, buf);
+    return file;
+  } finally { clearTimeout(t); }
+}
+function splitTitleForCover(t) {
+  const words = String(t).trim().split(/\s+/);
+  if (words.length <= 3) return { white: words.join(" ").toUpperCase(), orange: "" };
+  const target = Math.max(2, Math.round(words.length * 0.4));
+  let idx = target;
+  for (let i = target; i < Math.min(words.length, target + 4); i++) {
+    if (/%|\d|millones/i.test(words[i])) { idx = i + 1; break; }
+  }
+  return { white: words.slice(0, idx).join(" ").toUpperCase(), orange: words.slice(idx).join(" ").toUpperCase() };
+}
+const LIST_EMOJIS = ["✅", "📈", "🔎", "💡", "⚙️", "🤝", "🌍", "📊", "🧭", "🚀", "🏷️", "📞"];
+async function toolCarouselFromURL(args) {
+  const a = args || {};
+  if (!a.url) throw new Error("Falta `url`.");
+  const pageUrl = new URL(a.url).href;
+  const html = await fetchBrandHTML(pageUrl);
+  const art = extractArticle(html, pageUrl);
+  if (!art.title) throw new Error("No se pudo extraer el título de la nota.");
+  const company = slug(a.company || art.site);
+  const carouselName = slug(a.carouselName || a.fileName || art.title);
+  const cover = splitTitleForCover(art.title);
+  const figParas = art.paras.filter((p) => DATA_FIG_RE.test(p));
+  const otherParas = art.paras.filter((p) => !figParas.includes(p));
+  const slides = [
+    { template: "cover", eyebrow: art.site.toUpperCase(), titleWhite: cover.white, titleOrange: cover.orange, paragraphs: [art.dek].filter(Boolean) },
+  ];
+  figParas.slice(0, 2).forEach((p, i) => {
+    const fig = (p.match(DATA_FIG_RE) || [])[0] || "";
+    const words = p.split(/\s+/);
+    slides.push({
+      template: "fact",
+      eyebrow: i === 0 ? "EL DATO" : "EL CONTEXTO",
+      titleWhite: words.slice(0, 3).join(" ").toUpperCase(),
+      titleOrange: fig.toUpperCase(),
+      paragraphs: [p.length > 220 ? p.slice(0, 217).trimEnd() + "…" : p],
+    });
+  });
+  if (art.items.length >= 3) {
+    slides.push({
+      template: "list",
+      eyebrow: "CLAVES DE LA NOTA",
+      titleWhite: "LOS PUNTOS",
+      titleOrange: "A SEGUIR",
+      items: art.items.slice(0, 9).map((t, i) => ({ emoji: LIST_EMOJIS[i % LIST_EMOJIS.length], title: t.length > 70 ? t.slice(0, 67).trimEnd() + "…" : t, desc: "" })),
+    });
+  }
+  if (otherParas.length) {
+    const p = otherParas[0];
+    slides.push({ template: "fact", eyebrow: "PARA TENER EN CUENTA", titleWhite: p.split(/\s+/).slice(0, 3).join(" ").toUpperCase(), titleOrange: "EL CONTEXTO", paragraphs: [p.length > 220 ? p.slice(0, 217).trimEnd() + "…" : p] });
+  }
+  slides.push({
+    template: "cta",
+    eyebrow: "SEGUÍ LA NOTA",
+    titleWhite: "NOTA COMPLETA EN",
+    titleOrange: art.site.toUpperCase(),
+    paragraphs: [],
+    ctaBox: { title: "LEER LA NOTA", text: pageUrl },
+  });
+  // Fotos: candidatos del artículo → asignar por orden; slides sin foto → photoNeeds
+  const candidates = pickPhotoCandidates(art);
+  const assigned = [];
+  const photoNeeds = [];
+  const slots = [];
+  for (let i = 0; i < slides.length; i++) if (["cover", "fact", "list"].includes(slides[i].template)) slots.push(i);
+  let ci = 0;
+  for (const si of slots) {
+    let file = null, src = null;
+    while (ci < candidates.length && !file) {
+      try { file = await downloadPhotoToTmp(candidates[ci]); src = candidates[ci]; }
+      catch (e) { process.stderr.write(`[carousel-from-url] foto descartada ${candidates[ci]}: ${(e && e.message) || e}\n`); ci++; }
+    }
+    if (file) {
+      slides[si].background = `file:${file}`;
+      slides[si].scrim = slides[si].template === "cover" ? 55 : 50;
+      slides[si].bgPos = "center";
+      assigned.push({ slide: si + 1, source: src });
+      ci++;
+    } else {
+      photoNeeds.push({ slide: si + 1, template: slides[si].template, query: `${art.title} ${slides[si].eyebrow}`.trim() });
+    }
+  }
+  if (!photoNeeds.length && !assigned.length) {
+    photoNeeds.push({ slide: 1, template: "cover", query: art.title });
+  }
+  const runtime = runtimeDataFromArgs({ ...a, title: art.title, company, carouselName, slides });
+  let persisted = null;
+  if (a.persist !== false) persisted = persistCarousel(runtime, company, carouselName);
+  const file = renderCarousel(runtime, a);
+  const lines = [
+    `Carrusel desde URL creado (${runtime.slides.length} slides):`,
+    file,
+    `JSON persistido: ${persisted ? persisted.file : "no (persist:false)"}`,
+    "",
+    `Fotos del artículo asignadas: ${assigned.length ? assigned.map((x) => `slide ${x.slide} ← ${x.source}`).join("; ") : "(ninguna candidata válida)"}`,
+  ];
+  if (photoNeeds.length) {
+    lines.push("", "photoNeeds (slides sin foto coherente):");
+    for (const n of photoNeeds) lines.push(`  - slide ${n.slide} (${n.template}) → query sugerida: "${n.query}"`);
+  }
+  lines.push("", "IMPORTANTE — Verificá cada foto asignada con visión (descargá/miniaturizá y confirmá que coincide con el mensaje de la slide).", PHOTO_REVIEW_PROTOCOL);
+  return lines.join("\n");
+}
+function slideMetaForReview(stored, dir) {
+  const out = [];
+  (stored.slides || []).forEach((s, i) => {
+    const texts = { kicker: "", title: "", highlight: "", body: "" };
+    const walk = (nodes) => {
+      for (const b of nodes || []) {
+        if (b.type === "kicker" && !texts.kicker) texts.kicker = b.text;
+        if (b.type === "text" && !texts.title) texts.title = b.text;
+        if (b.type === "highlight" && !texts.highlight) texts.highlight = b.text;
+        if (b.type === "body" && !texts.body) texts.body = b.text;
+        if (b.children) walk(b.children);
+      }
+    };
+    walk(s.elements);
+    let photo = null;
+    if (s.bg && s.bg.type === "photo" && s.bg.asset) {
+      const f = path.resolve(dir, s.bg.asset);
+      if (fs.existsSync(f)) {
+        const dim = imageSize(f);
+        photo = { file: f, dimensions: dim ? `${dim.w}x${dim.h}` : null, asset: s.bg.asset, scrim: s.bg.scrim };
+      }
+    }
+    out.push({ slide: i + 1, id: s.id, template: s.template, ...texts, photo, hasPhoto: !!photo });
+  });
+  return out;
+}
+function toolReviewSlideImages(args) {
+  const a = args || {};
+  const company = slug(a.company || "");
+  const name = slug(a.name || a.slug || "");
+  if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+  const record = readCarousel(company, name);
+  const slides = slideMetaForReview(record.stored, record.dir);
+  const photoNeeds = slides.filter((s) => !s.hasPhoto).map((s) => ({
+    slide: s.slide,
+    template: s.template,
+    query: [s.title, s.highlight, s.kicker].filter(Boolean).join(" ") || s.template,
+  }));
+  return JSON.stringify({ company, slug: name, slides, photoNeeds, protocol: PHOTO_REVIEW_PROTOCOL }, null, 2);
+}
+async function toolSetSlidePhoto(args) {
+  const a = args || {};
+  const company = slug(a.company || "");
+  const name = slug(a.name || a.slug || "");
+  if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+  const record = readCarousel(company, name);
+  const stored = record.stored;
+  const idx = (Math.max(1, +a.slide || +a.slideIndex || 1)) - 1;
+  const slide = (stored.slides || [])[idx];
+  if (!slide) throw new Error(`Slide ${idx + 1} inexistente (${(stored.slides || []).length} slides).`);
+  const src = String(a.source || "");
+  if (!src) throw new Error("Falta `source` (URL http(s) o ruta local).");
+  let tmpFile = null, file;
+  if (/^https?:\/\//i.test(src)) { tmpFile = await downloadPhotoToTmp(src); file = tmpFile; }
+  else {
+    file = expandHome(src.replace(/^file:(\/\/)?/, ""));
+    if (!fs.existsSync(file)) throw new Error(`Archivo no encontrado: ${file}`);
+  }
+  const assetsDir = path.join(record.dir, "assets");
+  fs.mkdirSync(assetsDir, { recursive: true });
+  const ext = (path.extname(file).toLowerCase() || ".jpg").replace(".", "");
+  const assetId = `${slide.id || "slide-" + (idx + 1)}-background`;
+  const dest = path.join(assetsDir, `${assetId}.${ext}`);
+  fs.copyFileSync(file, dest);
+  slide.bg = { ...(slide.bg || {}), type: "photo", asset: `assets/${assetId}.${ext}` };
+  delete slide.bg.src; delete slide.bg.css; delete slide.bg.value;
+  if (a.scrim !== undefined) slide.bg.scrim = Math.max(0, Math.min(85, +a.scrim || 0));
+  if (a.bgPos) slide.bg.bgPos = String(a.bgPos).trim() || "center";
+  stored.assets = (stored.assets || []).filter((x) => x.id !== assetId);
+  const dim = imageSize(dest);
+  stored.assets.push({ id: assetId, file: `assets/${assetId}.${ext}`, kind: "photo", mime: ext === "png" ? "image/png" : "image/jpeg", width: dim ? dim.w : null, height: dim ? dim.h : null });
+  stored.updatedAt = new Date().toISOString();
+  fs.writeFileSync(record.file, JSON.stringify(stored, null, 2), "utf8");
+  if (tmpFile) { try { fs.unlinkSync(tmpFile); } catch {} }
+  const runtime = hydrateCarousel(stored, record.dir);
+  const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName || `${name}-photo-${idx + 1}`, open: a.open !== false });
+  return `Foto actualizada en slide ${idx + 1} de ${company}/${name}.\nImagen: ${dest}${dim ? ` (${dim.w}x${dim.h})` : ""}\nPreview: ${html}\n\nPaso 3 del protocolo: re-auditá con review_slide_images antes de entregar.\n${PHOTO_REVIEW_PROTOCOL}`;
 }
 
 const tools = [
@@ -461,6 +758,62 @@ const tools = [
         save: { type: "boolean", description: "Guardar en ~/.carousel-generator/brand/{empresa}/kit.json (default true). Con false solo devuelve el JSON inferido sin guardar." },
       },
       required: ["url"],
+    },
+  },
+  {
+    name: "carousel_from_url",
+    description:
+      "Crea un carrusel borrador desde la URL de una nota/artículo (fetch + extracción de título, bajada, datos e imágenes). Aplica boldifyData (negrita automática a cifras) y particiona listas a ≤3 items. Asigna fotos del artículo por heurística (descarta infografías/logos) y devuelve photoNeeds (slides sin foto + query sugerida). La respuesta incluye el PHOTO REVIEW PROTOCOL: el agente DEBE verificar visualmente cada foto, reemplazar las que no tienen sentido con stock (websearch) usando set_slide_photo, y re-auditar con review_slide_images antes de entregar.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "URL http(s) de la nota/artículo." },
+        company: { type: "string", description: "Slug de empresa. Default: og:site_name o hostname." },
+        kitName: { type: "string", description: "Brand kit a usar (ver list_brand_kits). Si se omite, usa el primer kit personal o Default." },
+        carouselName: { type: "string", description: "Slug persistido del carrusel. Default: slug del título." },
+        format: { type: "string", enum: ["feed", "square", "story"], description: "Formato (default feed 4:5)." },
+        persist: { type: "boolean", description: "Guardar carousel.json (default true)." },
+        outputDir: { type: "string", description: "Directorio del HTML. Default ~/Downloads." },
+        fileName: { type: "string", description: "Nombre base del HTML." },
+        open: { type: "boolean", description: "Abrir el HTML (default true)." },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "review_slide_images",
+    description:
+      "Audita las fotos de un carrusel persistido: por slide devuelve textos (kicker/título/highlight/body), la foto asignada (ruta, dimensiones, scrim) y photoNeeds con queries sugeridas para las slides sin foto. La respuesta incluye el PHOTO REVIEW PROTOCOL para que el agente verifique visualmente, reemplace con stock y re-audite.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company: { type: "string", description: "Slug de empresa." },
+        name: { type: "string", description: "Slug del carrusel (alias: slug)." },
+        slug: { type: "string", description: "Alias de name." },
+      },
+      required: ["company"],
+    },
+  },
+  {
+    name: "set_slide_photo",
+    description:
+      "Reemplaza la foto de fondo de una slide de un carrusel persistido. Acepta URL http(s) (descarga) o ruta local file:/absoluta. Copia la imagen a assets/, actualiza carousel.json (asset, scrim, bgPos) y re-renderiza el preview. Después de aplicar, re-auditá con review_slide_images.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company: { type: "string", description: "Slug de empresa." },
+        name: { type: "string", description: "Slug del carrusel (alias: slug)." },
+        slug: { type: "string", description: "Alias de name." },
+        slide: { type: "number", description: "Número de slide (1-based)." },
+        slideIndex: { type: "number", description: "Alias de slide." },
+        source: { type: "string", description: "URL http(s) de la imagen o ruta local ('file:' + ruta o absoluta/~)." },
+        scrim: { type: "number", description: "Velo de opacidad 0-85 (default: mantiene el actual)." },
+        bgPos: { type: "string", description: "Punto focal CSS background-position (ej: 'center 30%')." },
+        outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
+        fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
+        open: { type: "boolean", description: "Abrir el HTML (default true)." },
+      },
+      required: ["company", "name", "source"],
     },
   },
 ];
@@ -927,6 +1280,9 @@ async function callTool(name, args) {
     case "list_brand_kits": return toolListKits();
     case "load_brand_kit": return toolLoadKit(args);
     case "brand_kit_from_url": return await toolBrandKitFromURL(args);
+    case "carousel_from_url": return await toolCarouselFromURL(args);
+    case "review_slide_images": return toolReviewSlideImages(args);
+    case "set_slide_photo": return await toolSetSlidePhoto(args);
     default: throw new Error(`Herramienta desconocida: ${name}`);
   }
 }
