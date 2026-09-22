@@ -45,6 +45,8 @@ md-tonal-button{--md-tonal-button-container-color:var(--ed-surface3);--md-tonal-
 md-outlined-select{--md-outlined-field-container-color:var(--ed-surface2);--md-outlined-field-container-outline-color:var(--ed-border);--md-outlined-field-container-shape:var(--md-shape-corner-s);--md-outlined-field-top-space:4px;--md-outlined-field-bottom-space:4px;font-size:12px}
 md-outlined-text-field{--md-outlined-field-container-color:var(--ed-surface2);--md-outlined-field-container-outline-color:var(--ed-border);--md-outlined-field-container-shape:var(--md-shape-corner-s);--md-outlined-field-top-space:6px;--md-outlined-field-bottom-space:6px;font-size:12px}
 #fmtPicker{width:150px}#kitPicker{width:180px}
+#kitPicker::part(display){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#kitPicker md-select-option::part(headline){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 header md-outlined-text-field{width:160px}
 md-outlined-text-field:focus-within{--md-outlined-field-container-outline-color:var(--ed-accent)}
 md-switch{--md-switch-selected-track-color:var(--ed-accent2);--md-switch-selected-handle-color:#fff;--md-switch-track-color:var(--ed-border)}
@@ -134,10 +136,11 @@ body.guides .slide.fmt-story .safe{display:block}
 .photo{position:absolute;inset:0;background-position:center;background-size:cover;background-color:#173449;z-index:-2}
 .photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.02) 0%,rgba(0,0,0,.06) 61.8%,rgba(0,0,0,.9) 100%)}
 .slide.light .photo:after{background:linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.12) 61.8%,rgba(0,0,0,.17) 100%)}
+.photo-overlay{position:absolute;inset:0;z-index:0;pointer-events:none}
 .slide.light{color:var(--secondary)}
 .slide.light .copy{text-shadow:none}
 .slide .brand{position:absolute;top:3.8%;left:6.2%;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;z-index:4}
-.brand .logo{width:43px;height:43px;border-radius:var(--logo-radius, 10px);background:var(--logo-bg, transparent);display:grid;place-items:center;color:var(--secondary);font-family:var(--fh);font-size:28px;font-weight:900;position:relative}
+.brand .logo{width:var(--logo-size, 43px);height:var(--logo-size, 43px);border-radius:var(--logo-radius, 10px);background:var(--logo-bg, transparent);display:grid;place-items:center;color:var(--secondary);font-family:var(--fh);font-size:calc(var(--logo-size, 43px) * .65);font-weight:900;position:relative}
 .brand .logo.has-bg{padding:var(--logo-pad, 5px 6px)}
 .brand .logo.shape-square{--logo-radius:8px;--logo-pad:6px;aspect-ratio:1}
 .brand .logoimg.shape-square{aspect-ratio:1;object-fit:contain;border-radius:var(--logo-radius,8px)}
@@ -145,7 +148,7 @@ body.guides .slide.fmt-story .safe{display:block}
 .logo:after{content:"";position:absolute;bottom:7px;left:10px;width:22px;height:3px;background:var(--primary);transform:rotate(-5deg)}
 .brand .logoimg{height:43px;width:auto;display:block;filter:drop-shadow(0 1px 6px rgba(0,0,0,.4))}
 .count{position:absolute;right:6.2%;top:3.8%;background:rgba(6,17,29,.78);border-radius:5px;padding:6px 9px;font-size:12px;font-weight:700;color:#fff;z-index:4}
-.copy{position:absolute;left:6.2%;right:6.2%;bottom:6.2%;height:38.2%;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.35)}
+.copy{position:absolute;left:6.2%;right:6.2%;bottom:6.2%;height:38.2%;overflow:hidden;text-shadow:0 1px 8px rgba(0,0,0,.35);z-index:3}
 h1{font-family:var(--fh);text-transform:uppercase;font-weight:900;font-size:var(--fs-title);line-height:.94;letter-spacing:-.02em;margin:0 0 var(--sp2);color:var(--tertiary)}
 .slide.cover h1.big{font-size:var(--fs-hero)}
 .slide.light h1{color:var(--secondary)}
@@ -180,7 +183,7 @@ p{font-size:var(--fs-body);line-height:1.28;margin:var(--sp1) 0;max-width:98%}
 .phig .tag{position:absolute;left:6.2%;bottom:calc(6.2% + 38.2% + 3px);font-size:10px;font-weight:800;color:#40e68c;background:rgba(4,12,10,.85);padding:2px 6px;border-radius:3px}
 body.guides .phig{display:block}
 .hl{background:var(--primary);color:#fff;padding:.02em .22em .1em;box-decoration-break:clone;-webkit-box-decoration-break:clone;text-shadow:none;border-radius:2px}
-.scrim{position:absolute;inset:0;z-index:-1;background:rgba(4,12,20,.45);pointer-events:none}
+.scrim{position:absolute;inset:0;z-index:1;background:rgba(4,12,20,.45);pointer-events:none}
 .copy{height:auto!important;max-height:62%;overflow:visible;right:auto}
 .block-node{position:relative;min-width:0}
 .slide .block-node.copy{position:absolute}
@@ -408,6 +411,8 @@ const DEFAULT_KIT={
  colors:{primary:"#0ea5e9",secondary:"#0f172a",tertiary:"#ffffff",slideBg:"#1e293b"},
  fonts:{heading:"'Inter', system-ui, sans-serif",body:"'Inter', system-ui, sans-serif",googleUrl:"https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap"},
  logo:{letter:"c",text:"Carousel"},
+ logoSize:43,
+ photoOverlay:{enabled:true,css:"linear-gradient(180deg,transparent 0%,transparent 40%,rgba(0,0,0,0.7) 100%)"},
  gradients:[
   {name:"navy",css:"linear-gradient(145deg,#1e3a5f,#0f172a 65%)"},
   {name:"sunset",css:"linear-gradient(145deg,#b4653a,#1c2b3a 50%,#0b1420 100%)"},
@@ -435,7 +440,7 @@ const LS_STATE="cg:state",LS_KITS="cg:kits";
 let state=null,sel=0,uid=1,guidesOn=false,saveT=null,renderT=null,toastT=null,openSecs={};
 
 function clone(o){return JSON.parse(JSON.stringify(o))}
-function normKit(k){const d=DEFAULT_KIT;k=k||{};return{name:k.name||d.name,colors:Object.assign({},d.colors,k.colors||{}),fonts:Object.assign({},d.fonts,k.fonts||{}),logo:Object.assign({},d.logo,k.logo||{}),logoBackground:k.logoBackground||"transparent",logoShape:k.logoShape||"square",gradients:(k.gradients&&k.gradients.length?k.gradients:d.gradients).map(g=>({name:g.name||"grad",css:g.css||"",light:!!g.light}))}}
+function normKit(k){const d=DEFAULT_KIT;k=k||{};const po=k.photoOverlay||d.photoOverlay||{enabled:true,css:"linear-gradient(180deg,transparent 0%,transparent 40%,rgba(0,0,0,0.7) 100%)"};return{name:k.name||d.name,colors:Object.assign({},d.colors,k.colors||{}),fonts:Object.assign({},d.fonts,k.fonts||{}),logo:Object.assign({},d.logo,k.logo||{}),logoBackground:k.logoBackground||"transparent",logoShape:k.logoShape||"square",logoSize:k.logoSize||d.logoSize||43,photoOverlay:{enabled:po.enabled!==false,css:po.css||"linear-gradient(180deg,transparent 0%,transparent 40%,rgba(0,0,0,0.7) 100%)"},gradients:(k.gradients&&k.gradients.length?k.gradients:d.gradients).map(g=>({name:g.name||"grad",css:g.css||"",light:!!g.light}))}}
  function normSlide(s){const t=TEMPLATES[s.template]||TEMPLATES.list;const n=clone(t);n.id=s.id||`slide-${uid++}`;n.template=s.template||t.template;
  for(const f of["eyebrow","titleWhite","titleOrange","slogan","foot"])if(s[f]!==undefined)n[f]=String(s[f]);
  if(s.paragraphs)n.paragraphs=s.paragraphs.map(x=>String(x));
@@ -471,7 +476,7 @@ function slug(s){return String(s||"carrusel").toLowerCase().normalize("NFD").rep
 
 function gradCss(s){if(s.bg.type==="css")return s.bg.css;if(s.bg.type==="photo")return"none";const g=state.kit.gradients.find(g=>g.name===s.bg.value);return g?g.css:"none"}
 function lightOn(s){return s.bg.type==="gradient"&&(state.kit.gradients.find(g=>g.name===s.bg.value)||{}).light||s.overlayLight}
-function logoHTML(height,bg){const l=state.kit.logo||{},h=+height||+l.imgH||43;const bgVal=bg||state.kit.logoBackground||"transparent";const hasBg=bgVal&&bgVal!=="transparent";const shape=state.kit.logoShape||"square";const shapeClass=hasBg?` shape-${shape}`:"";if(l.img)return`<img class="logoimg${shapeClass}" src="${l.img}" style="height:${h}px${hasBg?`;background:${bgVal};border-radius:var(--logo-radius,8px);padding:var(--logo-pad,6px)`:``}" alt="logo">`;return`<span class="logo${hasBg?` has-bg`:``}${shapeClass}" style="width:${h}px;height:${h}px;font-size:${Math.round(h*.65)}px${hasBg?`;background:${bgVal}`:``}">${esc(l.letter||"")}</span>`}
+function logoHTML(height,bg){const l=state.kit.logo||{},h=+height||+l.imgH||+state.kit.logoSize||43;const bgVal=bg||state.kit.logoBackground||"transparent";const hasBg=bgVal&&bgVal!=="transparent";const shape=state.kit.logoShape||"square";const shapeClass=hasBg?` shape-${shape}`:"";if(l.img)return`<img class="logoimg${shapeClass}" src="${l.img}" style="height:${h}px${hasBg?`;background:${bgVal};border-radius:var(--logo-radius,8px);padding:var(--logo-pad,6px)`:``}" alt="logo">`;return`<span class="logo${hasBg?` has-bg`:``}${shapeClass}" style="--logo-size:${h}px;${hasBg?`background:${bgVal}`:``}">${esc(l.letter||"")}</span>`}
 function pillsHTML(s,ed){return(s.pills||[]).map((p,i)=>`<div class="pill" data-pill="${i}"${ed?` onpointerdown="pillDown(event,${i})" ondblclick="pillDbl(this)" onblur="pillDone(this,${i})"`:""} style="top:${+p.top||30}%;${p.side==="right"?`right:${+p.offset||6}%`:`left:${+p.offset||8}%`}">${esc(p.text)}</div>`).join("")}
 
 function blockEdit(el,field,single,ed){return ed?` contenteditable="true" data-block-id="${escAttr(el.id)}" data-block-field="${field}"${single?' data-single="1"':''} oninput="blockInput(this)" onkeydown="blockKeys(event,this)" onpaste="edPaste(event)"`:""}
@@ -486,6 +491,7 @@ function slideHTMLLegacy(s,i){
   const n=state.slides.length;
   const photoStyle=s.bg.type==="photo"?`background-image:url('${s.bg.src}');background-position:${s.bgPos||"center"}`:`background-image:${gradCss(s)}`;
   const scrimStyle=s.bg.type==="photo"&&s.scrim>0?`background:rgba(4,12,20,${(s.scrim/100).toFixed(2)})`:"";
+  const overlayCSS=state.kit.photoOverlay&&state.kit.photoOverlay.enabled!==false&&state.kit.photoOverlay.css?state.kit.photoOverlay.css:"";
   const light=lightOn(s)?" light":"";
   const anchor=(s.copyPos&&s.copyPos.anchor)||"bottom";
   const anchorCls=anchor==="bottom"?"copy-bottom":anchor==="top"?"copy-top":"copy-center";
@@ -504,9 +510,9 @@ function slideHTMLLegacy(s,i){
   if(s.ctaBox.title||s.ctaBox.text)copy+=`<div class="ctabox" style="text-align:${al.body}"><b${ed?` contenteditable="true" data-cta="title" data-single="1" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${esc(s.ctaBox.title)}</b>${`<p${ed?` contenteditable="true" data-cta="text" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${md(s.ctaBox.text)}</p>`}</div>`;
   if(s.slogan)copy+=`<p class="slogan" style="text-align:${al.body}"${eb("slogan",true)}>${esc(s.slogan)}</p>`;
   if(s.foot)copy+=`<div class="foot" style="text-align:${al.body}"${eb("foot",true)}>${esc(s.foot)}</div>`;
-  return`<section class="slide fmt-${state.meta.format} ${s.template}${light} ${anchorCls}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div>${scrimStyle?`<div class="scrim" style="${scrimStyle}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div><div class="brand">${logoHTML()} ${esc(state.kit.logo.text||"")}</div>${state.meta.showCount===false?"":`<span class="count">${i+1}/${n}</span>`}${pillsHTML(s,ed)}<div class="copy" style="${offStyle}">${copy}</div></section>`}
+  return`<section class="slide fmt-${state.meta.format} ${s.template}${light} ${anchorCls}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div>${overlayCSS?`<div class="photo-overlay" style="background:${overlayCSS}"></div>`:""}${scrimStyle?`<div class="scrim" style="${scrimStyle}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div><div class="brand">${logoHTML()} ${esc(state.kit.logo.text||"")}</div>${state.meta.showCount===false?"":`<span class="count">${i+1}/${n}</span>`}${pillsHTML(s,ed)}<div class="copy" style="${offStyle}">${copy}</div></section>`}
 
-function slideHTML(s,i){const ed=i===sel;const photoStyle=s.bg.type==="photo"?`background-image:url('${s.bg.src||""}');background-position:${s.bgPos||"center"}`:`background-image:${gradCss(s)}`;const scrimStyle=s.bg.type==="photo"&&s.scrim>0?`background:rgba(4,12,20,${(s.scrim/100).toFixed(2)})`:"";const light=lightOn(s)?" light":"";return`<section class="slide fmt-${state.meta.format} ${s.template}${light}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div>${scrimStyle?`<div class="scrim" style="${scrimStyle}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div>${blocksHTML(s,ed,i)}</section>`}
+function slideHTML(s,i){const ed=i===sel;const photoStyle=s.bg.type==="photo"?`background-image:url('${s.bg.src||""}');background-position:${s.bgPos||"center"}`:`background-image:${gradCss(s)}`;const scrimStyle=s.bg.type==="photo"&&s.scrim>0?`background:rgba(4,12,20,${(s.scrim/100).toFixed(2)})`:"";const overlayCSS=state.kit.photoOverlay&&state.kit.photoOverlay.enabled!==false&&state.kit.photoOverlay.css?state.kit.photoOverlay.css:"";const light=lightOn(s)?" light":"";return`<section class="slide fmt-${state.meta.format} ${s.template}${light}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div>${overlayCSS?`<div class="photo-overlay" style="background:${overlayCSS}"></div>`:""}${scrimStyle?`<div class="scrim" style="${scrimStyle}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div>${blocksHTML(s,ed,i)}</section>`}
  function controlsHTML(i){const n=state.slides.length;return`<div class="controls" aria-label="Acciones de la slide">
    <div class="controls-main">
     <div class="control-group" aria-label="Navegación"><md-icon-button onclick="moveSlide(${i},-1)"${i===0?" disabled":""} title="Mover atrás" aria-label="Mover slide atrás"><span class="material-symbols-outlined">arrow_back</span></md-icon-button>

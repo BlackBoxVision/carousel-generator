@@ -304,7 +304,7 @@ const tools = [
         showNumbers: { type: "boolean", description: "Muestra el chip de numeración N/M arriba a la derecha de cada slide (default true). Pasá false para un look limpio sin números." },
         persist: { type: "boolean", description: "Guarda carousel.json v2 y copia los assets en ~/.carousel-generator/carousels/{company}/{carouselName}/. Default true." },
         kitName: { type: "string", description: "Nombre del brand kit (ver list_brand_kits). Se busca en ~/.carousel-generator/brand/{empresa}/kit.json y luego en mcp/kits/ del repo. Default: primer kit del usuario, o Default si no hay ninguno." },
-        kit: { type: "object", description: "Brand kit inline (se mergea sobre el kit base): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, gradients:[{name,css,light}] }. logo.imagePath: ruta de logo — 'logo.png' relativo a la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/), o 'file:' + ruta absoluta. Se embebe en base64. logoBackground: color de fondo del logo (ej: '#fff', 'transparent'). Default: transparent. logoShape: forma del fondo del logo ('square' o 'rectangular'). Default: square." },
+        kit: { type: "object", description: "Brand kit inline (se mergea sobre el kit base): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, logoSize, photoOverlay:{enabled,css}, gradients:[{name,css,light}] }. logo.imagePath: ruta de logo — 'logo.png' relativo a la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/), o 'file:' + ruta absoluta. Se embebe en base64. logoBackground: color de fondo del logo (ej: '#fff', 'transparent'). Default: transparent. logoShape: forma del fondo del logo ('square' o 'rectangular'). Default: square. logoSize: tamaño del logo en px (default: 43). photoOverlay: gradiente entre foto y texto {enabled:boolean, css:string}. Default: gradiente oscuro inferior." },
         slides: {
           type: "array",
           description: "Slides del carrusel. Si se omite, genera 5 slides default (una de cada plantilla).",
@@ -381,7 +381,7 @@ const tools = [
         name: { type: "string", description: "Nombre/slug del kit (a-z, 0-9, -)." },
         kit: {
           type: "object",
-          description: "El kit (completo o parcial): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, gradients:[{name,css,light}] }.",
+          description: "El kit (completo o parcial): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, logoSize, photoOverlay:{enabled,css}, gradients:[{name,css,light}] }.",
         },
       },
       required: ["name", "kit"],
