@@ -246,6 +246,16 @@ The tool output always states which signal detected the category and which color
 - **List partitioning** — a `list` slide accepts at most **3 items**. When generating or saving, longer lists are automatically split into consecutive slides (same photo, kicker annotated with `PARTE X`). In the editor, lists over the limit show a warning and a **Dividir** button in the slide controls.
 - **Bold key figures** — when generating, numeric data in body copy is wrapped in bold automatically: currency amounts (`US$ 1.099 millones`), percentages (`+6,9%`), figures with units (`6 meses`), and spelled-out numbers (`seis meses`). Texts that already contain manual `**bold**` or `==highlight==` markup are left untouched.
 
+### Regla de estilo de textos (lint, no bloqueante)
+
+Los copys del carrusel no deben sonar a IA. `generate_carousel`, `carousel_from_url` y `save_carousel` analizan kicker, títulos, highlights, bodies, slogans e items y devuelven `styleWarnings` (o una sección "Advertencias de estilo") cuando encuentran:
+
+- **Raya larga (—)** — usá coma, punto o guion corto (-).
+- **Contrastes "no es X, es Y" / "no solo X, sino Y"** — afirmá directo, sin negar primero.
+- **Clichés** — "en un mundo", "cabe destacar", "es importante destacar/señalar", "no cabe duda", "al siguiente nivel", "punto de inflexión": reformulá con palabras propias.
+
+El agente debe corregir cada advertencia antes de entregar el carrusel.
+
 ## Templates and slide content
 
 The generator includes five starting templates:

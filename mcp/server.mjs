@@ -316,6 +316,51 @@ function applyBoldify(slides) {
   }
   return slides;
 }
+// Regla de estilo de textos (lint advisory, no bloqueante): prohíbe muletillas
+// típicas de IA en titulares y copys — raya larga (—), contrastes "no es X, es Y"
+// y clichés. Devuelve [{slide, field, rule, detail, excerpt}] para que el agente corrija.
+const STYLE_CLICHES = ["en un mundo", "cabe destacar", "es importante destacar", "es importante señalar", "no cabe duda", "al siguiente nivel", "punto de inflexión"];
+function hasNoEsContrast(t) {
+  const re = /\bno\s+(?:es|son|fue|fueron|será|serán|era|eran)\b|\bno\s+s[oó]lo\b/ig;
+  let m;
+  while ((m = re.exec(t))) {
+    const rest = t.slice(m.index + m[0].length).split(/[.!?…\n]/, 1)[0].slice(0, 80);
+    if (/\bsino\b/i.test(rest) || /\b(?:es|son)\b/i.test(rest)) return true;
+  }
+  return false;
+}
+function excerptText(t) {
+  const s = String(t == null ? "" : t).replace(/\s+/g, " ").trim();
+  return s.length > 70 ? s.slice(0, 67).trimEnd() + "…" : s;
+}
+function lintSlideTexts(slides) {
+  const out = [];
+  const label = { kicker: "kicker", text: "título", highlight: "highlight", body: "body", slogan: "slogan", foot: "foot" };
+  const check = (slide, field, text) => {
+    const t = String(text || "");
+    if (!t) return;
+    if (t.includes("—")) out.push({ slide, field, rule: "raya-larga", detail: "raya larga (—): usá coma, punto o guion corto (-)", excerpt: excerptText(t) });
+    if (hasNoEsContrast(t)) out.push({ slide, field, rule: "contraste-no-es", detail: "contraste 'no es X, es Y' / 'no solo X, sino Y': afirmá directo, sin negar primero", excerpt: excerptText(t) });
+    const cliche = STYLE_CLICHES.find((c) => t.toLowerCase().includes(c));
+    if (cliche) out.push({ slide, field, rule: "cliche", detail: `cliché de IA ("${cliche}"): reformulá con palabras propias`, excerpt: excerptText(t) });
+  };
+  (slides || []).forEach((s, i) => {
+    const walk = (nodes) => {
+      for (const el of nodes || []) {
+        if (label[el.type]) check(i + 1, label[el.type], el.text);
+        else if (el.type === "item") { check(i + 1, "item (título)", el.title); check(i + 1, "item (desc)", el.desc); }
+        if (el.children) walk(el.children);
+      }
+    };
+    walk(s.elements);
+  });
+  return out;
+}
+function formatStyleWarnings(warnings) {
+  if (!warnings.length) return [];
+  return ["", "Advertencias de estilo (regla de textos: sin raya larga —, sin 'no es X, es Y', sin clichés de IA):",
+    ...warnings.map((w) => `  - slide ${w.slide} (${w.field}): ${w.detail} en "${w.excerpt}"`)];
+}
 function applyCategoryColors(slides, kit, category) {
   if (!category) return slides;
   const color = kit && kit.highlightColors && kit.highlightColors[category];
@@ -614,6 +659,7 @@ async function toolCarouselFromURL(args) {
     for (const n of photoNeeds) lines.push(`  - slide ${n.slide} (${n.template}) → query sugerida: "${n.query}"`);
   }
   lines.push("", "IMPORTANTE — Verificá cada foto asignada con visión (descargá/miniaturizá y confirmá que coincide con el mensaje de la slide).", PHOTO_REVIEW_PROTOCOL);
+  lines.push(...formatStyleWarnings(lintSlideTexts(runtime.slides)));
   return lines.join("\n");
 }
 function slideMetaForReview(stored, dir) {
@@ -726,7 +772,7 @@ const tools = [
   {
     name: "generate_carousel",
     description:
-      "Genera un carrusel HTML editable y lo abre. La definición se persiste por defecto como carousel.json v2 en un árbol nested de bloques (brand, stack, text, highlight, body, items, box, etc.) con posiciones, tamaños, estilos y assets referenciados por archivo. El HTML incluye TODOS los brand kits guardados para cambiar de kit en vivo.",
+      "Genera un carrusel HTML editable y lo abre. La definición se persiste por defecto como carousel.json v2 en un árbol nested de bloques (brand, stack, text, highlight, body, items, box, etc.) con posiciones, tamaños, estilos y assets referenciados por archivo. El HTML incluye TODOS los brand kits guardados para cambiar de kit en vivo. La respuesta incluye advertencias de estilo si los textos usan raya larga (—), contrastes 'no es X, es Y' o clichés de IA: corregilos.",
     inputSchema: {
       type: "object",
       properties: {
@@ -793,7 +839,7 @@ const tools = [
   },
   {
     name: "save_carousel",
-    description: "Guarda o mergea un carousel.json v2 nested. Acepta carousel completo, slides nested o legacy; copia fotos/logo data URL o file: a assets/ y nunca guarda base64 en carousel.json. Sirve para el ciclo load -> refinar -> save.",
+    description: "Guarda o mergea un carousel.json v2 nested. Acepta carousel completo, slides nested o legacy; copia fotos/logo data URL o file: a assets/ y nunca guarda base64 en carousel.json. Sirve para el ciclo load -> refinar -> save. Devuelve styleWarnings si los textos usan raya larga (—), contrastes 'no es X, es Y' o clichés de IA: corregilos.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1096,7 +1142,8 @@ function toolGenerate(args) {
   if (a.persist !== false) persisted = persistCarousel(data, company, carouselName);
   const file = renderCarousel(data, a);
   const kitNames = Object.keys(brandKitsPayload());
-  return `Carrusel generado (${data.slides.length} slides, formato ${data.meta.format}, kit "${data.kit.name}"):\n${file}\n\nJSON persistido: ${persisted ? persisted.file : "no (persist:false)"}\nEmpresa: ${company} · Carrusel: ${carouselName}\n\nSe abrió en el navegador. Kits disponibles en el picker: ${kitNames.length ? kitNames.join(", ") : "(solo el activo)"}. El árbol nested de bloques sigue editable y el HTML se puede exportar a PNG/PDF.`;
+  const styleLines = formatStyleWarnings(lintSlideTexts(data.slides));
+  return `Carrusel generado (${data.slides.length} slides, formato ${data.meta.format}, kit "${data.kit.name}"):\n${file}\n\nJSON persistido: ${persisted ? persisted.file : "no (persist:false)"}\nEmpresa: ${company} · Carrusel: ${carouselName}\n\nSe abrió en el navegador. Kits disponibles en el picker: ${kitNames.length ? kitNames.join(", ") : "(solo el activo)"}. El árbol nested de bloques sigue editable y el HTML se puede exportar a PNG/PDF.${styleLines.length ? "\n" + styleLines.join("\n") : ""}`;
 }
 function readCarousel(company, name) {
   const dir = carouselPath(company, name);
@@ -1158,7 +1205,8 @@ function toolSaveCarousel(args) {
     slides,
   };
   const saved = persistCarousel(data, company, name, sourceDir);
-  return JSON.stringify({ saved: saved.file, company, slug: name, title: data.meta.title || name, slides: slides.length, assets: saved.data.assets }, null, 2);
+  const styleWarnings = lintSlideTexts(slides);
+  return JSON.stringify({ saved: saved.file, company, slug: name, title: data.meta.title || name, slides: slides.length, assets: saved.data.assets, styleWarnings }, null, 2);
 }
 function toolSaveKit(args) {
   const a = args || {};
