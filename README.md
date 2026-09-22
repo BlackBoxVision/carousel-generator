@@ -2,7 +2,7 @@
 
 Create on-brand social media carousels with AI, then edit them in a visual HTML editor.
 
-Carousel Generator is an MCP server plus a browser-based editor. You can use it from Claude Desktop, Claude Code, Codex, OpenCode, or any MCP-compatible client.
+Carousel Generator is an MCP server plus a browser-based editor. You can use it from Claude Desktop, Claude Code, Codex, OpenCode, Cursor, or any MCP-compatible client.
 
 ## What can I use it for?
 
@@ -42,7 +42,7 @@ You do not need to know HTML, CSS, JSON, or design systems to use the basic work
 ### Requirements
 
 - Node.js 18 or newer.
-- An MCP-compatible client such as Claude Desktop, Claude Code, Codex, or OpenCode.
+- An MCP-compatible client such as Claude Desktop, Claude Code, Codex, OpenCode, or Cursor.
 - Internet access for the editor's web components, fonts, and export libraries.
 
 ### Install
@@ -60,9 +60,12 @@ node install.mjs --opencode
 node install.mjs --claude-code
 node install.mjs --claude-desktop
 node install.mjs --codex
+node install.mjs --cursor
 ```
 
 Restart the MCP client after installation. Local MCP servers are started when the client starts.
+
+> **Claude Desktop:** use this server from **Cowork**. The Chat tab does not run local MCP tools.
 
 ### Your first request
 

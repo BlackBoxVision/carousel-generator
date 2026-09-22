@@ -9,7 +9,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const serverPath = path.join(root, "mcp", "server.mjs");
 const home = os.homedir();
 const args = new Set(process.argv.slice(2));
-const ALL = ["opencode", "claude-code", "claude-desktop", "codex"];
+const ALL = ["opencode", "claude-code", "claude-desktop", "codex", "cursor"];
 const want = (k) => args.has("--all") || args.has("--" + k) || args.size === 0;
 
 function readJson(p, fallback) {
@@ -57,6 +57,26 @@ if (want("claude-desktop")) {
   console.log("  Alternativa 1-click: abrir dist/carousel-generator.mcpb con Claude Desktop");
 }
 
+if (want("cursor")) {
+  console.log("Cursor:");
+  const p = path.join(home, ".cursor", "mcp.json");
+  let cfg = { mcpServers: {} };
+  let skip = false;
+  if (fs.existsSync(p)) {
+    try { cfg = JSON.parse(fs.readFileSync(p, "utf8")); }
+    catch (e) {
+      console.log(`  (${p} no es JSON válido: ${e.message}) omitido`);
+      skip = true;
+    }
+  }
+  if (!skip) {
+    cfg.mcpServers = cfg.mcpServers || {};
+    cfg.mcpServers.carousel = { command: "node", args: [serverPath] };
+    writeJson(p, cfg);
+    console.log(`  OK en ${p} (reiniciá Cursor o recargá la ventana)`);
+  }
+}
+
 if (want("codex")) {
   console.log("Codex:");
   const manual = `codex mcp add carousel -- node ${serverPath}`;
@@ -75,4 +95,4 @@ if (want("codex")) {
 }
 
 console.log("");
-console.log("Verificación: `claude mcp list` / `codex mcp list` deben mostrar carousel.");
+console.log("Verificación: `claude mcp list` / `codex mcp list` / `agent mcp list` deben mostrar carousel.");
