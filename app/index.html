@@ -535,8 +535,9 @@ function slideHTML(s,i){const ed=i===sel;const photoStyle=s.bg.type==="photo"?`b
  function thumbContent(s){const out={kicker:"",title:"",highlight:"",body:""};const walk=nodes=>{for(const b of nodes||[]){if(b.type==="kicker"&&!out.kicker)out.kicker=thumbText(b.text);if(b.type==="text"&&!out.title)out.title=thumbText(b.text);if(b.type==="highlight"&&!out.highlight)out.highlight=thumbText(b.text);if(b.type==="body"&&!out.body)out.body=thumbText(b.text);if(b.type==="item"&&!out.body)out.body=thumbText(b.title||b.desc);if(b.children)walk(b.children)}};walk(s.elements);return out}
  function thumbHTML(s,i){const c=thumbContent(s);return`<div class="tb" style="${thumbBg(s)}"></div><div class="thumb-scrim"></div><div class="thumb-copy">${c.kicker?`<span class="thumb-kicker">${esc(c.kicker)}</span>`:""}${c.title?`<span class="thumb-title">${esc(c.title)}</span>`:""}${c.highlight?`<span class="thumb-highlight">${esc(c.highlight)}</span>`:""}${c.body?`<span class="thumb-body">${esc(c.body)}</span>`:""}</div><span class="num">${i+1}</span><span class="meta"><span class="tpl">${TPL_EMOJI[s.template]||"•"}</span><span>${esc(TPL_LABEL[s.template]||s.template)}</span></span>`}
 
-function renderDeck(){const d=document.getElementById("deck");d.innerHTML=state.slides.map((s,i)=>`<div class="wrap${i===sel?" sel":""}" id="w${i}">${slideHTML(s,i)}${controlsHTML(i)}</div>`).join("")||`<div class="empty">Sin slides. Usá “+ Slide” para empezar.</div>`}
-function renderSlide(i){const w=document.getElementById("w"+i);if(!w)return;w.className="wrap"+(i===sel?" sel":"");w.innerHTML=slideHTML(state.slides[i],i)+controlsHTML(i)}
+function renderDeck(){const d=document.getElementById("deck");d.innerHTML=state.slides.map((s,i)=>`<div class="wrap${i===sel?" sel":""}" id="w${i}">${slideHTML(s,i)}${controlsHTML(i)}</div>`).join("")||`<div class="empty">Sin slides. Usá “+ Slide” para empezar.</div>`;fitCopyBlocks(d)}
+function fitCopyBlocks(root){(root||document).querySelectorAll(".slide .copy").forEach(el=>{const slide=el.closest(".slide");if(!slide)return;const m=slide.className.match(/copy-(bottom|top|center)/);const anchor=m?m[1]:"bottom";const avail=el.clientHeight,need=el.scrollHeight;let t="";if(need>avail+1&&avail>0){const k=Math.max(.5,Math.min(1,avail/need));t=anchor==="center"?`translateY(-50%) scale(${k})`:`scale(${k})`}else if(anchor==="center")t="translateY(-50%)";el.style.transformOrigin=anchor==="bottom"?"left bottom":"left top";if(t)el.style.transform=t;else el.style.removeProperty("transform")})}
+function renderSlide(i){const w=document.getElementById("w"+i);if(!w)return;w.className="wrap"+(i===sel?" sel":"");w.innerHTML=slideHTML(state.slides[i],i)+controlsHTML(i);fitCopyBlocks(w)}
  function renderNav(){const v=document.getElementById("nav");v.innerHTML=`<div class="nav-label">Slides (${state.slides.length})</div>`+state.slides.map((s,i)=>`<div class="navitem${i===sel?" sel":""}" draggable="true" data-i="${i}" onclick="selectSlide(${i})" ondragstart="navDrag(event)" ondragover="navOver(event)" ondragleave="this.classList.remove('drop')" ondrop="navDrop(event,${i})">${thumbHTML(s,i)}</div>`).join("")+`<md-outlined-button class="add-slide" onclick="openTpl()"><span slot="icon" class="material-symbols-outlined">add</span>Nueva slide</md-outlined-button>`}
 
 function blockInfo(id,nodes=state.slides[sel].elements,parent=null){for(let i=0;i<nodes.length;i++){const block=nodes[i];if(block.id===id)return{block,parent,list:nodes,index:i};if(block.children){const hit=blockInfo(id,block.children,block);if(hit)return hit}}return null}
@@ -714,9 +715,12 @@ function kitSources(){const out=[];const ls=localKits();for(const sl of Object.k
  if(window.BRAND_KITS)for(const sl of Object.keys(window.BRAND_KITS))out.push({store:"injected",slug:sl,kit:window.BRAND_KITS[sl]});
  return out}
 function populateKits(){const pk=document.getElementById("kitPicker");const src=kitSources();
-  let h="";
-  if(src.length){h+=src.map(x=>`<md-select-option value="${x.store}:${escAttr(x.slug)}"${state.kitSource&&state.kitSource.slug===x.slug&&state.kitSource.store===x.store?" selected":""}><div slot="headline">${esc(x.kit.name||x.slug)}${x.store==="local"?" ★":""}</div></md-select-option>`).join("")}
-  h+=`<md-select-option value="builtin:default"${!src.length||(state.kitSource&&state.kitSource.store==="builtin")?" selected":""}><div slot="headline">${esc(state.kit.name)} (actual)</div></md-select-option>`;
+  const cur=state.kitSource||{};
+  const named=cur.store==="local"||cur.store==="injected"||cur.store==="builtin";
+  const isCur=x=>named?x.store===cur.store&&x.slug===cur.slug:x.slug===cur.slug||!cur.slug;
+  let h="";let sel=false;
+  if(src.length){h+=src.map(x=>{const s=isCur(x);if(s)sel=true;return`<md-select-option value="${x.store}:${escAttr(x.slug)}"${s?" selected":""}><div slot="headline">${esc(x.kit.name||x.slug)}${x.store==="local"?" ★":""}</div></md-select-option>`}).join("")}
+  h+=`<md-select-option value="builtin:default"${!src.length||cur.store==="builtin"||(!sel&&src.length&&!cur.slug)?" selected":""}><div slot="headline">${esc(state.kit.name)} (actual)</div></md-select-option>`;
   pk.innerHTML=h}
 function fixSlidesForKit(){for(const s of state.slides){if(s.bg.type==="gradient"&&!state.kit.gradients.some(g=>g.name===s.bg.value)){s.bg={type:"gradient",value:state.kit.gradients[0].name};s.overlayLight=!!state.kit.gradients[0].light}}}
 function switchKit(v){const p=v.split(":");const store=p[0],sl=p.slice(1).join(":");
@@ -772,6 +776,7 @@ function importKitFile(e){const f=e.target.files&&e.target.files[0];if(!f)return
  else if(window.BRAND_KITS){const keys=Object.keys(window.BRAND_KITS);if(keys.length){const first=keys[0];state.kit=normKit(clone(window.BRAND_KITS[first]));state.kitSource={store:"injected",slug:first}}}
  sel=0;
  renderAll();
+ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>fitCopyBlocks());
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>

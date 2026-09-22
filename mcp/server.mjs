@@ -209,7 +209,10 @@ function resolveKit(name, inline) {
     base = JSON.parse(fs.readFileSync(found.file, "utf8"));
     scope = found.scope;
   }
-  if (inline && typeof inline === "object") base = deepMerge(base, inline);
+  if (inline && typeof inline === "object") {
+    base = deepMerge(base, inline);
+    if (inline.name) scope = slug(inline.name);
+  }
   if (!scope && base && base.name) scope = slug(base.name);
   return resolveLogo(base, scope);
 }
