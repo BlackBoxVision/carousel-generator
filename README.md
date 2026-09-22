@@ -130,14 +130,17 @@ The initial generation and MCP save operations create a persistent JSON document
 
 ## MCP tools
 
-The server exposes eight tools. You can ask the AI to use them in plain language; you do not need to call them manually.
+The server exposes eleven tools. You can ask the AI to use them in plain language; you do not need to call them manually.
 
 | Tool | Use it when you want to... |
 |---|---|
 | `generate_carousel` | Create a new editable carousel and open it in the browser. |
+| `carousel_from_url` | Build a draft carousel from an article/note URL, with photos assigned from the article. |
 | `list_carousels` | See the saved carousels, grouped by company. |
 | `load_carousel` | Reopen an existing carousel with its photos and logo resolved. |
 | `save_carousel` | Create or update the persistent nested JSON and copy assets into its asset folder. |
+| `review_slide_images` | Audit the photos of a saved carousel: per-slide texts, assigned photo, and `photoNeeds` with suggested search queries. |
+| `set_slide_photo` | Replace the background photo of one slide (from a URL or a local file) and re-render. |
 | `save_brand_kit` | Create or update a reusable brand kit. Partial updates are merged. |
 | `list_brand_kits` | See all personal and example brand kits available to the editor. |
 | `load_brand_kit` | Inspect the complete JSON of one brand kit. |
@@ -162,6 +165,33 @@ list_carousels -> load_carousel -> refine -> save_carousel
 ```text
 generate_carousel with an inline kit -> review -> save_brand_kit if approved
 ```
+
+**Build a carousel from an article URL**
+
+```text
+carousel_from_url -> agent verifies photos visually -> set_slide_photo for
+photos that do not fit (stock searched with the suggested queries) ->
+review_slide_images to re-audit -> edit in browser -> save_carousel
+```
+
+### Photo verification protocol
+
+`carousel_from_url`, `review_slide_images` and `set_slide_photo` embed a
+**PHOTO REVIEW PROTOCOL** in their response. The server resolves photos with
+local heuristics only (it cannot see images), so the agent is responsible for:
+
+1. **Verify** — look at every assigned photo and confirm it matches the slide's message (kicker/title/body). Article images can be infographics, logos, or banners that look wrong as slide backgrounds.
+2. **Replace** — for photos that do not fit (or `photoNeeds` entries): search stock photos with the suggested query (free-license sources like Unsplash/Pexels), download and visually verify the candidate, then apply it with `set_slide_photo`.
+3. **Re-audit** — run `review_slide_images` again and confirm every slide ends up with a coherent photo before delivering.
+
+`carousel_from_url` discards images whose filename hints at
+infographics/logos/banners (`flyer`, `infograf`, `logo`, `banner`, `icon`,
+etc.) and reports every discarded candidate to stderr for diagnostics.
+
+### Automatic content rules
+
+- **List partitioning** — a `list` slide accepts at most **3 items**. When generating or saving, longer lists are automatically split into consecutive slides (same photo, kicker annotated with `PARTE X`). In the editor, lists over the limit show a warning and a **Dividir** button in the slide controls.
+- **Bold key figures** — when generating, numeric data in body copy is wrapped in bold automatically: currency amounts (`US$ 1.099 millones`), percentages (`+6,9%`), figures with units (`6 meses`), and spelled-out numbers (`seis meses`). Texts that already contain manual `**bold**` or `==highlight==` markup are left untouched.
 
 ## Templates and slide content
 
@@ -255,6 +285,14 @@ Keep internet access available. The editor loads Material Web components, fonts,
 ### A photo is not found
 
 Use an absolute path prefixed with `file:` or a path relative to the company's brand folder. Supported image formats include PNG, JPG, WEBP, GIF, and SVG for logos.
+
+### The assigned photos do not match the content
+
+`carousel_from_url` picks article images with filename heuristics; it cannot judge what an image shows. Follow the photo verification protocol returned by the tool: look at each photo, replace the ones that do not make sense (search stock with the `photoNeeds` queries) using `set_slide_photo`, and re-audit with `review_slide_images`.
+
+### A list slide lost its last items
+
+Slides render at most 3 list items comfortably; longer lists are split automatically on generation. For a carousel edited by hand, use the **Dividir** button in the slide controls (or ask for the slide to be split) so every item stays readable in every format.
 
 ### I edited the browser version but the saved JSON did not change
 
