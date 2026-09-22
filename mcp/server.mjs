@@ -290,6 +290,41 @@ function normSlideArg(s) {
   return out;
 }
 
+const MAX_LIST_ITEMS = 3;
+function findItemsBlock(slide) {
+  for (const el of slide.elements || []) {
+    if (el.type === "items") return el;
+    for (const ch of el.children || []) if (ch.type === "items") return ch;
+  }
+  return null;
+}
+function partitionListSlides(slides) {
+  const out = [];
+  for (const s of slides) {
+    const itemsBlock = findItemsBlock(s);
+    const items = itemsBlock ? (itemsBlock.children || []) : (Array.isArray(s.items) ? s.items : []);
+    if (items.length <= MAX_LIST_ITEMS) { out.push(s); continue; }
+    const baseId = s.id || "slide";
+    for (let i = 0, part = 1; i < items.length; i += MAX_LIST_ITEMS, part++) {
+      const chunk = items.slice(i, i + MAX_LIST_ITEMS);
+      const partSlide = part === 1 ? s : clone(s);
+      if (part > 1) {
+        partSlide.id = `${baseId}-p${part}`;
+        const kb = (partSlide.elements || []).find((el) => el.type === "stack" && (el.children || []).some((c) => c.type === "kicker"))
+          || (partSlide.elements || []).find((el) => el.type === "kicker");
+        const kicker = kb && kb.type === "kicker" ? kb : kb && (kb.children || []).find((c) => c.type === "kicker");
+        if (kicker) kicker.text = `${kicker.text || ""} (PARTE ${part})`.trim();
+        if (partSlide.eyebrow) partSlide.eyebrow = `${partSlide.eyebrow} (PARTE ${part})`;
+      }
+      const pb = findItemsBlock(partSlide);
+      if (pb) pb.children = chunk;
+      if (Array.isArray(partSlide.items)) partSlide.items = chunk;
+      out.push(partSlide);
+    }
+  }
+  return out;
+}
+
 const tools = [
   {
     name: "generate_carousel",
@@ -564,11 +599,11 @@ function runtimeDataFromArgs(args) {
   const a = args || {};
   const kit = resolveKit(a.kitName, a.kit);
   const slidesIn = Array.isArray(a.slides) && a.slides.length ? a.slides : TEMPLATES.map((template) => ({ template }));
-  const slides = slidesIn.map((slide, index) => {
+  const slides = partitionListSlides(slidesIn.map((slide, index) => {
     const out = normSlideArg(slide);
     out.id = out.id || `slide-${index + 1}`;
     return out;
-  });
+  }));
   const title = String(a.title || "Carrusel");
   const format = ["feed", "square", "story"].includes(a.format) ? a.format : "feed";
   return {
@@ -635,11 +670,11 @@ function toolSaveCarousel(args) {
   const kitBase = existing && existing.kit ? existing.kit : resolveKit(company);
   const kit = deepMerge(kitBase, input.kit || a.kit || {});
   const rawSlides = a.slides || input.slides || existing && existing.slides || [];
-  const slides = rawSlides.map((slide, index) => {
+  const slides = partitionListSlides(rawSlides.map((slide, index) => {
     const out = normSlideArg(slide);
     out.id = slide.id || out.id || `slide-${index + 1}`;
     return out;
-  });
+  }));
   const requestedFormat = a.format || input.meta && input.meta.format || a.meta && a.meta.format || existing && existing.meta && existing.meta.format;
   const format = ["feed", "square", "story"].includes(requestedFormat) ? requestedFormat : "feed";
   const data = {
