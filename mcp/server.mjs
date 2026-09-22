@@ -291,6 +291,20 @@ function normSlideArg(s) {
 }
 
 const MAX_LIST_ITEMS = 3;
+function boldifyData(text) {
+  let t = String(text == null ? "" : text);
+  if (!t || /\*\*|==/.test(t)) return t;
+  const RE = /(?:US\s?\$|USD|R\$|AR\$|€|£|\$)\s?[\d][\d.,]*(?:\s?(?:millones|millón|miles|mil|MM)|\s?[Mm](?![a-záéíóúñ]))?|[+-]?\d+(?:[.,]\d+)?\s?%|\b\d+(?:[.,]\d+)?\s?(?:millones|millón|miles|mil|meses|mes|años|días|horas|puntos|personas|toneladas)\b|\b(?:[Dd]os|[Tt]res|[Cc]uatro|[Cc]inco|[Ss]eis|[Ss]iete|[Oo]cho|[Nn]ueve|[Dd]iez|[Oo]nce|[Dd]oce)\s+(?:meses|mes|años|días|semanas|puntos|personas|millones|miles)\b/gi;
+  return t.replace(RE, (m) => `**${m.trim()}**`);
+}
+function applyBoldify(slides) {
+  const walk = (nodes) => { for (const el of nodes || []) { if (el.type === "body") el.text = boldifyData(el.text); if (el.children) walk(el.children); } };
+  for (const s of slides) {
+    s.paragraphs = (s.paragraphs || []).map(boldifyData);
+    walk(s.elements);
+  }
+  return slides;
+}
 function findItemsBlock(slide) {
   for (const el of slide.elements || []) {
     if (el.type === "items") return el;
@@ -599,11 +613,11 @@ function runtimeDataFromArgs(args) {
   const a = args || {};
   const kit = resolveKit(a.kitName, a.kit);
   const slidesIn = Array.isArray(a.slides) && a.slides.length ? a.slides : TEMPLATES.map((template) => ({ template }));
-  const slides = partitionListSlides(slidesIn.map((slide, index) => {
+  const slides = applyBoldify(partitionListSlides(slidesIn.map((slide, index) => {
     const out = normSlideArg(slide);
     out.id = out.id || `slide-${index + 1}`;
     return out;
-  }));
+  })));
   const title = String(a.title || "Carrusel");
   const format = ["feed", "square", "story"].includes(a.format) ? a.format : "feed";
   return {
