@@ -340,6 +340,8 @@ function partitionListSlides(slides) {
         const kicker = kb && kb.type === "kicker" ? kb : kb && (kb.children || []).find((c) => c.type === "kicker");
         if (kicker) kicker.text = `${kicker.text || ""} (PARTE ${part})`.trim();
         if (partSlide.eyebrow) partSlide.eyebrow = `${partSlide.eyebrow} (PARTE ${part})`;
+        const sb = (partSlide.elements || []).find((el) => el.type === "stack");
+        if (sb) sb.children = (sb.children || []).filter((c) => c.type !== "body");
       }
       const pb = findItemsBlock(partSlide);
       if (pb) pb.children = chunk;
