@@ -130,7 +130,7 @@ The initial generation and MCP save operations create a persistent JSON document
 
 ## MCP tools
 
-The server exposes eleven tools. You can ask the AI to use them in plain language; you do not need to call them manually.
+The server exposes twelve tools. You can ask the AI to use them in plain language; you do not need to call them manually.
 
 | Tool | Use it when you want to... |
 |---|---|
@@ -139,6 +139,7 @@ The server exposes eleven tools. You can ask the AI to use them in plain languag
 | `list_carousels` | See the saved carousels, grouped by company. |
 | `load_carousel` | Reopen an existing carousel with its photos and logo resolved. |
 | `save_carousel` | Create or update the persistent nested JSON and copy assets into its asset folder. |
+| `delete_carousel` | Permanently delete a saved carousel and its assets. Two-step: without `confirm:true` it only returns a preview; the second call with `confirm:true` deletes. The AI should ask you before confirming. |
 | `review_slide_images` | Audit the photos of a saved carousel: per-slide texts, assigned photo, and `photoNeeds` with suggested search queries. |
 | `set_slide_photo` | Replace the background photo of one slide (from a URL or a local file) and re-render. |
 | `save_brand_kit` | Create or update a reusable brand kit. Partial updates are merged. |
