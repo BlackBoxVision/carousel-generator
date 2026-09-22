@@ -596,7 +596,7 @@ function editorHTML(){
 
 function renderEditor(){document.getElementById("editor").innerHTML=editorHTML()}
 function renderAll(){applyTheme();populateKits();syncCountBtn();document.getElementById("fmtPicker").innerHTML=Object.keys(FORMATS).map(f=>`<md-select-option value="${f}"${state.meta.format===f?" selected":""}><div slot="headline">${FORMATS[f].label}</div></md-select-option>`).join("");renderNav();renderDeck();renderEditor();document.getElementById("metaTitle").value=state.meta.title}
-function setFormat(f){state.meta.format=validFormat(f);state.meta.canvas={w:FORMATS[state.meta.format].w,h:FORMATS[state.meta.format].h};queueSave();renderDeck();renderEditor();toast("Formato: "+FORMATS[state.meta.format].label+" ("+FORMATS[state.meta.format].px+")")}
+function setFormat(f){state.meta.format=validFormat(f);state.meta.canvas={w:FORMATS[state.meta.format].w,h:FORMATS[state.meta.format].h};queueSave();renderDeck();renderNav();renderEditor();toast("Formato: "+FORMATS[state.meta.format].label+" ("+FORMATS[state.meta.format].px+")")}
 function applyTheme(){const r=document.documentElement.style,k=state.kit;
  r.setProperty("--primary",k.colors.primary);r.setProperty("--secondary",k.colors.secondary);r.setProperty("--tertiary",k.colors.tertiary);r.setProperty("--slidebg",k.colors.slideBg);
   r.setProperty("--fh",k.fonts.heading);r.setProperty("--fb",k.fonts.body);
