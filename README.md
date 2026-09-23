@@ -457,16 +457,44 @@ This creates `dist/carousel-generator.mcpb`.
 There is no build step for the app or server. The main files are:
 
 - `app/index.html`: browser editor and renderer.
-- `mcp/server.mjs`: MCP tools, persistence, asset handling, and HTML generation.
+- `mcp/server.mjs`: MCP bootstrap on `@modelcontextprotocol/sdk` (stdio, JSON Schema tools).
+- `mcp/registry.mjs`: single dispatch — the 16 tools and `callTool`.
+- `mcp/tools/*.mjs`: one file per tool (`{ name, description, inputSchema, handler }`).
+- `mcp/lib/*.mjs`: shared helpers (paths, kits, narrative, images, persist, render, …).
 - `mcp/kits/`: repository example brand kits.
 
-Smoke tests:
+Tests and checks (also run by `npm test` and CI):
 
 ```bash
-npm test
-# or individually:
-node scripts/smoke.cjs
-node scripts/test-tools.mjs
+npm test                              # syntax + manifest sync + node:test + smoke + tools e2e + fixture
+npm run test:unit                     # tests/lib + tests/tools
+npm run test:integration              # JSON-RPC + verifier tests
+npm run test:tools                    # MCP tools end-to-end (needs Chrome for PNGs)
+npm run test:fixture                  # offline fixture server
+node scripts/fixture-server.mjs &     # then: npm run test:from-url
+npm run sync:manifest                 # regenerate manifest.json tools[]
+npm run test:sync                     # fail if manifest is out of sync
+```
+
+Useful env vars:
+
+- `CAROUSEL_GENERATOR_HOME` — override `~/.carousel-generator` (tests and agent-e2e isolate here).
+- `CAROUSEL_TOOL_LOG` — JSONL log of every `tools/call` (`{ name, ok, durationMs, … }`).
+- `CHROME_PATH` — force a Chrome binary for `render_preview`.
+
+### CI
+
+`.github/workflows/ci.yml` runs three jobs:
+
+1. **unit** — syntax, `sync-manifest --check`, `node --test`, editor smoke.
+2. **tools-e2e** — JSON-RPC tools test with `chrome-headless-shell`, plus offline `*_from_url` against `scripts/fixture-server.mjs`.
+3. **agent-e2e** — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `free`) that must exercise all 16 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (16/16 `ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's. Artifacts upload on failure for debugging.
+
+```bash
+# local agent e2e (requires opencode CLI + fixture server):
+node scripts/fixture-server.mjs 8765 &
+node scripts/run-agent-e2e.mjs --log /tmp/calls.jsonl --home /tmp/home --artifacts /tmp/art
+node scripts/verify-agent-output.mjs --log /tmp/calls.jsonl --home /tmp/home
 ```
 
 Commits use Conventional Commits and are checked by commitlint and husky.
