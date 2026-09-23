@@ -70,7 +70,7 @@ Checklist obligatorio (las 16, todas deben terminar ok:true):
 13. social_copy company=agent-e2e name=e2e-main tone=informativo save=true
 14. carousel_from_url url=${fixtureUrl}/nota/cafe-especialidad company=agent-e2e carouselName=e2e-from-url persist=true open=false
 15. import_editor_state company=agent-e2e name=e2e-imported open=false carousel={version:2,company:agent-e2e,slug:e2e-imported,meta:{title:Imported,format:feed},slides:[{template:cover,titleWhite:IMPORT,titleOrange:OK}]} — pasá company/name/carousel como args top-level (NO uses payload anidado; el serializador free trunca JSON profundo)
-16. delete_carousel company=agent-e2e name=e2e-from-url SIN confirm (solo preview); después con confirm:true
+16. delete_carousel company=agent-e2e name=e2e-imported SIN confirm (solo preview); después con confirm:true — NO borres e2e-from-url ni e2e-main (el verifier necesita source.md de e2e-from-url y los artefactos de e2e-main)
 
 Reglas:
 - Invocá cada tool vía el MCP "carousel" (tools/call), NO vía shell/node import.
