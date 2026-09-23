@@ -134,7 +134,7 @@ The initial generation and MCP save operations create a persistent JSON document
 
 ## MCP tools
 
-The server exposes sixteen tools. You can ask the AI to use them in plain language; you do not need to call them manually.
+The server exposes nineteen tools. You can ask the AI to use them in plain language; you do not need to call them manually.
 
 | Tool | Use it when you want to... |
 |---|---|
@@ -143,7 +143,10 @@ The server exposes sixteen tools. You can ask the AI to use them in plain langua
 | `list_carousels` | See the saved carousels, grouped by company. |
 | `load_carousel` | Reopen an existing carousel with its photos and logo resolved. |
 | `save_carousel` | Create or update the persistent nested JSON and copy assets into its asset folder. |
-| `edit_slide` | Edit one slide without touching raw JSON: update text, move/reorder, duplicate, or delete. |
+| `edit_slide` | Edit slides without touching raw JSON: update text, move/reorder, duplicate, delete, or add a new blank slide (`add` + template). |
+| `set_slide_bg` | Change a slide's non-photo background: kit gradient, custom CSS, or reset to the kit's default gradient. |
+| `set_carousel_meta` | Update carousel meta only: title, format (feed/square/story + canvas), category, showCount. |
+| `validate_carousel` | Dry-run quality audit (narrativeAudit + styleWarnings) without writing or re-rendering. |
 | `import_editor_state` | Import the editor's Push-to-MCP JSON (or a v2 carousel) back into `carousel.json`. |
 | `render_preview` | Render slides to real PNGs with headless Chromium (`4:5`, `1:1`, `9:16`; all slides or selected indices). |
 | `social_copy` | Generate captions, hooks, hashtags, and per-slide alt text for Instagram/LinkedIn/X (es-AR heuristics; prefers `source.md`). |
@@ -458,7 +461,7 @@ There is no build step for the app or server. The main files are:
 
 - `app/index.html`: browser editor and renderer.
 - `mcp/server.mjs`: MCP bootstrap on `@modelcontextprotocol/sdk` (stdio, JSON Schema tools).
-- `mcp/registry.mjs`: single dispatch — the 16 tools, ajv validation of `arguments`, and `callTool`.
+- `mcp/registry.mjs`: single dispatch — the 19 tools, ajv validation of `arguments`, and `callTool`.
 - `mcp/lib/validate.mjs`: ajv runtime validation (strict `additionalProperties` on root + nested-with-properties; freeform bare objects like `carousel`/`kit` stay open). Errors are Spanish, returned as `isError` before the handler runs.
 - `mcp/tools/*.mjs`: one file per tool (`{ name, description, inputSchema, handler }`).
 - `mcp/lib/*.mjs`: shared helpers (paths, kits, narrative, images, persist, render, …).
@@ -489,7 +492,7 @@ Useful env vars:
 
 1. **unit** — syntax, `sync-manifest --check`, `node --test`, editor smoke.
 2. **tools-e2e** — JSON-RPC tools test with `chrome-headless-shell`, plus offline `*_from_url` against `scripts/fixture-server.mjs`.
-3. **agent-e2e** — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `opencode/mimo-v2.6-flash-free`) that must exercise all 16 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (16/16 `ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's. Artifacts upload on failure for debugging.
+3. **agent-e2e** — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `opencode/mimo-v2.6-flash-free`) that must exercise all 19 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (19/19 `ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's. Artifacts upload on failure for debugging.
 
 ```bash
 # local agent e2e (requires opencode CLI + fixture server):

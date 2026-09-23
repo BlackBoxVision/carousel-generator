@@ -113,7 +113,7 @@ jobs:
             --log /tmp/agent-artifacts/calls.jsonl \
             --home /tmp/agent-home \
             --artifacts /tmp/agent-artifacts
-      - name: Verify agent output (coverage 16/16 + artifacts)
+      - name: Verify agent output (coverage 19/19 + artifacts)
         run: |
           node scripts/verify-agent-output.mjs \
             --log /tmp/agent-artifacts/calls.jsonl \

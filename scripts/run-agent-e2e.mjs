@@ -46,7 +46,7 @@ fs.mkdirSync(home, { recursive: true });
 fs.mkdirSync(artifacts, { recursive: true });
 fs.writeFileSync(logFile, "");
 
-const prompt = `Sos un agente MCP. El servidor "carousel-generator" está registrado como MCP local (tools de prefijo carousel_* o el nombre exacto de cada tool). Ejercitá EXACTAMENTE las 16 tools via tools/call del MCP "carousel" (NO leas el código fuente para invocarlas; usá las tools MCP disponibles). Dejá artefactos reales. Usá CAROUSEL_GENERATOR_HOME aislado (ya seteado en el entorno).
+const prompt = `Sos un agente MCP. El servidor "carousel-generator" está registrado como MCP local (tools de prefijo carousel_* o el nombre exacto de cada tool). Ejercitá EXACTAMENTE las 19 tools via tools/call del MCP "carousel" (NO leas el código fuente para invocarlas; usá las tools MCP disponibles). Dejá artefactos reales. Usá CAROUSEL_GENERATOR_HOME aislado (ya seteado en el entorno).
 
 Contexto:
 - URL de fixture homepage: ${fixtureUrl}/
@@ -54,7 +54,7 @@ Contexto:
 - Company slug: agent-e2e
 - NO uses rutas de tu máquina real; todo bajo el home de entorno (/tmp/agent-home).
 
-Checklist obligatorio (las 16, todas deben terminar ok:true):
+Checklist obligatorio (las 19, todas deben terminar ok:true):
 1. brand_kit_from_url con url=${fixtureUrl}/ y name=agent-brand (save default true)
 2. list_brand_kits
 3. load_brand_kit name=agent-brand
@@ -71,11 +71,15 @@ Checklist obligatorio (las 16, todas deben terminar ok:true):
 14. carousel_from_url url=${fixtureUrl}/nota/cafe-especialidad company=agent-e2e carouselName=e2e-from-url persist=true open=false
 15. import_editor_state company=agent-e2e name=e2e-imported open=false carousel={version:2,company:agent-e2e,slug:e2e-imported,meta:{title:Imported,format:feed},slides:[{template:cover,titleWhite:IMPORT,titleOrange:OK}]} — pasá company/name/carousel como args top-level (NO uses payload anidado; el serializador free trunca JSON profundo)
 16. delete_carousel company=agent-e2e name=e2e-imported SIN confirm (solo preview); después con confirm:true — NO borres e2e-from-url ni e2e-main (el verifier necesita source.md de e2e-from-url y los artefactos de e2e-main)
+17. edit_slide action=add company=agent-e2e name=e2e-main payload={template:fact} (agrega una slide nueva al final)
+18. set_slide_bg company=agent-e2e name=e2e-main slide=2 mode=gradient gradient=navy (cambia fondo de la slide 2)
+19. set_carousel_meta company=agent-e2e name=e2e-main category=cafespecialidad showCount=false (actualiza meta)
+20. validate_carousel company=agent-e2e name=e2e-main (dry-run audit sin escribir)
 
 Reglas:
 - Invocá cada tool vía el MCP "carousel" (tools/call), NO vía shell/node import.
 - Si una tool falla, reintentá con args corregidos hasta que quede ok:true.
-- No te detengas hasta cubrir las 16.
+- No te detengas hasta cubrir las 19.
 - Al final resumí qué tools corriste.`;
 
 const env = {

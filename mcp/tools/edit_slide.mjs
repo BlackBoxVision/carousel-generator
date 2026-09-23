@@ -1,5 +1,6 @@
 import fs from "node:fs";
-import { findBlockInSlide } from "../lib/blocks.mjs";
+import { findBlockInSlide, normSlideArg } from "../lib/blocks.mjs";
+import { TEMPLATES } from "../lib/const.mjs";
 import { lintSlideTexts } from "../lib/narrative.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarousel } from "../lib/render.mjs";
@@ -9,31 +10,35 @@ import { clone, slug } from "../lib/text.mjs";
 export default {
   name: "edit_slide",
   description:
-    "Edita una slide de un carrusel persistido sin manipular el JSON crudo. Acciones: update_text (cambia kicker/título/highlight/body por blockId o blockType), move (reordena la slide a otra posición), duplicate (duplica la slide) y delete (elimina la slide). Persiste carousel.json, re-renderiza el preview y devuelve styleWarnings del bloque afectado. Usalo para refinar copy u orden según el NARRATIVE_REVIEW_PROTOCOL.",
+    "Edita slides de un carrusel persistido sin manipular el JSON crudo. Acciones: update_text (cambia kicker/título/highlight/body por blockId o blockType), move (reordena), duplicate, delete, add (inserta una slide nueva vacía con template cover|fact|map|list|cta). Persiste carousel.json, re-renderiza el preview y devuelve styleWarnings del bloque afectado. Usalo para refinar copy u orden según el NARRATIVE_REVIEW_PROTOCOL.",
   inputSchema: {
     type: "object",
     properties: {
       company: { type: "string", description: "Slug de empresa." },
       name: { type: "string", description: "Slug del carrusel (alias: slug)." },
       slug: { type: "string", description: "Alias de name." },
-      slide: { type: "number", description: "Número de slide a editar (1-based)." },
+      slide: { type: "number", description: "Número de slide a editar (1-based). No requerido para add." },
       slideIndex: { type: "number", description: "Alias de slide." },
-      action: { type: "string", enum: ["update_text", "move", "duplicate", "delete"], description: "Acción a realizar." },
+      action: { type: "string", enum: ["update_text", "move", "duplicate", "delete", "add"], description: "Acción a realizar." },
       payload: {
         type: "object",
-        description: "Parámetros de la acción. update_text: {blockId?, blockType?, text, field?} (field solo para items: title|desc|emoji). move: {to} (posición destino 1-based). duplicate/delete: vacío {}.",
+        description: "Parámetros de la acción. update_text: {blockId?, blockType?, text, field?} (field solo para items: title|desc|emoji). move: {to}. duplicate/delete: {}. add: {template?, at?} (template cover|fact|map|list|cta; at = posición 1-based, default al final).",
         properties: {
           blockId: { type: "string", description: "ID preciso del bloque (update_text)." },
           blockType: { type: "string", description: "Tipo del primer bloque a ubicar: kicker | text | highlight | body | slogan | foot | item (update_text)." },
           text: { type: "string", description: "Nuevo texto (update_text)." },
           field: { type: "string", description: "Campo a sobreescribir si el bloque es item: title | desc | emoji." },
           to: { type: "number", description: "Posición destino 1-based (move)." },
+          template: { type: "string", enum: ["cover", "fact", "map", "list", "cta"], description: "Plantilla de la slide nueva (add). Default list." },
+          at: { type: "number", description: "Posición de inserción 1-based (add). Default: al final." },
         },
       },
       blockId: { type: "string", description: "Alias top-level de payload.blockId." },
       blockType: { type: "string", description: "Alias top-level de payload.blockType." },
       text: { type: "string", description: "Alias top-level de payload.text." },
       to: { type: "number", description: "Alias top-level de payload.to." },
+      template: { type: "string", enum: ["cover", "fact", "map", "list", "cta"], description: "Alias top-level de payload.template (add)." },
+      at: { type: "number", description: "Alias top-level de payload.at (add)." },
       outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
       fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
       open: { type: "boolean", description: "Abrir el HTML (default true para load/generate/from_url; default false para tools iterativas)." },
@@ -46,15 +51,15 @@ export default {
     const name = slug(a.name || a.slug || "");
     if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
     const action = String(a.action || "").trim();
-    const ACTIONS = ["update_text", "move", "duplicate", "delete"];
+    const ACTIONS = ["update_text", "move", "duplicate", "delete", "add"];
     if (!ACTIONS.includes(action)) throw new Error(`Falta o es inválida \`action\`. Valores: ${ACTIONS.join(" | ")}.`);
     const record = readCarousel(company, name);
     const stored = record.stored;
     const slides = stored.slides || [];
-    const idx = Math.max(0, (+a.slide || +a.slideIndex || 1) - 1);
-    if (idx >= slides.length) throw new Error(`Slide ${idx + 1} inexistente (${slides.length} slides).`);
     const payload = (a.payload && typeof a.payload === "object") ? a.payload : {};
-    const original = clone(slides[idx]);
+    const idx = Math.max(0, (+a.slide || +a.slideIndex || 1) - 1);
+    if (action !== "add" && idx >= slides.length) throw new Error(`Slide ${idx + 1} inexistente (${slides.length} slides).`);
+    const original = action !== "add" ? clone(slides[idx]) : null;
 
     if (action === "update_text") {
       const blockId = payload.blockId || a.blockId || "";
@@ -88,6 +93,19 @@ export default {
     } else if (action === "delete") {
       if (slides.length <= 1) throw new Error("No se puede eliminar la única slide del carrusel.");
       slides.splice(idx, 1);
+    } else if (action === "add") {
+      const template = payload.template || a.template || "list";
+      if (!TEMPLATES.includes(template)) {
+        throw new Error(`\`payload.template\` debe ser uno de: ${TEMPLATES.join(", ")}. Recibiste: ${template}.`);
+      }
+      const atRaw = payload.at !== undefined ? payload.at : a.at;
+      let at = Number.isFinite(+atRaw) && +atRaw >= 1 ? Math.floor(+atRaw) : slides.length + 1;
+      if (at > slides.length + 1) at = slides.length + 1;
+      const created = normSlideArg({ template });
+      let newId = created.id || `slide-${slides.length + 1}`;
+      while (slides.some((s) => s.id === newId)) newId += "-" + Math.random().toString(36).slice(2, 5);
+      created.id = newId;
+      slides.splice(at - 1, 0, created);
     }
 
     stored.slides = slides;
@@ -97,7 +115,12 @@ export default {
     runtime.company = company;
     runtime.slug = name;
     const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true });
-    const affectedIdx = action === "move" ? +payload.to - 1 : action === "duplicate" ? idx + 1 : action === "delete" ? Math.min(idx, slides.length - 1) : idx;
+    const affectedIdx =
+      action === "move" ? +payload.to - 1 :
+      action === "duplicate" ? idx + 1 :
+      action === "delete" ? Math.min(idx, slides.length - 1) :
+      action === "add" ? Math.max(0, (payload.at !== undefined ? +payload.at : +a.at || slides.length) - 1) :
+      idx;
     const styleWarnings = lintSlideTexts([slides[affectedIdx]]).map((w) => ({ ...w, slide: affectedIdx + 1 }));
     const handoff = handoffRender(html, record.file, runtime, {
       nextSteps: [
@@ -108,10 +131,11 @@ export default {
     });
     const summary = {
       action,
-      appliedTo: `slide ${idx + 1}`,
+      appliedTo: action === "add" ? `slide ${affectedIdx + 1}` : `slide ${idx + 1}`,
       ...(action === "move" ? { from: idx + 1, to: +payload.to } : {}),
       ...(action === "duplicate" ? { newSlideAt: idx + 2, newId: slides[idx + 1].id } : {}),
       ...(action === "delete" ? { deleted: original.id || `slide ${idx + 1}`, remaining: slides.length } : {}),
+      ...(action === "add" ? { addedAt: affectedIdx + 1, newId: slides[affectedIdx] && slides[affectedIdx].id, template: slides[affectedIdx] && slides[affectedIdx].template } : {}),
       ...(action === "update_text" ? { block: payload.blockId || payload.blockType || a.blockType || a.blockId } : {}),
       slides: slides.length,
       ...handoff,

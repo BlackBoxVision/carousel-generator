@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { tools, callTool, validateArgs, getTool } from "../../mcp/registry.mjs";
 import { compileValidators, makeValidator } from "../../mcp/lib/validate.mjs";
 
-describe("ajv validators compile for all 16 tools", () => {
+describe("ajv validators compile for all 19 tools", () => {
   test("compileValidators builds a validator per tool without throwing", () => {
     const map = compileValidators(tools);
-    assert.equal(map.size, 16);
+    assert.equal(map.size, 19);
     for (const t of tools) assert.equal(typeof map.get(t.name), "function", t.name);
   });
 
@@ -78,7 +78,28 @@ describe("enums", () => {
   test("edit_slide action enum", () => {
     assert.throws(
       () => validateArgs("edit_slide", { company: "c", name: "n", action: "nope" }),
-      /`action` debe ser uno de: update_text, move, duplicate, delete/
+      /`action` debe ser uno de: update_text, move, duplicate, delete, add/
+    );
+  });
+
+  test("set_slide_bg mode enum", () => {
+    assert.throws(
+      () => validateArgs("set_slide_bg", { company: "c", name: "n", mode: "photo" }),
+      /`mode` debe ser uno de: gradient, css, remove/
+    );
+  });
+
+  test("set_carousel_meta format enum", () => {
+    assert.throws(
+      () => validateArgs("set_carousel_meta", { company: "c", name: "n", format: "hd" }),
+      /`format` debe ser uno de: feed, square, story/
+    );
+  });
+
+  test("set_slide_bg without mode rejects", () => {
+    assert.throws(
+      () => validateArgs("set_slide_bg", { company: "c", name: "n" }),
+      /Falta mode \(requerido\)/
     );
   });
 });

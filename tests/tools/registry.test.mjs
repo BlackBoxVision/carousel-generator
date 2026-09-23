@@ -11,6 +11,9 @@ const EXPECTED = [
   "review_slide_images",
   "set_slide_photo",
   "edit_slide",
+  "set_slide_bg",
+  "set_carousel_meta",
+  "validate_carousel",
   "save_brand_kit",
   "list_brand_kits",
   "load_brand_kit",
@@ -21,8 +24,8 @@ const EXPECTED = [
   "social_copy",
 ];
 
-test("registry exposes exactly the 16 tools", () => {
-  assert.equal(tools.length, 16);
+test("registry exposes exactly the 19 tools", () => {
+  assert.equal(tools.length, 19);
   assert.deepEqual(tools.map((t) => t.name).sort(), [...EXPECTED].sort());
 });
 
@@ -38,7 +41,7 @@ test("every tool has the {name, description, inputSchema, handler} contract", ()
 
 test("listToolsForRpc returns name/description/inputSchema only", () => {
   const rpc = listToolsForRpc();
-  assert.equal(rpc.length, 16);
+  assert.equal(rpc.length, 19);
   for (const t of rpc) {
     assert.deepEqual(Object.keys(t).sort(), ["description", "inputSchema", "name"]);
   }

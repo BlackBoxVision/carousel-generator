@@ -1,0 +1,94 @@
+import fs from "node:fs";
+import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
+import { renderCarousel } from "../lib/render.mjs";
+import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
+import { slug } from "../lib/text.mjs";
+
+export default {
+  name: "set_slide_bg",
+  description:
+    "Cambia el fondo de una slide persistida sin foto: gradiente del kit (por nombre), CSS custom, o remove (vuelve al primer gradiente del kit y limpia scrim/overlay). Para fotos usá set_slide_photo. Persiste carousel.json y re-renderiza el preview.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      company: { type: "string", description: "Slug de empresa." },
+      name: { type: "string", description: "Slug del carrusel (alias: slug)." },
+      slug: { type: "string", description: "Alias de name." },
+      slide: { type: "number", description: "Número de slide (1-based)." },
+      slideIndex: { type: "number", description: "Alias de slide." },
+      mode: { type: "string", enum: ["gradient", "css", "remove"], description: "Tipo de fondo: gradient (nombre del kit), css (linear-gradient u otra regla), remove (quita foto y vuelve al gradiente default del kit)." },
+      gradient: { type: "string", description: "Nombre del gradiente del kit (mode=gradient). Ej: navy, sunset, mint, deep." },
+      css: { type: "string", description: "Regla CSS de fondo (mode=css). Ej: linear-gradient(135deg,#111,#333)." },
+      overlayLight: { type: "boolean", description: "Override de overlayLight (texto oscuro sobre fondo claro). Default: según el gradiente del kit." },
+      outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
+      fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
+      open: { type: "boolean", description: "Abrir el HTML (default false para tools iterativas)." },
+    },
+    required: ["company", "name", "mode"],
+  },
+  handler(args) {
+    const a = args || {};
+    const company = slug(a.company || "");
+    const name = slug(a.name || a.slug || "");
+    if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+    const mode = String(a.mode || "").trim();
+    if (!["gradient", "css", "remove"].includes(mode)) {
+      throw new Error("Falta o es inválida `mode`. Valores: gradient | css | remove.");
+    }
+    const record = readCarousel(company, name);
+    const stored = record.stored;
+    const slides = stored.slides || [];
+    const idx = Math.max(0, (+a.slide || +a.slideIndex || 1) - 1);
+    if (idx >= slides.length) throw new Error(`Slide ${idx + 1} inexistente (${slides.length} slides).`);
+    const slide = slides[idx];
+    const gradients = (stored.kit && Array.isArray(stored.kit.gradients) && stored.kit.gradients.length)
+      ? stored.kit.gradients
+      : [{ name: "navy", css: "linear-gradient(145deg,#1e3a5f,#0f172a 65%)" }];
+
+    let applied;
+    let overlayLight;
+    if (mode === "gradient") {
+      const gname = String(a.gradient || "").trim();
+      if (!gname) throw new Error("Falta `gradient` (nombre del gradiente del kit) para mode=gradient.");
+      const g = gradients.find((x) => slug(x.name) === slug(gname)) || gradients.find((x) => x.name === gname);
+      if (!g) throw new Error(`Gradiente "${gname}" no existe en el kit. Disponibles: ${gradients.map((x) => x.name).join(", ")}.`);
+      slide.bg = { type: "gradient", value: slug(g.name) };
+      overlayLight = a.overlayLight !== undefined ? !!a.overlayLight : !!g.light;
+      applied = { mode, gradient: g.name };
+    } else if (mode === "css") {
+      const css = String(a.css || "").trim();
+      if (!css) throw new Error("Falta `css` (regla CSS de fondo) para mode=css.");
+      if (!/gradient|url\(|color\(/i.test(css) && !css.startsWith("#") && !css.startsWith("rgb")) {
+        throw new Error("`css` no parece un fondo válido (esperaba linear-gradient, url(...), color o hex).");
+      }
+      slide.bg = { type: "css", css };
+      overlayLight = a.overlayLight !== undefined ? !!a.overlayLight : false;
+      applied = { mode, css };
+    } else {
+      const fallback = gradients[0];
+      slide.bg = { type: "gradient", value: slug(fallback.name) };
+      overlayLight = a.overlayLight !== undefined ? !!a.overlayLight : !!fallback.light;
+      applied = { mode, gradient: fallback.name };
+    }
+    delete slide.bg.scrim;
+    delete slide.bg.bgPos;
+    slide.overlayLight = overlayLight;
+    stored.updatedAt = new Date().toISOString();
+    fs.writeFileSync(record.file, JSON.stringify(stored, null, 2), "utf8");
+    const runtime = hydrateCarousel(stored, record.dir);
+    runtime.company = company;
+    runtime.slug = name;
+    const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true });
+    const handoff = handoffRender(html, record.file, runtime, {
+      nextSteps: [
+        "Fondo persistido en carousel.json.",
+        "Si el texto no lee bien: ajustá overlayLight o cambiá el gradiente con set_slide_bg.",
+        "Para foto: usá set_slide_photo en su lugar.",
+      ],
+    });
+    return appendHandoff(
+      `Fondo actualizado en slide ${idx + 1} de ${company}/${name}: ${JSON.stringify(applied)}\noverlayLight: ${overlayLight}\nPreview: ${html}`,
+      handoff
+    );
+  },
+};

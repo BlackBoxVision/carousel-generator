@@ -9,6 +9,9 @@ import loadCarousel from "../../mcp/tools/load_carousel.mjs";
 import listCarousels from "../../mcp/tools/list_carousels.mjs";
 import deleteCarousel from "../../mcp/tools/delete_carousel.mjs";
 import editSlide from "../../mcp/tools/edit_slide.mjs";
+import setSlideBg from "../../mcp/tools/set_slide_bg.mjs";
+import setCarouselMeta from "../../mcp/tools/set_carousel_meta.mjs";
+import validateCarousel from "../../mcp/tools/validate_carousel.mjs";
 import reviewSlide from "../../mcp/tools/review_slide_images.mjs";
 import saveKit from "../../mcp/tools/save_brand_kit.mjs";
 import listKits from "../../mcp/tools/list_brand_kits.mjs";
@@ -159,6 +162,27 @@ describe("edit_slide", () => {
       company: COMPANY, name: "edit-test", action: "update_text", payload: { blockType: "text" },
     }), /payload\.text/);
   });
+
+  test("add inserts a new blank slide with template", async () => {
+    const before = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const n0 = before.slides.length;
+    const out = JSON.parse(await editSlide.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", action: "add",
+      payload: { template: "fact" }, open: false,
+    }));
+    assert.equal(out.action, "add");
+    assert.equal(out.slides, n0 + 1);
+    assert.equal(out.template, "fact");
+    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    assert.equal(stored.slides.length, n0 + 1);
+    assert.equal(stored.slides[stored.slides.length - 1].template, "fact");
+  });
+
+  test("add rejects unknown template", async () => {
+    await assert.rejects(() => editSlide.handler({
+      company: COMPANY, name: "edit-test", action: "add", payload: { template: "nope" },
+    }), /template/);
+  });
 });
 
 function COMPONENT_SAFE() { return COMPANY; }
@@ -205,5 +229,104 @@ describe("social_copy", () => {
     assert.ok(out.hooks.length > 0);
     assert.ok(out.altTexts.every((a) => a.chars <= 125));
     assert.ok(out.altTexts.length >= 3);
+  });
+});
+
+describe("set_slide_bg", () => {
+  test("applies gradient from kit", async () => {
+    const out = await setSlideBg.handler({
+      company: COMPANY, name: "edit-test", slide: 1, mode: "gradient", gradient: "navy",
+      open: false,
+    });
+    assert.ok(out.includes("gradient"));
+    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    assert.equal(stored.slides[0].bg.type, "gradient");
+    assert.equal(stored.slides[0].bg.value, "navy");
+  });
+
+  test("applies custom css", async () => {
+    await setSlideBg.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", slide: 2, mode: "css",
+      css: "linear-gradient(135deg,#111,#333)", open: false,
+    });
+    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    assert.equal(stored.slides[1].bg.type, "css");
+    assert.ok(stored.slides[1].bg.css.includes("linear-gradient"));
+  });
+
+  test("remove resets to first kit gradient", async () => {
+    await setSlideBg.handler({
+      company: COMPANY, name: "edit-test", slide: 1, mode: "remove", open: false,
+    });
+    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    assert.equal(stored.slides[0].bg.type, "gradient");
+  });
+
+  test("rejects unknown gradient and missing mode fields", () => {
+    assert.throws(() => setSlideBg.handler({
+      company: COMPANY, name: "edit-test", mode: "gradient", gradient: "nope",
+    }), /Gradiente/);
+    assert.throws(() => setSlideBg.handler({
+      company: COMPANY, name: "edit-test", mode: "gradient",
+    }), /Falta `gradient`/);
+    assert.throws(() => setSlideBg.handler({
+      company: COMPANY, name: "edit-test", mode: "css",
+    }), /Falta `css`/);
+  });
+});
+
+describe("set_carousel_meta", () => {
+  test("updates title, format, category and showCount", async () => {
+    const out = await setCarouselMeta.handler({
+      company: COMPANY, name: "edit-test",
+      title: "Meta Test", format: "square", category: "demo", showCount: false,
+      open: false,
+    });
+    assert.ok(out.includes("square"));
+    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    assert.equal(stored.meta.title, "Meta Test");
+    assert.equal(stored.meta.format, "square");
+    assert.equal(stored.meta.canvas.w, 1080);
+    assert.equal(stored.meta.canvas.h, 1080);
+    assert.equal(stored.meta.category, "demo");
+    assert.equal(stored.meta.showCount, false);
+  });
+
+  test("rejects when no field provided and invalid format", () => {
+    assert.throws(() => setCarouselMeta.handler({ company: COMPANY, name: "edit-test" }), /title \| format/);
+    assert.throws(() => setCarouselMeta.handler({
+      company: COMPANY, name: "edit-test", format: "hd",
+    }), /feed, square, story/);
+  });
+});
+
+describe("validate_carousel", () => {
+  test("dry-run audit on persisted carousel without writing", async () => {
+    const jsonPath = path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json");
+    const before = fs.readFileSync(jsonPath, "utf8");
+    const out = JSON.parse(await validateCarousel.handler({ company: COMPANY, name: "edit-test" }));
+    assert.equal(typeof out.ok, "boolean");
+    assert.ok(Array.isArray(out.styleWarnings));
+    assert.ok(out.narrativeAudit && "flags" in out.narrativeAudit);
+    assert.ok(out.protocol.includes("NARRATIVE"));
+    assert.equal(fs.readFileSync(jsonPath, "utf8"), before, "validate must not write");
+  });
+
+  test("accepts loose slides for dry-run without company", async () => {
+    const out = JSON.parse(await validateCarousel.handler({
+      slides: [
+        { template: "cover", titleWhite: "HOLA", titleOrange: "MUNDO" },
+        { template: "cta", titleWhite: "FIN", titleOrange: "OK" },
+      ],
+      title: "Dry Run",
+    }));
+    assert.equal(out.slides, 2);
+    assert.equal(out.title, "Dry Run");
+    assert.ok(Array.isArray(out.narrativeAudit.flags));
+  });
+
+  test("rejects empty input", () => {
+    assert.throws(() => validateCarousel.handler({}), /company|slides/);
+    assert.throws(() => validateCarousel.handler({ slides: [] }), /No hay slides/);
   });
 });

@@ -24,22 +24,82 @@
     }
   },
   "tools": [
-    { "name": "generate_carousel", "description": "Generates and opens editable HTML, persisting nested carousel.json and assets by company" },
-    { "name": "list_carousels", "description": "Lists persisted carousels grouped by company" },
-    { "name": "load_carousel", "description": "Loads a persisted nested carousel, hydrates assets and opens editable HTML" },
-    { "name": "save_carousel", "description": "Creates or updates nested carousel JSON and its asset folder" },
-    { "name": "delete_carousel", "description": "Deletes a persisted carousel and its assets (two-step with confirm)" },
-    { "name": "review_slide_images", "description": "Audits photos per slide with photoNeeds and suggested queries" },
-    { "name": "set_slide_photo", "description": "Replaces the background photo of one slide from a URL or local file" },
-    { "name": "edit_slide", "description": "Edits a slide: update_text, move, duplicate or delete without touching raw JSON" },
-    { "name": "save_brand_kit", "description": "Saves a brand kit JSON for reuse with generate_carousel" },
-    { "name": "list_brand_kits", "description": "Lists the saved brand kits" },
-    { "name": "load_brand_kit", "description": "Returns the full JSON of a saved brand kit" },
-    { "name": "brand_kit_from_url", "description": "Generates and saves a brand kit from a website URL (homepage heuristics), with per-field confidence for agent review" },
-    { "name": "carousel_from_url", "description": "Builds a draft carousel from an article/note URL, with photos assigned from the article" },
-    { "name": "import_editor_state", "description": "Imports editor Push JSON (or a v2 carousel) back into carousel.json, copying base64 photos to assets" },
-    { "name": "render_preview", "description": "Renders carousel slides to real PNGs with Chrome headless (formats 4:5/1:1/9:16, all or selected slides)" },
-    { "name": "social_copy", "description": "Generates social captions, hooks, hashtags and per-slide alt text (es-AR heuristics, source.md → slides → meta)" }
+    {
+      "name": "generate_carousel",
+      "description": "Generates and opens editable HTML, persisting nested carousel.json and assets by company"
+    },
+    {
+      "name": "list_carousels",
+      "description": "Lists persisted carousels grouped by company"
+    },
+    {
+      "name": "load_carousel",
+      "description": "Loads a persisted nested carousel, hydrates assets and opens editable HTML"
+    },
+    {
+      "name": "save_carousel",
+      "description": "Creates or updates nested carousel JSON and its asset folder"
+    },
+    {
+      "name": "delete_carousel",
+      "description": "Deletes a persisted carousel and its assets (two-step with confirm)"
+    },
+    {
+      "name": "review_slide_images",
+      "description": "Audits photos per slide with photoNeeds and suggested queries"
+    },
+    {
+      "name": "set_slide_photo",
+      "description": "Replaces the background photo of one slide from a URL or local file"
+    },
+    {
+      "name": "edit_slide",
+      "description": "Edits a slide: update_text, move, duplicate or delete without touching raw JSON"
+    },
+    {
+      "name": "set_slide_bg",
+      "description": "Cambia el fondo de una slide persistida sin foto: gradiente del kit (por nombre), CSS custom, o remove (vuelve al primer gradiente del kit y limpia scrim/ove…"
+    },
+    {
+      "name": "set_carousel_meta",
+      "description": "Actualiza meta de un carrusel persistido sin tocar las slides: title, format (feed|square|story + canvas), category (cascade de highlightColors) y showCount."
+    },
+    {
+      "name": "validate_carousel",
+      "description": "Dry-run de calidad sobre un carrusel persistido (o slides sueltas sin guardar): narrativeAudit (cover/cta/figuras/kickers/orphans) + styleWarnings (raya larg…"
+    },
+    {
+      "name": "save_brand_kit",
+      "description": "Saves a brand kit JSON for reuse with generate_carousel"
+    },
+    {
+      "name": "list_brand_kits",
+      "description": "Lists the saved brand kits"
+    },
+    {
+      "name": "load_brand_kit",
+      "description": "Returns the full JSON of a saved brand kit"
+    },
+    {
+      "name": "brand_kit_from_url",
+      "description": "Generates and saves a brand kit from a website URL (homepage heuristics), with per-field confidence for agent review"
+    },
+    {
+      "name": "carousel_from_url",
+      "description": "Builds a draft carousel from an article/note URL, with photos assigned from the article"
+    },
+    {
+      "name": "import_editor_state",
+      "description": "Imports editor Push JSON (or a v2 carousel) back into carousel.json, copying base64 photos to assets"
+    },
+    {
+      "name": "render_preview",
+      "description": "Renders carousel slides to real PNGs with Chrome headless (formats 4:5/1:1/9:16, all or selected slides)"
+    },
+    {
+      "name": "social_copy",
+      "description": "Generates social captions, hooks, hashtags and per-slide alt text (es-AR heuristics, source.md → slides → meta)"
+    }
   ],
   "keywords": [
     "instagram",

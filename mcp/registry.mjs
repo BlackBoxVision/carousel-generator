@@ -6,6 +6,9 @@ import delete_carousel from "./tools/delete_carousel.mjs";
 import review_slide_images from "./tools/review_slide_images.mjs";
 import set_slide_photo from "./tools/set_slide_photo.mjs";
 import edit_slide from "./tools/edit_slide.mjs";
+import set_slide_bg from "./tools/set_slide_bg.mjs";
+import set_carousel_meta from "./tools/set_carousel_meta.mjs";
+import validate_carousel from "./tools/validate_carousel.mjs";
 import save_brand_kit from "./tools/save_brand_kit.mjs";
 import list_brand_kits from "./tools/list_brand_kits.mjs";
 import load_brand_kit from "./tools/load_brand_kit.mjs";
@@ -25,6 +28,9 @@ export const tools = [
   review_slide_images,
   set_slide_photo,
   edit_slide,
+  set_slide_bg,
+  set_carousel_meta,
+  validate_carousel,
   save_brand_kit,
   list_brand_kits,
   load_brand_kit,

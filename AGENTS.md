@@ -7,7 +7,7 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 - `mcp/tools/*.mjs` — cada tool es un módulo default-export con `{ name, description, inputSchema, handler }`. El `inputSchema` (JSON Schema) es la **fuente de verdad**.
 - `mcp/lib/*.mjs` — helpers compartidos (paths, kits, narrative, images, persist, render, social, article, brand, preview, handoff, blocks, text, colors, html, const, **validate**).
 - `mcp/lib/validate.mjs` — ajv valida `args` en `callTool` **antes** del handler. Estrictez: root + nodos con `properties` → `additionalProperties: false` (runtime only, no se publica en `tools/list`); bare `{type:"object"}` sin properties (`carousel`, `kit`, `meta`) queda libre. Errores en español (`Falta company (requerido).`, `` `format` debe ser uno de: … ``, `Propiedad no permitida: foo.`).
-- `mcp/registry.mjs` — imports estáticos de las 16 tools → array `tools`, `getTool`, `listToolsForRpc`, `callTool` (valida con ajv y despacha). Único dispatch.
+- `mcp/registry.mjs` — imports estáticos de las 19 tools → array `tools`, `getTool`, `listToolsForRpc`, `callTool` (valida con ajv y despacha). Único dispatch.
 - `mcp/server.mjs` — bootstrap del SDK `@modelcontextprotocol/sdk` (`Server` de bajo nivel + `setRequestHandler` con JSON Schema, **sin zod**). Log de llamadas JSONL en `CAROUSEL_TOOL_LOG`.
 - `manifest.json` → `tools[]` se genera/sincroniza con `node scripts/sync-manifest.mjs` (y `--check` falla si está desincronizado; corre en `npm test`, CI y pre-commit).
 
@@ -16,7 +16,7 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 1. Crear/editar `mcp/tools/{nombre}.mjs` con `name`, `description` e `inputSchema` (JSON Schema). El `handler` recibe `args` y devuelve string (o Promise<string>).
 2. Registrar el import + entrada en `mcp/registry.mjs` (`tools` array). No hace falta tocar `callTool` — el dispatch es genérico.
 3. Correr `node scripts/sync-manifest.mjs` para regenerar `manifest.json` → `tools[]`.
-4. Actualizar la tabla de tools en `README.md` y, si aplica, el conteo ("sixteen tools", etc.).
+4. Actualizar la tabla de tools en `README.md` y, si aplica, el conteo ("nineteen tools", etc.).
 5. Si la tool responde con protocolos o advertencias, mantener el formato de las existentes (`PHOTO_REVIEW_PROTOCOL`, `NARRATIVE_REVIEW_PROTOCOL`, `styleWarnings`).
 6. Si la tool escribe un archivo en la carpeta del carrusel (ej: `source.md`, `social.md`, `previews/`), documentarlo en README → Saved files.
 7. Agregar tests: contrato en `tests/tools/registry.test.mjs` (lista EXPECTED), handler en `tests/tools/handlers.test.mjs` si aplica, y validación en `tests/tools/validate.test.mjs` si el schema es nuevo/cambia.
@@ -46,7 +46,7 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 
 - **unit**: syntax + `sync-manifest --check` + `node --test 'tests/**/*.test.mjs'` + editor smoke.
 - **tools-e2e**: `scripts/test-tools.mjs` con chrome-headless-shell + `scripts/test-from-url.mjs` contra `scripts/fixture-server.mjs`.
-- **agent-e2e**: instala opencode CLI, corre `scripts/run-agent-e2e.mjs` con model `opencode/mimo-v2.6-flash-free` (override: `OPENCODE_MODEL`) y home/log aislados, luego `scripts/verify-agent-output.mjs` (cobertura 16/16 `ok:true` + artefactos). El exit code del job es el del **verifier**, no el del modelo. Contingencia: si free devuelve 401, agregar secret `OPENCODE_API_KEY` (costo $0). **No usar** `--model free` (no es un model ID válido).
+- **agent-e2e**: instala opencode CLI, corre `scripts/run-agent-e2e.mjs` con model `opencode/mimo-v2.6-flash-free` (override: `OPENCODE_MODEL`) y home/log aislados, luego `scripts/verify-agent-output.mjs` (cobertura 19/19 `ok:true` + artefactos). El exit code del job es el del **verifier**, no el del modelo. Contingencia: si free devuelve 401, agregar secret `OPENCODE_API_KEY` (costo $0). **No usar** `--model free` (no es un model ID válido).
 
 ## Formato de slides y datos
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Verifies agent e2e output: CAROUSEL_TOOL_LOG coverage (16/16 ok:true)
+ * Verifies agent e2e output: CAROUSEL_TOOL_LOG coverage (19/19 ok:true)
  * + per-tool artifact assertions. Exit code = job result (not the model's).
  *
  * Usage:
@@ -19,6 +19,9 @@ const EXPECTED_TOOLS = [
   "review_slide_images",
   "set_slide_photo",
   "edit_slide",
+  "set_slide_bg",
+  "set_carousel_meta",
+  "validate_carousel",
   "save_brand_kit",
   "list_brand_kits",
   "load_brand_kit",
@@ -139,8 +142,8 @@ function main() {
       const extra = [...byTool.keys()].filter((n) => !EXPECTED_TOOLS.includes(n));
       if (extra.length) warn("extra tools called", extra.join(", "));
       console.log(`coverage: ${covered}/${EXPECTED_TOOLS.length}`);
-      if (covered === EXPECTED_TOOLS.length) ok(`coverage 16/16`);
-      else fail(`coverage 16/16`, `only ${covered}/${EXPECTED_TOOLS.length}`);
+      if (covered === EXPECTED_TOOLS.length) ok(`coverage ${EXPECTED_TOOLS.length}/${EXPECTED_TOOLS.length}`);
+      else fail(`coverage ${EXPECTED_TOOLS.length}/${EXPECTED_TOOLS.length}`, `only ${covered}/${EXPECTED_TOOLS.length}`);
     }
   }
 

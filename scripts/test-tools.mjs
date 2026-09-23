@@ -94,7 +94,10 @@ async function main() {
   assert(tools.includes("render_preview"), "tools/list has render_preview");
   assert(tools.includes("social_copy"), "tools/list has social_copy");
   assert(tools.includes("import_editor_state"), "tools/list has import_editor_state");
-  assert(tools.length >= 16, "tools count >= 16 (got " + tools.length + ")");
+  assert(tools.includes("set_slide_bg"), "tools/list has set_slide_bg");
+  assert(tools.includes("set_carousel_meta"), "tools/list has set_carousel_meta");
+  assert(tools.includes("validate_carousel"), "tools/list has validate_carousel");
+  assert(tools.length >= 19, "tools count >= 19 (got " + tools.length + ")");
 
   const genText = contentText(phase1.get(3));
   assert(/Smoke Tools|smoke-tools|smoke/.test(genText), "generate_carousel returns path");
