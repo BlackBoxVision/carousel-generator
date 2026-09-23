@@ -46,13 +46,13 @@ fs.mkdirSync(home, { recursive: true });
 fs.mkdirSync(artifacts, { recursive: true });
 fs.writeFileSync(logFile, "");
 
-const prompt = `Eres un agente MCP que opera el servidor carousel-generator (16 tools). Ejercitá EXACTAMENTE las 16 tools de la lista, en cualquier orden, dejando artefactos reales. Usá CAROUSEL_GENERATOR_HOME aislado (ya seteado en el entorno).
+const prompt = `Sos un agente MCP. El servidor "carousel-generator" está registrado como MCP local (tools de prefijo carousel_* o el nombre exacto de cada tool). Ejercitá EXACTAMENTE las 16 tools via tools/call del MCP "carousel" (NO leas el código fuente para invocarlas; usá las tools MCP disponibles). Dejá artefactos reales. Usá CAROUSEL_GENERATOR_HOME aislado (ya seteado en el entorno).
 
 Contexto:
 - URL de fixture homepage: ${fixtureUrl}/
 - URL de fixture artículo: ${fixtureUrl}/nota/cafe-especialidad
 - Company slug: agent-e2e
-- NO uses rutas de tu máquina real; todo bajo el home de entorno.
+- NO uses rutas de tu máquina real; todo bajo el home de entorno (/tmp/agent-home).
 
 Checklist obligatorio (las 16, todas deben terminar ok:true):
 1. brand_kit_from_url con url=${fixtureUrl}/ y name=agent-brand (save default true)
@@ -73,6 +73,7 @@ Checklist obligatorio (las 16, todas deben terminar ok:true):
 16. delete_carousel company=agent-e2e name=e2e-from-url SIN confirm (solo preview); después con confirm:true
 
 Reglas:
+- Invocá cada tool vía el MCP "carousel" (tools/call), NO vía shell/node import.
 - Si una tool falla, reintentá con args corregidos hasta que quede ok:true.
 - No te detengas hasta cubrir las 16.
 - Al final resumí qué tools corriste.`;
@@ -82,11 +83,19 @@ const env = {
   CAROUSEL_GENERATOR_HOME: home,
   CAROUSEL_TOOL_LOG: logFile,
   OPENCODE_MODEL: model,
+  // Allow external_directory under /tmp (home + artifacts) without interactive prompt.
+  OPENCODE_PERMISSION: JSON.stringify({
+    external_directory: {
+      "/tmp/*": "allow",
+      "/tmp/agent-home/*": "allow",
+      "/tmp/agent-artifacts/*": "allow",
+    },
+  }),
 };
 
 console.log("[agent-e2e] model=", model, "home=", home, "log=", logFile);
 
-const child = spawn("opencode", ["run", "--model", model, prompt], {
+const child = spawn("opencode", ["run", "--auto", "--model", model, prompt], {
   cwd: ROOT,
   env,
   stdio: ["ignore", "pipe", "pipe"],
