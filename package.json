@@ -12,8 +12,12 @@
     "test:unit": "node --test 'tests/lib/**/*.test.mjs' 'tests/tools/**/*.test.mjs'",
     "test:integration": "node --test 'tests/integration/**/*.test.mjs'",
     "test:sync": "node scripts/sync-manifest.mjs --check",
+    "test:fixture": "node scripts/test-fixture-server.mjs",
+    "test:from-url": "node scripts/test-from-url.mjs",
     "sync:manifest": "node scripts/sync-manifest.mjs",
-    "test": "node --check mcp/server.mjs && node --check mcp/registry.mjs && node --check install.mjs && node scripts/sync-manifest.mjs --check && node --test 'tests/**/*.test.mjs' && node scripts/smoke.cjs && node scripts/test-tools.mjs",
+    "verify:agent": "node scripts/verify-agent-output.mjs",
+    "agent:e2e": "node scripts/run-agent-e2e.mjs",
+    "test": "node --check mcp/server.mjs && node --check mcp/registry.mjs && node --check install.mjs && node scripts/sync-manifest.mjs --check && node --test 'tests/**/*.test.mjs' && node scripts/smoke.cjs && node scripts/test-tools.mjs && node scripts/test-fixture-server.mjs",
     "bundle": "npx -y @anthropic-ai/mcpb pack . dist/carousel-generator.mcpb",
     "prepare": "husky"
   },
