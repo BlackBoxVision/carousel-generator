@@ -489,7 +489,7 @@ Useful env vars:
 
 1. **unit** — syntax, `sync-manifest --check`, `node --test`, editor smoke.
 2. **tools-e2e** — JSON-RPC tools test with `chrome-headless-shell`, plus offline `*_from_url` against `scripts/fixture-server.mjs`.
-3. **agent-e2e** — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `free`) that must exercise all 16 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (16/16 `ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's. Artifacts upload on failure for debugging.
+3. **agent-e2e** — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `opencode/mimo-v2.6-flash-free`) that must exercise all 16 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (16/16 `ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's. Artifacts upload on failure for debugging.
 
 ```bash
 # local agent e2e (requires opencode CLI + fixture server):

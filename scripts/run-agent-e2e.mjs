@@ -7,7 +7,7 @@
  *   node scripts/run-agent-e2e.mjs --log /tmp/calls.jsonl --home /tmp/home --artifacts /tmp/art
  *
  * Env:
- *   OPENCODE_MODEL  (default: free)
+ *   OPENCODE_MODEL  (default: opencode/mimo-v2.6-flash-free)
  *   FIXTURE_URL     base URL of fixture-server (default http://127.0.0.1:8765)
  *   OPENCODE_API_KEY if required by Zen free tier
  */

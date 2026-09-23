@@ -46,7 +46,7 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 
 - **unit**: syntax + `sync-manifest --check` + `node --test 'tests/**/*.test.mjs'` + editor smoke.
 - **tools-e2e**: `scripts/test-tools.mjs` con chrome-headless-shell + `scripts/test-from-url.mjs` contra `scripts/fixture-server.mjs`.
-- **agent-e2e**: instala opencode CLI, corre `scripts/run-agent-e2e.mjs --model free` con home/log aislados, luego `scripts/verify-agent-output.mjs` (cobertura 16/16 `ok:true` + artefactos). El exit code del job es el del **verifier**, no el del modelo. Contingencia: si Zen free devuelve 401, agregar secret `OPENCODE_API_KEY` (costo $0).
+- **agent-e2e**: instala opencode CLI, corre `scripts/run-agent-e2e.mjs` con model `opencode/mimo-v2.6-flash-free` (override: `OPENCODE_MODEL`) y home/log aislados, luego `scripts/verify-agent-output.mjs` (cobertura 16/16 `ok:true` + artefactos). El exit code del job es el del **verifier**, no el del modelo. Contingencia: si free devuelve 401, agregar secret `OPENCODE_API_KEY` (costo $0). **No usar** `--model free` (no es un model ID válido).
 
 ## Formato de slides y datos
 
