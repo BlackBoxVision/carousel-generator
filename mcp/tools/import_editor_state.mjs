@@ -7,7 +7,7 @@ import saveCarousel from "./save_carousel.mjs";
 export default {
   name: "import_editor_state",
   description:
-    "Importa el estado del editor visual (botón Push al MCP) hacia carousel.json. Acepta el objeto JSON copiado desde el editor ({action, company, name, carousel}) o un carousel v2 armado a mano. Reutiliza la misma validación y copia de assets que save_carousel (las fotos base64 van a assets/, nunca se guardan base64 grande en el JSON). Ideal para sincronizar ediciones hechas en el browser de vuelta al MCP.",
+    "Importa el estado del editor visual (botón Push al MCP) hacia carousel.json. Preferí args top-level company + name + carousel (v2) — es lo más robusto con clientes MCP que truncan JSON anidado. Alternativa: payload = string JSON o objeto {action, company, name, carousel}. Reutiliza la misma validación y copia de assets que save_carousel (las fotos base64 van a assets/, nunca se guardan base64 grande en el JSON). Ideal para sincronizar ediciones hechas en el browser de vuelta al MCP.",
   inputSchema: {
     type: "object",
     properties: {
@@ -16,9 +16,9 @@ export default {
       slug: { type: "string", description: "Alias de name." },
       payload: {
         type: ["object", "string"],
-        description: "Objeto o string JSON copiado desde el editor: {action:'upsert', company, name, carousel}. Si es string, se parsea.",
+        description: "Alternativa a args top-level: string JSON o objeto {action:'upsert', company, name, carousel}. Si es string, se parsea. Preferí company+name+carousel directos si el cliente trunca objetos anidados.",
       },
-      carousel: { type: "object", description: "carousel.json v2 completo (alternativa a payload)." },
+      carousel: { type: "object", description: "carousel.json v2 completo (preferido con company/name top-level)." },
       open: { type: "boolean", description: "Abrir el HTML regenerado (default false)." },
     },
   },

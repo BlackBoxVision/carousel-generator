@@ -63,11 +63,25 @@ const LOGO_PNG = Buffer.from(
   "base64"
 );
 
-// Minimal JPEG (1x1)
-const JPG = Buffer.from(
+// Minimal JPEG (1x1) padded with COM segments so downloadPhotoToTmp's
+// "imagen muy chica" gate (<15KB) accepts it in agent/tools e2e.
+const JPG_TINY = Buffer.from(
   "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGcP//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEABj8Cf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8hf//Z",
   "base64"
 );
+function jpegComPad(minBytes) {
+  if (JPG_TINY.length >= minBytes) return JPG_TINY;
+  const need = minBytes - JPG_TINY.length + 64;
+  const data = Buffer.alloc(Math.min(need, 65000), 0x00);
+  const com = Buffer.alloc(4 + data.length);
+  com[0] = 0xff;
+  com[1] = 0xfe;
+  com.writeUInt16BE(data.length + 2, 2);
+  data.copy(com, 4);
+  const padded = Buffer.concat([Buffer.from([0xff, 0xd8]), com, JPG_TINY.slice(2)]);
+  return padded.length >= minBytes ? padded : Buffer.concat([padded, Buffer.alloc(minBytes - padded.length)]);
+}
+const JPG = jpegComPad(16000);
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);

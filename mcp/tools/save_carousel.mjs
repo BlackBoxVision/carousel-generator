@@ -36,7 +36,12 @@ export default {
       throw new Error("`slides` debe ser un array; recibiste " + (rawSlides === null ? "null" : typeof rawSlides) + ". Ejemplo: { slides: [{ template: 'fact', ... }] }. También podés pasar `carousel` con la propiedad slides, o `meta`/`kit` solos para actualizarlos sobre el existente.");
     }
     const sourceDir = existing ? carouselPath(company, name) : input.company && input.slug ? carouselPath(input.company, input.slug) : null;
-    const kitBase = existing && existing.kit ? existing.kit : resolveKit(company);
+    let kitBase;
+    if (existing && existing.kit) kitBase = existing.kit;
+    else {
+      try { kitBase = resolveKit(company); }
+      catch { kitBase = resolveKit(); }
+    }
     const kit = deepMerge(kitBase, input.kit || a.kit || {});
     const slides = partitionListSlides(rawSlides.map((slide, index) => {
       const out = normSlideArg(slide);

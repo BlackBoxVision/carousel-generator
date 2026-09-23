@@ -79,6 +79,25 @@ describe("generate/save/load/list/delete carousel", () => {
     assert.ok(typeof out === "string");
   });
 
+  test("save_carousel creates new carousel when company has no kit (kit fallback)", () => {
+    const out = saveCarousel.handler({
+      company: "no-kit-co", name: "fresh-import",
+      carousel: {
+        version: 2, company: "no-kit-co", slug: "fresh-import",
+        meta: { title: "Fresh", format: "feed" },
+        slides: [{ template: "cover", titleWhite: "NEW", titleOrange: "OK" }],
+      },
+      open: false,
+    });
+    const parsed = JSON.parse(out);
+    assert.equal(parsed.saved ? true : false, true);
+    const json = path.join(home.carouselDir, "no-kit-co", "fresh-import", "carousel.json");
+    assert.ok(fs.existsSync(json), "carousel.json created without company kit");
+    const stored = JSON.parse(fs.readFileSync(json, "utf8"));
+    assert.equal(stored.version, 2);
+    assert.ok(stored.kit && stored.kit.colors, "kit resolved via fallback");
+  });
+
   test("delete_carousel previews without confirm, deletes with confirm", async () => {
     const preview = await deleteCarousel.handler({ company: COMPANY, name: "nota-test" });
     const p = JSON.parse(preview);

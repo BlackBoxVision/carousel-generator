@@ -66,6 +66,8 @@ async function main() {
     const beans = await get("/static/beans.jpg");
     assert(beans.status === 200, "beans 200");
     assert((beans.headers.get("content-type") || "").includes("jpeg"), "beans content-type jpeg");
+    const beansBuf = Buffer.from(await (await fetch(`http://127.0.0.1:${PORT}/static/beans.jpg`)).arrayBuffer());
+    assert(beansBuf.length >= 15000, `beans size >=15KB for downloadPhotoToTmp (${beansBuf.length})`);
 
     const health = await get("/health");
     assert(health.status === 200 && health.text === "ok", "health ok");

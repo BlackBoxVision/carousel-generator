@@ -69,7 +69,7 @@ Checklist obligatorio (las 16, todas deben terminar ok:true):
 12. render_preview company=agent-e2e name=e2e-main format=4:5 (genera PNGs; si no hay Chrome, reportá el JSON igual)
 13. social_copy company=agent-e2e name=e2e-main tone=informativo save=true
 14. carousel_from_url url=${fixtureUrl}/nota/cafe-especialidad company=agent-e2e carouselName=e2e-from-url persist=true open=false
-15. import_editor_state payload={action:"upsert",company:"agent-e2e",name:"e2e-imported",carousel:{version:2,company:"agent-e2e",slug:"e2e-imported",meta:{title:"Imported",format:"feed"},slides:[{template:"cover",titleWhite:"IMPORT",titleOrange:"OK"}]}} open=false
+15. import_editor_state company=agent-e2e name=e2e-imported open=false carousel={version:2,company:agent-e2e,slug:e2e-imported,meta:{title:Imported,format:feed},slides:[{template:cover,titleWhite:IMPORT,titleOrange:OK}]} — pasá company/name/carousel como args top-level (NO uses payload anidado; el serializador free trunca JSON profundo)
 16. delete_carousel company=agent-e2e name=e2e-from-url SIN confirm (solo preview); después con confirm:true
 
 Reglas:
