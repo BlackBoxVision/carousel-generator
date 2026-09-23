@@ -12,10 +12,10 @@ concurrency:
 jobs:
   unit:
     name: unit (node:test)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -34,10 +34,10 @@ jobs:
 
   tools-e2e:
     name: tools e2e (JSON-RPC + PNG)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -75,7 +75,7 @@ jobs:
 
   agent-e2e:
     name: agent e2e (opencode free model)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Free Zen models can rate-limit; don't block PRs on flaky agent runs if needed.
     continue-on-error: false
     env:
@@ -83,8 +83,8 @@ jobs:
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
       AGENT_E2E_TIMEOUT_MS: "900000"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -121,7 +121,7 @@ jobs:
             --artifacts /tmp/agent-artifacts
       - name: Upload artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: agent-e2e
           path: |
