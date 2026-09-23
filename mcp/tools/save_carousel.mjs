@@ -21,6 +21,7 @@ export default {
       slides: { type: "array", description: "Slides nested o legacy para crear/actualizar el carrusel." },
       meta: { type: "object", description: "Meta parcial: title, format, showCount." },
       kit: { type: "object", description: "Snapshot de brand kit opcional." },
+      open: { type: "boolean", description: "Abrir el HTML regenerado (default true para load/generate; default false para tools iterativas)." },
     },
     required: ["company", "name"],
   },

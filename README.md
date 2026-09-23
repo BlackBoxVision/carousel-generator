@@ -458,7 +458,8 @@ There is no build step for the app or server. The main files are:
 
 - `app/index.html`: browser editor and renderer.
 - `mcp/server.mjs`: MCP bootstrap on `@modelcontextprotocol/sdk` (stdio, JSON Schema tools).
-- `mcp/registry.mjs`: single dispatch — the 16 tools and `callTool`.
+- `mcp/registry.mjs`: single dispatch — the 16 tools, ajv validation of `arguments`, and `callTool`.
+- `mcp/lib/validate.mjs`: ajv runtime validation (strict `additionalProperties` on root + nested-with-properties; freeform bare objects like `carousel`/`kit` stay open). Errors are Spanish, returned as `isError` before the handler runs.
 - `mcp/tools/*.mjs`: one file per tool (`{ name, description, inputSchema, handler }`).
 - `mcp/lib/*.mjs`: shared helpers (paths, kits, narrative, images, persist, render, …).
 - `mcp/kits/`: repository example brand kits.

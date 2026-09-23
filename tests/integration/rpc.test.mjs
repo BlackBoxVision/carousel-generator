@@ -43,6 +43,23 @@ describe("MCP JSON-RPC integration", () => {
     assert.match(text, /ERROR|desconocida|unknown/i);
   });
 
+  test("tools/call invalid args returns isError with validation message", async () => {
+    const c = call(7, "load_carousel", {}); // missing required company
+    const res = await rpc([INIT, c], [1, 7], { timeoutMs: 30000 });
+    assert.equal(res.get(7).result.isError, true);
+    const text = (res.get(7).result.content || []).map((x) => x.text || "").join("\n");
+    assert.match(text, /^ERROR: /);
+    assert.match(text, /Falta company \(requerido\)/);
+  });
+
+  test("tools/call unknown property returns isError (strict additionalProperties)", async () => {
+    const c = call(8, "list_carousels", { nope: true });
+    const res = await rpc([INIT, c], [1, 8], { timeoutMs: 30000 });
+    assert.equal(res.get(8).result.isError, true);
+    const text = (res.get(8).result.content || []).map((x) => x.text || "").join("\n");
+    assert.match(text, /Propiedad no permitida: nope/);
+  });
+
   test("CAROUSEL_TOOL_LOG records ok:false for failing calls", async () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), "rpc-log-"));
     const log = path.join(home, "calls.jsonl");

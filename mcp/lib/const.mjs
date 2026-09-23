@@ -10,7 +10,7 @@ export const BLOCK_TYPES = ["brand", "count", "stack", "kicker", "text", "highli
 export const IMG_EXTS = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml", ".avif": "image/avif", ".heic": "image/heic" };
 export const CONVERTIBLE_EXTS = new Set([".avif", ".heic", ".heif"]);
 export const MAX_LIST_ITEMS = 3;
-export const SERVER_INFO = { name: "carousel-generator", version: "2.3.0" };
+export const SERVER_INFO = { name: "carousel-generator", version: "2.4.0" };
 
 export const DEFAULT_KIT = {
   name: "Default",

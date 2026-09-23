@@ -5,8 +5,9 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 ## Arquitectura MCP (post-refactor)
 
 - `mcp/tools/*.mjs` — cada tool es un módulo default-export con `{ name, description, inputSchema, handler }`. El `inputSchema` (JSON Schema) es la **fuente de verdad**.
-- `mcp/lib/*.mjs` — helpers compartidos (paths, kits, narrative, images, persist, render, social, article, brand, preview, handoff, blocks, text, colors, html, const).
-- `mcp/registry.mjs` — imports estáticos de las 16 tools → array `tools`, `getTool`, `listToolsForRpc`, `callTool`. Único dispatch.
+- `mcp/lib/*.mjs` — helpers compartidos (paths, kits, narrative, images, persist, render, social, article, brand, preview, handoff, blocks, text, colors, html, const, **validate**).
+- `mcp/lib/validate.mjs` — ajv valida `args` en `callTool` **antes** del handler. Estrictez: root + nodos con `properties` → `additionalProperties: false` (runtime only, no se publica en `tools/list`); bare `{type:"object"}` sin properties (`carousel`, `kit`, `meta`) queda libre. Errores en español (`Falta company (requerido).`, `` `format` debe ser uno de: … ``, `Propiedad no permitida: foo.`).
+- `mcp/registry.mjs` — imports estáticos de las 16 tools → array `tools`, `getTool`, `listToolsForRpc`, `callTool` (valida con ajv y despacha). Único dispatch.
 - `mcp/server.mjs` — bootstrap del SDK `@modelcontextprotocol/sdk` (`Server` de bajo nivel + `setRequestHandler` con JSON Schema, **sin zod**). Log de llamadas JSONL en `CAROUSEL_TOOL_LOG`.
 - `manifest.json` → `tools[]` se genera/sincroniza con `node scripts/sync-manifest.mjs` (y `--check` falla si está desincronizado; corre en `npm test`, CI y pre-commit).
 
@@ -18,7 +19,8 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 4. Actualizar la tabla de tools en `README.md` y, si aplica, el conteo ("sixteen tools", etc.).
 5. Si la tool responde con protocolos o advertencias, mantener el formato de las existentes (`PHOTO_REVIEW_PROTOCOL`, `NARRATIVE_REVIEW_PROTOCOL`, `styleWarnings`).
 6. Si la tool escribe un archivo en la carpeta del carrusel (ej: `source.md`, `social.md`, `previews/`), documentarlo en README → Saved files.
-7. Agregar tests: contrato en `tests/tools/registry.test.mjs` (lista EXPECTED), handler en `tests/tools/handlers.test.mjs` si aplica.
+7. Agregar tests: contrato en `tests/tools/registry.test.mjs` (lista EXPECTED), handler en `tests/tools/handlers.test.mjs` si aplica, y validación en `tests/tools/validate.test.mjs` si el schema es nuevo/cambia.
+8. Si la tool manda un campo que el handler lee pero no está en `inputSchema` (ej: `open`), **agregarlo al schema** — con `additionalProperties: false` en runtime lo rechazaría la validación antes del handler.
 
 ## Al modificar el editor (`app/index.html`)
 
@@ -76,3 +78,4 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 - [ ] `manifest.json` sincronizado (regenerar con `npm run sync:manifest` si hace falta)
 - [ ] README actualizado (tabla de tools, conteo, nuevos protocolos o reglas, Development)
 - [ ] Si se agregó una tool: archivo en `mcp/tools/` + registro en `mcp/registry.mjs` + `sync-manifest` + tests + README
+- [ ] Si se agregó/cambió un campo en un `inputSchema`: los tests de `validate.test.mjs` siguen verdes (required/type/enum/strict)

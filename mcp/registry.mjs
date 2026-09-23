@@ -14,6 +14,7 @@ import carousel_from_url from "./tools/carousel_from_url.mjs";
 import import_editor_state from "./tools/import_editor_state.mjs";
 import render_preview from "./tools/render_preview.mjs";
 import social_copy from "./tools/social_copy.mjs";
+import { makeValidator } from "./lib/validate.mjs";
 
 export const tools = [
   generate_carousel,
@@ -35,6 +36,7 @@ export const tools = [
 ];
 
 const byName = new Map(tools.map((t) => [t.name, t]));
+const validateArgs = makeValidator(tools);
 
 export function getTool(name) {
   return byName.get(name) || null;
@@ -51,6 +53,10 @@ export function listToolsForRpc() {
 export async function callTool(name, args) {
   const tool = byName.get(name);
   if (!tool) throw new Error(`Herramienta desconocida: ${name}`);
-  const result = await tool.handler(args || {});
+  const safeArgs = args && typeof args === "object" && !Array.isArray(args) ? args : {};
+  validateArgs(name, safeArgs);
+  const result = await tool.handler(safeArgs);
   return typeof result === "string" ? result : JSON.stringify(result, null, 2);
 }
+
+export { validateArgs };

@@ -2,17 +2,24 @@
   "manifest_version": "0.3",
   "name": "carousel-generator",
   "display_name": "Carousel Generator",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Instagram carousel generator with nested block JSON, brand kits, assets and visual editor",
   "long_description": "Generates editable Instagram carousels as HTML and persists descriptive nested carousel.json documents with per-company assets. Includes a block editor with inline drag/reorder, golden-ratio calibration, multi brand-kit support, logo images, and PNG/PDF export.",
-  "author": { "name": "BlackBoxVision" },
-  "repository": { "type": "git", "url": "https://github.com/BlackBoxVision/carousel-generator.git" },
+  "author": {
+    "name": "BlackBoxVision"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BlackBoxVision/carousel-generator.git"
+  },
   "server": {
     "type": "node",
     "entry_point": "mcp/server.mjs",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/mcp/server.mjs"],
+      "args": [
+        "${__dirname}/mcp/server.mjs"
+      ],
       "env": {}
     }
   },
@@ -34,10 +41,22 @@
     { "name": "render_preview", "description": "Renders carousel slides to real PNGs with Chrome headless (formats 4:5/1:1/9:16, all or selected slides)" },
     { "name": "social_copy", "description": "Generates social captions, hooks, hashtags and per-slide alt text (es-AR heuristics, source.md → slides → meta)" }
   ],
-  "keywords": ["instagram", "carousel", "brand-kit", "design", "social-media"],
+  "keywords": [
+    "instagram",
+    "carousel",
+    "brand-kit",
+    "design",
+    "social-media"
+  ],
   "license": "UNLICENSED",
   "compatibility": {
-    "platforms": ["darwin", "win32", "linux"],
-    "runtimes": { "node": ">=18.0.0" }
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
   }
 }
