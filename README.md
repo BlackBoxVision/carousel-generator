@@ -134,26 +134,29 @@ The initial generation and MCP save operations create a persistent JSON document
 
 ## MCP tools
 
-The server exposes nineteen tools. You can ask the AI to use them in plain language; you do not need to call them manually.
+The server exposes twenty-two tools. You can ask the AI to use them in plain language; you do not need to call them manually.
 
 | Tool | Use it when you want to... |
 |---|---|
 | `generate_carousel` | Create a new editable carousel and open it in the browser. |
 | `carousel_from_url` | Build a draft carousel from an article/note URL, with photos assigned from the article. |
-| `list_carousels` | See the saved carousels, grouped by company. |
+| `list_carousels` | See the saved carousels, grouped by company (optional `company` filter). |
 | `load_carousel` | Reopen an existing carousel with its photos and logo resolved. |
 | `save_carousel` | Create or update the persistent nested JSON and copy assets into its asset folder. |
+| `duplicate_carousel` | Copy a saved carousel to another company/slug (A/B variants); original untouched. |
 | `edit_slide` | Edit slides without touching raw JSON: update text, move/reorder, duplicate, delete, or add a new blank slide (`add` + template). |
 | `set_slide_bg` | Change a slide's non-photo background: kit gradient, custom CSS, or reset to the kit's default gradient. |
 | `set_carousel_meta` | Update carousel meta only: title, format (feed/square/story + canvas), category, showCount. |
 | `validate_carousel` | Dry-run quality audit (narrativeAudit + styleWarnings) without writing or re-rendering. |
 | `import_editor_state` | Import the editor's Push-to-MCP JSON (or a v2 carousel) back into `carousel.json`. |
 | `render_preview` | Render slides to real PNGs with headless Chromium (`4:5`, `1:1`, `9:16`; all slides or selected indices). |
+| `export_pdf` | Export the carousel to a multi-page PDF with headless Chrome (`feed`/`square`/`story`; all slides or selected). Writes under `exports/`. |
 | `social_copy` | Generate captions, hooks, hashtags, and per-slide alt text for Instagram/LinkedIn/X (es-AR heuristics; prefers `source.md`). |
 | `delete_carousel` | Permanently delete a saved carousel and its assets. Two-step: without `confirm:true` it only returns a preview; the second call with `confirm:true` deletes. The AI should ask you before confirming. |
 | `review_slide_images` | Audit the photos of a saved carousel: per-slide texts, assigned photo, `photoNeeds`, and `narrativeAudit`. |
 | `set_slide_photo` | Replace the background photo of one slide (from a URL or a local file) and re-render. |
 | `save_brand_kit` | Create or update a reusable brand kit. Partial updates are merged. |
+| `delete_brand_kit` | Remove a personal brand kit. Two-step: preview first, `confirm:true` to delete (repo kits are protected). |
 | `list_brand_kits` | See all personal and example brand kits available to the editor. |
 | `load_brand_kit` | Inspect the complete JSON of one brand kit. |
 | `brand_kit_from_url` | Infer a brand kit from a website homepage and optionally save it. |
@@ -344,6 +347,7 @@ By default, persistent carousels live here:
 ├── source.md          # optional: from carousel_from_url (url, title, curated description)
 ├── social.md          # optional: from social_copy { save: true }
 ├── previews/<format>/ # render_preview PNGs + preview HTML
+├── exports/           # export_pdf intermediate HTML + PDF
 └── assets/
     ├── logo.png
     └── slide-1-background.jpg
@@ -414,6 +418,10 @@ The browser editor keeps its live state in browser storage. Two options:
 
 Ask: *"dame el carousel en 4:5 todos los PNGs"* → `render_preview { format: "4:5" }` (aliases `4:5|feed`, `1:1|square`, `9:16|story`; omit `slides` for all). PNGs are written under `previews/<format>/slide-NN.png`. The server prefers Playwright's arm64 `chrome-headless-shell`, then Chrome/Chromium; override with `CHROME_PATH`.
 
+### How do I export a PDF from the agent?
+
+Ask: *"exportá el carrusel a PDF"* → `export_pdf { company, name, format: "feed" }`. Writes `exports/{name}-feed.pdf` (and an intermediate HTML) under the carousel folder. Without Chrome it returns `pdf.ok:false` with `htmlPath` so you can export from the editor toolbar.
+
 ### How do I get captions/hashtags for posting?
 
 `social_copy` returns hooks, captions per platform (default Instagram + LinkedIn), hashtags, and alt text ≤125 chars per slide. Priority: `source.md` → slides → meta. Pass `save: true` to also write `social.md`.
@@ -461,7 +469,7 @@ There is no build step for the app or server. The main files are:
 
 - `app/index.html`: browser editor and renderer.
 - `mcp/server.mjs`: MCP bootstrap on `@modelcontextprotocol/sdk` (stdio, JSON Schema tools).
-- `mcp/registry.mjs`: single dispatch — the 19 tools, ajv validation of `arguments`, and `callTool`.
+- `mcp/registry.mjs`: single dispatch — the 22 tools, ajv validation of `arguments`, and `callTool`.
 - `mcp/lib/validate.mjs`: ajv runtime validation (strict `additionalProperties` on root + nested-with-properties; freeform bare objects like `carousel`/`kit` stay open). Errors are Spanish, returned as `isError` before the handler runs.
 - `mcp/tools/*.mjs`: one file per tool (`{ name, description, inputSchema, handler }`).
 - `mcp/lib/*.mjs`: shared helpers (paths, kits, narrative, images, persist, render, …).
@@ -492,7 +500,7 @@ Useful env vars:
 
 1. **unit** — syntax, `sync-manifest --check`, `node --test`, editor smoke.
 2. **tools-e2e** — JSON-RPC tools test with `chrome-headless-shell`, plus offline `*_from_url` against `scripts/fixture-server.mjs`.
-3. **agent-e2e** — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `opencode/mimo-v2.6-flash-free`) that must exercise all 19 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (19/19 `ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's. Artifacts upload on failure for debugging.
+3. **agent-e2e** — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `opencode/mimo-v2.6-flash-free`) that must exercise all 22 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (22/22 `ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's. Artifacts upload on failure for debugging.
 
 ```bash
 # local agent e2e (requires opencode CLI + fixture server):

@@ -46,7 +46,7 @@ fs.mkdirSync(home, { recursive: true });
 fs.mkdirSync(artifacts, { recursive: true });
 fs.writeFileSync(logFile, "");
 
-const prompt = `Sos un agente MCP. El servidor "carousel-generator" está registrado como MCP local (tools de prefijo carousel_* o el nombre exacto de cada tool). Ejercitá EXACTAMENTE las 19 tools via tools/call del MCP "carousel" (NO leas el código fuente para invocarlas; usá las tools MCP disponibles). Dejá artefactos reales. Usá CAROUSEL_GENERATOR_HOME aislado (ya seteado en el entorno).
+const prompt = `Sos un agente MCP. El servidor "carousel-generator" está registrado como MCP local (tools de prefijo carousel_* o el nombre exacto de cada tool). Ejercitá EXACTAMENTE las 22 tools via tools/call del MCP "carousel" (NO leas el código fuente para invocarlas; usá las tools MCP disponibles). Dejá artefactos reales. Usá CAROUSEL_GENERATOR_HOME aislado (ya seteado en el entorno).
 
 Contexto:
 - URL de fixture homepage: ${fixtureUrl}/
@@ -54,13 +54,13 @@ Contexto:
 - Company slug: agent-e2e
 - NO uses rutas de tu máquina real; todo bajo el home de entorno (/tmp/agent-home).
 
-Checklist obligatorio (las 19, todas deben terminar ok:true):
-1. brand_kit_from_url con url=${fixtureUrl}/ y name=agent-brand (save default true)
+Checklist obligatorio (las 22, todas deben terminar ok:true):
+1. brand_kit_from_url con url=${fixtureUrl}/ and name=agent-brand (save default true)
 2. list_brand_kits
 3. load_brand_kit name=agent-brand
 4. save_brand_kit name=agent-brand refinando colors.primary=#c45c26
 5. generate_carousel title="Café Norte E2E" company=agent-e2e carouselName=e2e-main kitName=agent-brand persist=true open=false con 3+ slides (cover/fact/cta) y slides que mencionen 42%
-6. list_carousels
+6. list_carousels company=agent-e2e (filtro por empresa; también podés llamar sin company)
 7. load_carousel company=agent-e2e name=e2e-main open=false
 8. save_carousel actualizando meta.title a "Café Norte E2E v2" (carousel v2 mínimo con 1 cover)
 9. edit_slide update_text en e2e slide 1 blockType=text text="PORTADA E2E"
@@ -75,11 +75,15 @@ Checklist obligatorio (las 19, todas deben terminar ok:true):
 18. set_slide_bg company=agent-e2e name=e2e-main slide=2 mode=gradient gradient=navy (cambia fondo de la slide 2)
 19. set_carousel_meta company=agent-e2e name=e2e-main category=cafespecialidad showCount=false (actualiza meta)
 20. validate_carousel company=agent-e2e name=e2e-main (dry-run audit sin escribir)
+21. duplicate_carousel company=agent-e2e name=e2e-main toName=e2e-copy open=false (crea e2e-copy; NO borres e2e-main)
+22. export_pdf company=agent-e2e name=e2e-main format=feed (si no hay Chrome, reportá el JSON con pdf.ok=false — igual debe quedar ok:true la tool call; si hay Chrome verificá pdfPath)
+23. save_brand_kit name=agent-doomed kit={name:Doomed,colors:{primary:#111111}} (crea kit temporal)
+24. delete_brand_kit name=agent-doomed SIN confirm (preview); después confirm:true — NO borres agent-brand
 
 Reglas:
 - Invocá cada tool vía el MCP "carousel" (tools/call), NO vía shell/node import.
 - Si una tool falla, reintentá con args corregidos hasta que quede ok:true.
-- No te detengas hasta cubrir las 19.
+- No te detengas hasta cubrir las 22.
 - Al final resumí qué tools corriste.`;
 
 const env = {

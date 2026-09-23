@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Verifies agent e2e output: CAROUSEL_TOOL_LOG coverage (19/19 ok:true)
+ * Verifies agent e2e output: CAROUSEL_TOOL_LOG coverage (22/22 ok:true)
  * + per-tool artifact assertions. Exit code = job result (not the model's).
  *
  * Usage:
@@ -16,6 +16,9 @@ const EXPECTED_TOOLS = [
   "load_carousel",
   "save_carousel",
   "delete_carousel",
+  "duplicate_carousel",
+  "export_pdf",
+  "delete_brand_kit",
   "review_slide_images",
   "set_slide_photo",
   "edit_slide",

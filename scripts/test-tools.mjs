@@ -97,7 +97,10 @@ async function main() {
   assert(tools.includes("set_slide_bg"), "tools/list has set_slide_bg");
   assert(tools.includes("set_carousel_meta"), "tools/list has set_carousel_meta");
   assert(tools.includes("validate_carousel"), "tools/list has validate_carousel");
-  assert(tools.length >= 19, "tools count >= 19 (got " + tools.length + ")");
+  assert(tools.includes("duplicate_carousel"), "tools/list has duplicate_carousel");
+  assert(tools.includes("export_pdf"), "tools/list has export_pdf");
+  assert(tools.includes("delete_brand_kit"), "tools/list has delete_brand_kit");
+  assert(tools.length >= 22, "tools count >= 22 (got " + tools.length + ")");
 
   const genText = contentText(phase1.get(3));
   assert(/Smoke Tools|smoke-tools|smoke/.test(genText), "generate_carousel returns path");
@@ -131,11 +134,42 @@ async function main() {
   const impText = contentText(phase3.get(6));
   assert(/imported/i.test(impText) || /"imported": true/.test(impText), "import_editor_state imported");
 
+  // new gap tools: duplicate, export_pdf, delete_brand_kit, list filter
+  const listF = { jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "list_carousels", arguments: { company: TMP_COMPANY } } };
+  const dup = { jsonrpc: "2.0", id: 8, method: "tools/call", params: { name: "duplicate_carousel", arguments: { company: TMP_COMPANY, name: "smoke-tools", toName: "smoke-copy", open: false } } };
+  const pdf = { jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "export_pdf", arguments: { company: TMP_COMPANY, name: "smoke-tools", format: "4:5" } } };
+  const saveDoomed = { jsonrpc: "2.0", id: 10, method: "tools/call", params: { name: "save_brand_kit", arguments: { name: "smoke-doomed", kit: { name: "Doomed", colors: { primary: "#111111" } } } } };
+  const delKitPrev = { jsonrpc: "2.0", id: 11, method: "tools/call", params: { name: "delete_brand_kit", arguments: { name: "smoke-doomed" } } };
+  const delKit = { jsonrpc: "2.0", id: 12, method: "tools/call", params: { name: "delete_brand_kit", arguments: { name: "smoke-doomed", confirm: true } } };
+  const phase4 = await rpc([init, listF, dup, pdf, saveDoomed, delKitPrev, delKit], [7, 8, 9, 10, 11, 12]);
+
+  const lf = JSON.parse(contentText(phase4.get(7)));
+  assert(lf.company === TMP_COMPANY, "list_carousels company filter");
+  assert(Array.isArray(lf.carousels) && lf.carousels.every((c) => c.company === TMP_COMPANY), "filtered carousels");
+
+  const dupText = contentText(phase4.get(8));
+  assert(dupText.includes("smoke-copy"), "duplicate_carousel target");
+  assert(fs.existsSync(path.join(os.homedir(), ".carousel-generator", "carousels", TMP_COMPANY, "smoke-copy", "carousel.json")), "duplicate carousel.json exists");
+
+  const pdfOut = JSON.parse(contentText(phase4.get(9)));
+  assert(pdfOut.pdf && pdfOut.pdf.htmlPath, "export_pdf htmlPath");
+  assert(fs.existsSync(pdfOut.pdf.htmlPath), "export_pdf HTML exists");
+  assert(pdfOut.pdf.ok === true || ["no-chrome", "chrome-failed"].includes(pdfOut.pdf.reason), "export_pdf payload shape");
+
+  assert(/smoke-doomed/.test(contentText(phase4.get(10))), "save_brand_kit doomed");
+  const prev = JSON.parse(contentText(phase4.get(11)));
+  assert(prev.deleted === false, "delete_brand_kit preview");
+  assert(/eliminado/i.test(contentText(phase4.get(12))), "delete_brand_kit confirm");
+  assert(!fs.existsSync(path.join(os.homedir(), ".carousel-generator", "brand", "smoke-doomed", "kit.json")), "kit folder removed");
+
   console.log("---");
   console.log(fails.length ? "FAILURES: " + fails.length + " -> " + fails.join(" | ") : "ALL PASS (" + passed + ")");
   // cleanup
   try {
     fs.rmSync(path.join(os.homedir(), ".carousel-generator", "carousels", TMP_COMPANY), { recursive: true, force: true });
+  } catch {}
+  try {
+    fs.rmSync(path.join(os.homedir(), ".carousel-generator", "brand", "smoke-doomed"), { recursive: true, force: true });
   } catch {}
   const html = path.join(os.tmpdir(), "smoketest-smoke-tools.html");
   try { if (fs.existsSync(html)) fs.unlinkSync(html); } catch {}

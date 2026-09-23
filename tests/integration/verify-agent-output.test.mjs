@@ -15,7 +15,8 @@ const VERIFIER = path.join(ROOT, "scripts", "verify-agent-output.mjs");
 
 const EXPECTED = [
   "generate_carousel", "list_carousels", "load_carousel", "save_carousel",
-  "delete_carousel", "review_slide_images", "set_slide_photo", "edit_slide",
+  "delete_carousel", "duplicate_carousel", "export_pdf", "delete_brand_kit",
+  "review_slide_images", "set_slide_photo", "edit_slide",
   "set_slide_bg", "set_carousel_meta", "validate_carousel",
   "save_brand_kit", "list_brand_kits", "load_brand_kit", "brand_kit_from_url",
   "carousel_from_url", "import_editor_state", "render_preview", "social_copy",
@@ -48,14 +49,14 @@ function writeLog(dir, entries) {
   return file;
 }
 
-test("verifier passes with full 19/19 coverage and artifacts", () => {
+test("verifier passes with full 22/22 coverage and artifacts", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "verify-ok-"));
   try {
     const home = makeHome();
     const log = writeLog(dir, EXPECTED.map((name, i) => ({ name, ok: true, durationMs: 10 + i, at: new Date().toISOString() })));
     const r = spawnSync(process.execPath, [VERIFIER, "--log", log, "--home", home], { encoding: "utf8" });
     assert.equal(r.status, 0, r.stdout + r.stderr);
-    assert.match(r.stdout, /coverage: 19\/19/);
+    assert.match(r.stdout, /coverage: 22\/22/);
     assert.match(r.stdout, /ALL CHECKS PASSED/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -71,7 +72,7 @@ test("verifier fails when a tool is missing from the log", () => {
     const r = spawnSync(process.execPath, [VERIFIER, "--log", log, "--home", home], { encoding: "utf8" });
     assert.equal(r.status, 1);
     assert.match(r.stdout + r.stderr, /render_preview/);
-    assert.match(r.stdout, /coverage: 18\/19/);
+    assert.match(r.stdout, /coverage: 21\/22/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

@@ -45,6 +45,18 @@
       "description": "Deletes a persisted carousel and its assets (two-step with confirm)"
     },
     {
+      "name": "duplicate_carousel",
+      "description": "Duplica un carrusel persistido a otra empresa y/o otro slug (para variantes A/B o copias de trabajo)."
+    },
+    {
+      "name": "export_pdf",
+      "description": "Exporta el carrusel a un PDF multipágina con Chrome headless (print-to-pdf)."
+    },
+    {
+      "name": "delete_brand_kit",
+      "description": "Elimina un brand kit personal (~/.carousel-generator/brand/{empresa}/kit.json)."
+    },
+    {
       "name": "review_slide_images",
       "description": "Audits photos per slide with photoNeeds and suggested queries"
     },

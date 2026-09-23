@@ -3,6 +3,9 @@ import list_carousels from "./tools/list_carousels.mjs";
 import load_carousel from "./tools/load_carousel.mjs";
 import save_carousel from "./tools/save_carousel.mjs";
 import delete_carousel from "./tools/delete_carousel.mjs";
+import duplicate_carousel from "./tools/duplicate_carousel.mjs";
+import export_pdf from "./tools/export_pdf.mjs";
+import delete_brand_kit from "./tools/delete_brand_kit.mjs";
 import review_slide_images from "./tools/review_slide_images.mjs";
 import set_slide_photo from "./tools/set_slide_photo.mjs";
 import edit_slide from "./tools/edit_slide.mjs";
@@ -25,6 +28,9 @@ export const tools = [
   load_carousel,
   save_carousel,
   delete_carousel,
+  duplicate_carousel,
+  export_pdf,
+  delete_brand_kit,
   review_slide_images,
   set_slide_photo,
   edit_slide,

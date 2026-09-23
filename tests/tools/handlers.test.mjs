@@ -8,6 +8,9 @@ import saveCarousel from "../../mcp/tools/save_carousel.mjs";
 import loadCarousel from "../../mcp/tools/load_carousel.mjs";
 import listCarousels from "../../mcp/tools/list_carousels.mjs";
 import deleteCarousel from "../../mcp/tools/delete_carousel.mjs";
+import duplicateCarousel from "../../mcp/tools/duplicate_carousel.mjs";
+import exportPdf from "../../mcp/tools/export_pdf.mjs";
+import deleteBrandKit from "../../mcp/tools/delete_brand_kit.mjs";
 import editSlide from "../../mcp/tools/edit_slide.mjs";
 import setSlideBg from "../../mcp/tools/set_slide_bg.mjs";
 import setCarouselMeta from "../../mcp/tools/set_carousel_meta.mjs";
@@ -59,6 +62,15 @@ describe("generate/save/load/list/delete carousel", () => {
     const out = await listCarousels.handler({});
     assert.ok(out.includes(COMPANY));
     assert.ok(out.includes("nota-test"));
+  });
+
+  test("list_carousels filters by company", async () => {
+    const out = JSON.parse(await listCarousels.handler({ company: COMPANY }));
+    assert.equal(out.company, COMPANY);
+    assert.ok(out.carousels.every((c) => c.company === COMPANY));
+    const empty = JSON.parse(await listCarousels.handler({ company: "no-such-co" }));
+    assert.equal(empty.carousels.length, 0);
+    assert.ok(empty.note);
   });
 
   test("load_carousel returns HTML path and hydrates", async () => {
@@ -328,5 +340,82 @@ describe("validate_carousel", () => {
   test("rejects empty input", () => {
     assert.throws(() => validateCarousel.handler({}), /company|slides/);
     assert.throws(() => validateCarousel.handler({ slides: [] }), /No hay slides/);
+  });
+});
+
+describe("duplicate_carousel", () => {
+  test("copies carousel to new slug and leaves original intact", async () => {
+    await generate.handler({
+      title: "Dup Source", company: COMPANY, carouselName: "dup-src",
+      slides: slides(), open: false, persist: true,
+      outputDir: path.join(home.home, "out"),
+    });
+    const out = await duplicateCarousel.handler({
+      company: COMPANY, name: "dup-src", toName: "dup-copy", open: false,
+    });
+    assert.ok(out.includes("dup-copy"));
+    assert.ok(fs.existsSync(path.join(home.carouselDir, COMPANY, "dup-copy", "carousel.json")));
+    const orig = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "dup-src", "carousel.json"), "utf8"));
+    const copy = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "dup-copy", "carousel.json"), "utf8"));
+    assert.equal(orig.meta.title, "Dup Source");
+    assert.match(copy.meta.title, /Dup Source \(copy\)/);
+    assert.equal(copy.slides.length, orig.slides.length);
+    assert.equal(copy.company, COMPANY);
+    assert.equal(copy.slug, "dup-copy");
+  });
+
+  test("rejects same origin/dest and missing source", () => {
+    assert.throws(
+      () => duplicateCarousel.handler({ company: COMPANY, name: "dup-src", toName: "dup-src" }),
+      /distinto del origen/
+    );
+    assert.throws(
+      () => duplicateCarousel.handler({ company: COMPANY, name: "no-existe" }),
+      /no existe/
+    );
+  });
+});
+
+describe("delete_brand_kit", () => {
+  test("previews without confirm, deletes with confirm", async () => {
+    await saveKit.handler({ name: "doomed", kit: { name: "Doomed", colors: { primary: "#111" } } });
+    const preview = JSON.parse(await deleteBrandKit.handler({ name: "doomed" }));
+    assert.equal(preview.deleted, false);
+    assert.ok(fs.existsSync(path.join(home.home, "brand", "doomed", "kit.json")));
+    const done = await deleteBrandKit.handler({ name: "doomed", confirm: true });
+    assert.ok(/eliminado/i.test(done));
+    assert.ok(!fs.existsSync(path.join(home.home, "brand", "doomed", "kit.json")));
+  });
+
+  test("errors on missing kit", () => {
+    assert.throws(() => deleteBrandKit.handler({ name: "no-kit-here" }), /no existe/);
+  });
+});
+
+describe("export_pdf", () => {
+  test("exports HTML (+ PDF if Chrome) or reports no-chrome without throwing", async () => {
+    await generate.handler({
+      title: "PDF Source", company: COMPANY, carouselName: "pdf-src",
+      slides: slides(), open: false, persist: true,
+      outputDir: path.join(home.home, "out"),
+    });
+    const out = JSON.parse(await exportPdf.handler({ company: COMPANY, name: "pdf-src", format: "feed" }));
+    assert.ok(out.pdf, "pdf payload");
+    assert.equal(out.pdf.format, "feed");
+    assert.ok(out.pdf.htmlPath && fs.existsSync(out.pdf.htmlPath), "HTML written");
+    if (out.pdf.ok) {
+      assert.ok(out.pdf.pdfPath && fs.existsSync(out.pdf.pdfPath), "PDF written");
+      assert.ok(out.pdf.bytes > 100);
+    } else {
+      assert.ok(["no-chrome", "chrome-failed"].includes(out.pdf.reason));
+    }
+  });
+
+  test("rejects missing args and bad slide indices", () => {
+    assert.throws(() => exportPdf.handler({}), /Faltan `company` y `name`/);
+    assert.throws(
+      () => exportPdf.handler({ company: COMPANY, name: "pdf-src", slides: [99] }),
+      /fuera de rango/
+    );
   });
 });

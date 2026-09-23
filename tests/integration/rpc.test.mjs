@@ -7,16 +7,19 @@ import os from "node:os";
 import { ROOT, INIT, call, contentText, rpc } from "../helpers/rpc.mjs";
 
 describe("MCP JSON-RPC integration", () => {
-  test("initialize + tools/list returns 19 tools", async () => {
+  test("initialize + tools/list returns 22 tools", async () => {
     const list = { jsonrpc: "2.0", id: 2, method: "tools/list" };
     const res = await rpc([INIT, list], [1, 2], { timeoutMs: 30000 });
     assert.equal(res.get(1).result.serverInfo.name, "carousel-generator");
     const tools = res.get(2).result.tools;
-    assert.equal(tools.length, 19);
+    assert.equal(tools.length, 22);
     const names = tools.map((t) => t.name);
     assert.ok(names.includes("generate_carousel"));
     assert.ok(names.includes("render_preview"));
     assert.ok(names.includes("social_copy"));
+    assert.ok(names.includes("duplicate_carousel"));
+    assert.ok(names.includes("export_pdf"));
+    assert.ok(names.includes("delete_brand_kit"));
     for (const t of tools) {
       assert.equal(t.inputSchema.type, "object");
       assert.ok(t.description);

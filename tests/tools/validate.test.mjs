@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { tools, callTool, validateArgs, getTool } from "../../mcp/registry.mjs";
 import { compileValidators, makeValidator } from "../../mcp/lib/validate.mjs";
 
-describe("ajv validators compile for all 19 tools", () => {
+describe("ajv validators compile for all 22 tools", () => {
   test("compileValidators builds a validator per tool without throwing", () => {
     const map = compileValidators(tools);
-    assert.equal(map.size, 19);
+    assert.equal(map.size, 22);
     for (const t of tools) assert.equal(typeof map.get(t.name), "function", t.name);
   });
 
@@ -100,6 +100,21 @@ describe("enums", () => {
     assert.throws(
       () => validateArgs("set_slide_bg", { company: "c", name: "n" }),
       /Falta mode \(requerido\)/
+    );
+  });
+
+  test("export_pdf rejects unknown format alias after normalize is not enum-locked", () => {
+    // format is free string at schema level (aliases like 4:5); bad values fall back in handler
+    assert.equal(
+      validateArgs("export_pdf", { company: "c", name: "n", format: "4:5" }),
+      true
+    );
+  });
+
+  test("delete_brand_kit without name rejects", () => {
+    assert.throws(
+      () => validateArgs("delete_brand_kit", {}),
+      /Falta name \(requerido\)/
     );
   });
 });
