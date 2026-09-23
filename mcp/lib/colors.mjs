@@ -1,5 +1,6 @@
 export function hexNorm(h) {
-  h = String(h).toLowerCase();
+  h = String(h).toLowerCase().trim();
+  if (!h.startsWith("#")) h = "#" + h;
   if (/^#[0-9a-f]{3}$/.test(h)) h = "#" + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
   return h;
 }
