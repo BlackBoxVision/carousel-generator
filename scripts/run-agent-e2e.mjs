@@ -39,7 +39,7 @@ const args = parseArgs(process.argv);
 const logFile = args.log || path.join(ROOT, ".tmp-agent-calls.jsonl");
 const home = args.home || path.join(ROOT, ".tmp-agent-home");
 const artifacts = args.artifacts || path.join(ROOT, ".tmp-agent-artifacts");
-const model = process.env.OPENCODE_MODEL || "free";
+const model = process.env.OPENCODE_MODEL || "opencode/mimo-v2.6-flash-free";
 const fixtureUrl = process.env.FIXTURE_URL || "http://127.0.0.1:8765";
 
 fs.mkdirSync(home, { recursive: true });

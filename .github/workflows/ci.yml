@@ -79,7 +79,7 @@ jobs:
     # Free Zen models can rate-limit; don't block PRs on flaky agent runs if needed.
     continue-on-error: false
     env:
-      OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'free' }}
+      OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/mimo-v2.6-flash-free' }}
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
       AGENT_E2E_TIMEOUT_MS: "900000"
     steps:

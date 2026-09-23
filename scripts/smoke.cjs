@@ -43,7 +43,8 @@ sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
-const html = fs.readFileSync("/Users/jonatansalas/carousel-generator/app/index.html", "utf8");
+const path = require("path");
+const html = fs.readFileSync(path.join(__dirname, "..", "app", "index.html"), "utf8");
 const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]).join("\n;\n");
 
 const data = {
