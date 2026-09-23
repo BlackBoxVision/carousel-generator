@@ -21,10 +21,15 @@
     { "name": "list_carousels", "description": "Lists persisted carousels grouped by company" },
     { "name": "load_carousel", "description": "Loads a persisted nested carousel, hydrates assets and opens editable HTML" },
     { "name": "save_carousel", "description": "Creates or updates nested carousel JSON and its asset folder" },
+    { "name": "delete_carousel", "description": "Deletes a persisted carousel and its assets (two-step with confirm)" },
+    { "name": "review_slide_images", "description": "Audits photos per slide with photoNeeds and suggested queries" },
+    { "name": "set_slide_photo", "description": "Replaces the background photo of one slide from a URL or local file" },
+    { "name": "edit_slide", "description": "Edits a slide: update_text, move, duplicate or delete without touching raw JSON" },
     { "name": "save_brand_kit", "description": "Saves a brand kit JSON for reuse with generate_carousel" },
     { "name": "list_brand_kits", "description": "Lists the saved brand kits" },
     { "name": "load_brand_kit", "description": "Returns the full JSON of a saved brand kit" },
-    { "name": "brand_kit_from_url", "description": "Generates and saves a brand kit from a website URL (homepage heuristics), with per-field confidence for agent review" }
+    { "name": "brand_kit_from_url", "description": "Generates and saves a brand kit from a website URL (homepage heuristics), with per-field confidence for agent review" },
+    { "name": "carousel_from_url", "description": "Builds a draft carousel from an article/note URL, with photos assigned from the article" }
   ],
   "keywords": ["instagram", "carousel", "brand-kit", "design", "social-media"],
   "license": "UNLICENSED",

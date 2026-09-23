@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import readline from "node:readline";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -16,7 +16,19 @@ const LEGACY_KITS = path.join(HOME_CG, "kits");
 const MARKER = "<!--CAROUSEL_DATA-->";
 const TEMPLATES = ["cover", "fact", "map", "list", "cta"];
 const BLOCK_TYPES = ["brand", "count", "stack", "kicker", "text", "highlight", "body", "items", "item", "box", "pill", "slogan", "foot"];
-const IMG_EXTS = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml" };
+const IMG_EXTS = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml", ".avif": "image/avif", ".heic": "image/heic" };
+const CONVERTIBLE_EXTS = new Set([".avif", ".heic", ".heif"]);
+
+function convertToJpeg(file) {
+  const ext = path.extname(file).toLowerCase();
+  if (!CONVERTIBLE_EXTS.has(ext)) return file;
+  const out = file.replace(new RegExp(ext.replace(".", "\\.") + "$", "i"), ".jpg");
+  try {
+    const r = spawnSync("sips", ["-s", "format", "jpeg", file, "--out", out], { encoding: "utf8" });
+    if (r.status === 0 && fs.existsSync(out)) return out;
+  } catch {}
+  throw new Error(`No se pudo convertir "${ext}" a jpg (se requiere sips en macOS). Convertí el archivo manualmente y pasá el .jpg.`);
+}
 
 const DEFAULT_KIT = {
   name: "Default",
@@ -251,8 +263,9 @@ function normSlideArg(s) {
   const background = s.background !== undefined ? s.background : s.bg;
   if (typeof background === "string") {
     if (background.startsWith("file:")) {
-      const fp = expandHome(background.replace(/^file:(\/\/)?/, ""));
-      if (!fs.existsSync(fp)) throw new Error(`Foto no encontrada: ${fp}`);
+      const fp0 = expandHome(background.replace(/^file:(\/\/)?/, ""));
+      if (!fs.existsSync(fp0)) throw new Error(`Foto no encontrada: ${fp0}`);
+      const fp = CONVERTIBLE_EXTS.has(path.extname(fp0).toLowerCase()) ? convertToJpeg(fp0) : fp0;
       const ext = path.extname(fp).toLowerCase();
       const mime = IMG_EXTS[ext] || "image/jpeg";
       out.bg = { type: "photo", src: `data:${mime};base64,` + fs.readFileSync(fp).toString("base64"), sourcePath: fp };
@@ -302,6 +315,98 @@ const PHOTO_REVIEW_PROTOCOL = [
   "3. RE-AUDIT — volvé a correr review_slide_images y confirmá que cada slide tiene una foto coherente.",
   "Nunca entregues un carrusel con fotos sin verificar.",
 ].join("\n");
+const NARRATIVE_REVIEW_PROTOCOL = [
+  "NARRATIVE REVIEW PROTOCOL (ejecutalo antes de entregar el carrusel — sobre todo si se generó desde una URL):",
+  "1. READ — leé el kicker, título, highlight y body de TODAS las slides en orden (1..N).",
+  "2. COMMON THREAD — confirmá que todas hablan del mismo sujeto/tema de la nota; no debe haber slides de relleno sin conexión con la portada ni con el título.",
+  "3. ARC — verificá arco completo: portada (gancho) → desarrollo → cierre (cta al final). El orden debe ser lineal, sin ir para atrás.",
+  "4. COHESIÓN — cada slide debe conectar con la anterior (puente lógico o secuencia), sin saltos random de tema.",
+  "5. FIX — si algo falla: corregí copy o reordená con edit_slide (action update_text | move) y volvé a auditar antes de entregar.",
+  "Mirá narrativeAudit.flags como puntos de partida (los flags sólidos son casi seguros; orphanSlides es advisory de baja confianza).",
+  "Nunca entregues un carrusel con slides sin sentido ni sin hilo común.",
+].join("\n");
+
+const STOPWORDS = new Set(("de la el los las un una unos unas y o u en con por para del al que como mas más se su sus es son fue fueron seran serán entre sobre desde hasta sin contra hacia muy ya tambien también no ni si sí cada todo toda todos todas otro otra este esta estos estas ese esa eso aquel cuando donde cual cuales porque pero donc más menos tras ante bajo sobre segun según").split(/\s+/));
+function significantTokens(text) {
+  return String(text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9ñ\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !STOPWORDS.has(w) && !/^\d+$/.test(w));
+}
+function extractFigures(text) {
+  const out = new Set();
+  const re = /(?:US\s?\$|USD|R\$|AR\$|€|£|\$)\s?[\d][\d.,]*|[+-]?\d+(?:[.,]\d+)?\s?%|\b\d[\d.,]*\s?(?:millones|millón|miles|mil)\b|\b\d{1,3}(?:\.\d{3})+\b/gi;
+  let m;
+  const t = String(text || "");
+  while ((m = re.exec(t))) out.add(m[0].replace(/\s+/g, " ").trim().toLowerCase());
+  return out;
+}
+function collectSlideTexts(slide) {
+  const parts = [];
+  const walk = (nodes) => {
+    for (const b of nodes || []) {
+      if (b.text) parts.push(b.text);
+      if (b.title) parts.push(b.title);
+      if (b.desc) parts.push(b.desc);
+      if (b.children) walk(b.children);
+    }
+  };
+  walk(slide.elements);
+  return parts.join(" \n ");
+}
+function narrativeAudit(slides, title) {
+  const flags = [];
+  const texts = (slides || []).map(collectSlideTexts);
+  const templates = (slides || []).map((s) => s.template);
+  if (!templates.includes("cover")) flags.push({ rule: "missing-cover", severity: "solid", detail: "No hay slide cover (gancho inicial)." });
+  if (!templates.includes("cta")) flags.push({ rule: "missing-cta", severity: "solid", detail: "No hay slide cta (cierre)." });
+  const lastCta = templates.lastIndexOf("cta");
+  if (lastCta !== -1 && lastCta !== templates.length - 1) flags.push({ rule: "cta-in-middle", severity: "solid", detail: `cta en posición ${lastCta + 1} de ${templates.length}; debería ser la última.` });
+  const coverCount = templates.filter((t) => t === "cover").length;
+  if (coverCount > 1) flags.push({ rule: "multi-cover", severity: "solid", detail: `${coverCount} slides cover; la portada debe ser única.` });
+
+  const figMap = new Map();
+  texts.forEach((t, i) => {
+    for (const f of extractFigures(t)) {
+      if (!figMap.has(f)) figMap.set(f, []);
+      figMap.get(f).push(i + 1);
+    }
+  });
+  for (const [fig, where] of figMap) {
+    if (where.length > 1) flags.push({ rule: "duplicate-figure", severity: "solid", detail: `Cifra "${fig}" repetida en slides ${where.join(", ")}.`, figure: fig, slides: where });
+  }
+
+  const kickerMap = new Map();
+  (slides || []).forEach((s, i) => {
+    let kicker = "";
+    walkBlocks(s.elements, (b) => { if (b.type === "kicker" && !kicker) { kicker = b.text || ""; return true; } return false; });
+    if (kicker) {
+      const key = kicker.toLowerCase().trim();
+      if (!kickerMap.has(key)) kickerMap.set(key, []);
+      kickerMap.get(key).push(i + 1);
+    }
+  });
+  for (const [k, where] of kickerMap) {
+    if (where.length > 1) flags.push({ rule: "repeated-kicker", severity: "solid", detail: `Kicker "${k}" repetido en slides ${where.join(", ")} (señal de relleno).`, slides: where });
+  }
+
+  const titleTokens = new Set(significantTokens(title || ""));
+  const coverTokens = new Set(significantTokens(texts[0] || ""));
+  const anchor = new Set([...titleTokens, ...coverTokens]);
+  if (anchor.size > 0) {
+    texts.forEach((t, i) => {
+      if (i === 0) return;
+      const tok = significantTokens(t);
+      if (!tok.length) return;
+      const overlap = tok.filter((w) => anchor.has(w));
+      if (overlap.length === 0) flags.push({ rule: "orphan-slide", severity: "low", confidence: "baja", detail: `Slide ${i + 1} no comparte tokens significativos con la portada ni el título (revisá si pertenece al hilo).`, slide: i + 1 });
+    });
+  }
+  return { ok: flags.filter((f) => f.severity === "solid").length === 0, flags };
+}
 function boldifyData(text) {
   let t = String(text == null ? "" : text);
   if (!t || /\*\*|==/.test(t)) return t;
@@ -336,18 +441,21 @@ function excerptText(t) {
 function lintSlideTexts(slides) {
   const out = [];
   const label = { kicker: "kicker", text: "título", highlight: "highlight", body: "body", slogan: "slogan", foot: "foot" };
-  const check = (slide, field, text) => {
+  const check = (slide, field, text, el) => {
     const t = String(text || "");
     if (!t) return;
     if (t.includes("—")) out.push({ slide, field, rule: "raya-larga", detail: "raya larga (—): usá coma, punto o guion corto (-)", excerpt: excerptText(t) });
     if (hasNoEsContrast(t)) out.push({ slide, field, rule: "contraste-no-es", detail: "contraste 'no es X, es Y' / 'no solo X, sino Y': afirmá directo, sin negar primero", excerpt: excerptText(t) });
     const cliche = STYLE_CLICHES.find((c) => t.toLowerCase().includes(c));
     if (cliche) out.push({ slide, field, rule: "cliche", detail: `cliché de IA ("${cliche}"): reformulá con palabras propias`, excerpt: excerptText(t) });
+    if (field === "highlight" && el && el.style && (+el.style.sizePct || 100) >= 90 && t.length > 28) {
+      out.push({ slide, field, rule: "highlight-largo", detail: `highlight largo (${t.length} chars) con sizePct ${el.style.sizePct || 100}: puede partirse feo; bajá sizePct o acortá el texto`, excerpt: excerptText(t) });
+    }
   };
   (slides || []).forEach((s, i) => {
     const walk = (nodes) => {
       for (const el of nodes || []) {
-        if (label[el.type]) check(i + 1, label[el.type], el.text);
+        if (label[el.type]) check(i + 1, label[el.type], el.text, el);
         else if (el.type === "item") { check(i + 1, "item (título)", el.title); check(i + 1, "item (desc)", el.desc); }
         if (el.children) walk(el.children);
       }
@@ -659,6 +767,15 @@ async function toolCarouselFromURL(args) {
     for (const n of photoNeeds) lines.push(`  - slide ${n.slide} (${n.template}) → query sugerida: "${n.query}"`);
   }
   lines.push("", "IMPORTANTE — Verificá cada foto asignada con visión (descargá/miniaturizá y confirmá que coincide con el mensaje de la slide).", PHOTO_REVIEW_PROTOCOL);
+  const audit = narrativeAudit(runtime.slides, art.title);
+  lines.push("", `narrativeAudit (hilo/coherencia): ok=${audit.ok}`);
+  if (audit.flags.length) {
+    lines.push("  flags:");
+    for (const f of audit.flags) lines.push(`  - [${f.severity}${f.confidence ? "/" + f.confidence : ""}] ${f.rule}: ${f.detail}`);
+  } else {
+    lines.push("  (sin flags — revisá igual que cada slide conecte con la anterior)");
+  }
+  lines.push("", NARRATIVE_REVIEW_PROTOCOL);
   lines.push(...formatStyleWarnings(lintSlideTexts(runtime.slides)));
   return lines.join("\n");
 }
@@ -700,7 +817,8 @@ function toolReviewSlideImages(args) {
     template: s.template,
     query: [s.title, s.highlight, s.kicker].filter(Boolean).join(" ") || s.template,
   }));
-  return JSON.stringify({ company, slug: name, slides, photoNeeds, protocol: PHOTO_REVIEW_PROTOCOL }, null, 2);
+  const audit = narrativeAudit(record.stored.slides || [], record.stored.meta && record.stored.meta.title);
+  return JSON.stringify({ company, slug: name, slides, photoNeeds, narrativeAudit: audit, protocol: PHOTO_REVIEW_PROTOCOL + "\n\n" + NARRATIVE_REVIEW_PROTOCOL }, null, 2);
 }
 function toolDeleteCarousel(args) {
   const a = args || {};
@@ -746,6 +864,10 @@ async function toolSetSlidePhoto(args) {
   else {
     file = expandHome(src.replace(/^file:(\/\/)?/, ""));
     if (!fs.existsSync(file)) throw new Error(`Archivo no encontrado: ${file}`);
+    if (CONVERTIBLE_EXTS.has(path.extname(file).toLowerCase())) {
+      const converted = convertToJpeg(file);
+      if (converted !== file) { tmpFile = converted; file = converted; }
+    }
   }
   const assetsDir = path.join(record.dir, "assets");
   fs.mkdirSync(assetsDir, { recursive: true });
@@ -764,8 +886,100 @@ async function toolSetSlidePhoto(args) {
   fs.writeFileSync(record.file, JSON.stringify(stored, null, 2), "utf8");
   if (tmpFile) { try { fs.unlinkSync(tmpFile); } catch {} }
   const runtime = hydrateCarousel(stored, record.dir);
-  const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName || `${name}-photo-${idx + 1}`, open: a.open !== false });
-  return `Foto actualizada en slide ${idx + 1} de ${company}/${name}.\nImagen: ${dest}${dim ? ` (${dim.w}x${dim.h})` : ""}\nPreview: ${html}\n\nPaso 3 del protocolo: re-auditá con review_slide_images antes de entregar.\n${PHOTO_REVIEW_PROTOCOL}`;
+  const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open !== false });
+  const photoNeeds = slideMetaForReview(stored, record.dir).filter((s) => !s.hasPhoto).map((s) => ({
+    slide: s.slide,
+    template: s.template,
+    query: [s.title, s.highlight, s.kicker].filter(Boolean).join(" ") || s.template,
+  }));
+  return `Foto actualizada en slide ${idx + 1} de ${company}/${name}.\nImagen: ${dest}${dim ? ` (${dim.w}x${dim.h})` : ""}\nPreview: ${html}\n\nphotoNeeds restantes (slides sin foto): ${photoNeeds.length ? JSON.stringify(photoNeeds) : "(ninguna)"}\n\nPaso 3 del protocolo: re-auditá con review_slide_images antes de entregar.\n${PHOTO_REVIEW_PROTOCOL}`;
+}
+
+function walkBlocks(nodes, fn) {
+  for (const n of nodes || []) {
+    if (fn(n)) return n;
+    if (n.children) {
+      const hit = walkBlocks(n.children, fn);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+function findBlockInSlide(slide, blockId, blockType) {
+  if (blockId) return walkBlocks(slide.elements, (n) => n.id === blockId);
+  if (blockType) return walkBlocks(slide.elements, (n) => n.type === blockType);
+  return null;
+}
+async function toolEditSlide(args) {
+  const a = args || {};
+  const company = slug(a.company || "");
+  const name = slug(a.name || a.slug || "");
+  if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+  const action = String(a.action || "").trim();
+  const ACTIONS = ["update_text", "move", "duplicate", "delete"];
+  if (!ACTIONS.includes(action)) throw new Error(`Falta o es inválida \`action\`. Valores: ${ACTIONS.join(" | ")}.`);
+  const record = readCarousel(company, name);
+  const stored = record.stored;
+  const slides = stored.slides || [];
+  const idx = Math.max(0, (+a.slide || +a.slideIndex || 1) - 1);
+  if (idx >= slides.length) throw new Error(`Slide ${idx + 1} inexistente (${slides.length} slides).`);
+  const payload = (a.payload && typeof a.payload === "object") ? a.payload : {};
+  const original = clone(slides[idx]);
+
+  if (action === "update_text") {
+    const blockId = payload.blockId || a.blockId || "";
+    const blockType = payload.blockType || a.blockType || "";
+    const text = payload.text !== undefined ? payload.text : a.text;
+    if (text === undefined || text === null) throw new Error("Falta `payload.text` para update_text.");
+    if (!blockId && !blockType) throw new Error("Falta `payload.blockId` o `payload.blockType` para ubicar el bloque (ej: kicker | text | highlight | body, o un blockId preciso como box-title).");
+    const block = findBlockInSlide(slides[idx], blockId, blockType);
+    if (!block) throw new Error(`Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`);
+    const field = payload.field || a.field || (block.type === "item" && payload.title === undefined && payload.desc === undefined && payload.emoji === undefined ? "title" : "text");
+    if (block.type === "item" && ["title", "desc", "emoji"].includes(field)) {
+      block[field] = String(text);
+    } else if (block.text !== undefined || ["kicker", "text", "highlight", "body", "slogan", "foot", "pill"].includes(block.type)) {
+      block.text = String(text);
+    } else {
+      throw new Error(`El bloque tipo "${block.type}" no tiene campo de texto editable con update_text. Usá field: title|desc|emoji si es un item.`);
+    }
+  } else if (action === "move") {
+    const to = payload.to !== undefined ? +payload.to : +a.to;
+    if (!Number.isFinite(to) || to < 1 || to > slides.length) {
+      throw new Error(`\`payload.to\` debe ser la posición destino entre 1 y ${slides.length} (1-based). Recibiste: ${payload.to !== undefined ? payload.to : a.to}.`);
+    }
+    const moved = slides.splice(idx, 1)[0];
+    slides.splice(to - 1, 0, moved);
+  } else if (action === "duplicate") {
+    const copy = clone(slides[idx]);
+    let newId = `${slides[idx].id || "slide-" + (idx + 1)}-copy`;
+    while (slides.some((s) => s.id === newId)) newId += "-" + Math.random().toString(36).slice(2, 5);
+    copy.id = newId;
+    slides.splice(idx + 1, 0, copy);
+  } else if (action === "delete") {
+    if (slides.length <= 1) throw new Error("No se puede eliminar la única slide del carrusel.");
+    slides.splice(idx, 1);
+  }
+
+  stored.slides = slides;
+  stored.updatedAt = new Date().toISOString();
+  fs.writeFileSync(record.file, JSON.stringify(stored, null, 2), "utf8");
+  const runtime = hydrateCarousel(stored, record.dir);
+  const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName || `${name}-edit-${Date.now().toString(36)}`, open: a.open !== false });
+  const affectedIdx = action === "move" ? +payload.to - 1 : action === "duplicate" ? idx + 1 : action === "delete" ? Math.min(idx, slides.length - 1) : idx;
+  const styleWarnings = lintSlideTexts([slides[affectedIdx]]).map((w) => ({ ...w, slide: affectedIdx + 1 }));
+  const summary = {
+    action,
+    appliedTo: `slide ${idx + 1}`,
+    ...(action === "move" ? { from: idx + 1, to: +payload.to } : {}),
+    ...(action === "duplicate" ? { newSlideAt: idx + 2, newId: slides[idx + 1].id } : {}),
+    ...(action === "delete" ? { deleted: original.id || `slide ${idx + 1}`, remaining: slides.length } : {}),
+    ...(action === "update_text" ? { block: payload.blockId || payload.blockType || a.blockType || a.blockId } : {}),
+    slides: slides.length,
+    render: { html },
+    json: record.file,
+    styleWarnings,
+  };
+  return JSON.stringify(summary, null, 2);
 }
 
 const tools = [
@@ -964,6 +1178,41 @@ const tools = [
       required: ["company", "name", "source"],
     },
   },
+  {
+    name: "edit_slide",
+    description:
+      "Edita una slide de un carrusel persistido sin manipular el JSON crudo. Acciones: update_text (cambia kicker/título/highlight/body por blockId o blockType), move (reordena la slide a otra posición), duplicate (duplica la slide) y delete (elimina la slide). Persiste carousel.json, re-renderiza el preview y devuelve styleWarnings del bloque afectado. Usalo para refinar copy u orden según el NARRATIVE_REVIEW_PROTOCOL.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company: { type: "string", description: "Slug de empresa." },
+        name: { type: "string", description: "Slug del carrusel (alias: slug)." },
+        slug: { type: "string", description: "Alias de name." },
+        slide: { type: "number", description: "Número de slide a editar (1-based)." },
+        slideIndex: { type: "number", description: "Alias de slide." },
+        action: { type: "string", enum: ["update_text", "move", "duplicate", "delete"], description: "Acción a realizar." },
+        payload: {
+          type: "object",
+          description: "Parámetros de la acción. update_text: {blockId?, blockType?, text, field?} (field solo para items: title|desc|emoji). move: {to} (posición destino 1-based). duplicate/delete: vacío {}.",
+          properties: {
+            blockId: { type: "string", description: "ID preciso del bloque (update_text)." },
+            blockType: { type: "string", description: "Tipo del primer bloque a ubicar: kicker | text | highlight | body | slogan | foot | item (update_text)." },
+            text: { type: "string", description: "Nuevo texto (update_text)." },
+            field: { type: "string", description: "Campo a sobreescribir si el bloque es item: title | desc | emoji." },
+            to: { type: "number", description: "Posición destino 1-based (move)." },
+          },
+        },
+        blockId: { type: "string", description: "Alias top-level de payload.blockId." },
+        blockType: { type: "string", description: "Alias top-level de payload.blockType." },
+        text: { type: "string", description: "Alias top-level de payload.text." },
+        to: { type: "number", description: "Alias top-level de payload.to." },
+        outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
+        fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
+        open: { type: "boolean", description: "Abrir el HTML (default true)." },
+      },
+      required: ["company", "name", "action"],
+    },
+  },
 ];
 
 function carouselPath(company, name) {
@@ -1099,8 +1348,10 @@ function renderCarousel(data, args = {}) {
   const out = html.replace(MARKER, payload);
   const dir = expandHome(args.outputDir || "~/Downloads");
   fs.mkdirSync(dir, { recursive: true });
+  const stamp = new Date().toTimeString().slice(0, 5).replace(":", "");
   const base = args.fileName ? slug(args.fileName) : slug(data.meta.title) + "-" + new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
-  const file = path.join(dir, base + ".html");
+  const antiCache = args.fileName ? base : base + "-" + stamp;
+  const file = path.join(dir, antiCache + ".html");
   fs.writeFileSync(file, out, "utf8");
   if (args.open !== false) {
     try {
@@ -1175,8 +1426,9 @@ function toolLoadCarousel(args) {
   if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
   const record = readCarousel(company, name);
   const runtime = hydrateCarousel(record.stored, record.dir);
-  const file = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName || name, open: a.open !== false });
-  return JSON.stringify({ ...record.stored, render: { html: file, json: record.file } }, null, 2);
+  const file = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open !== false });
+  const narrative = narrativeAudit(record.stored.slides || [], record.stored.meta && record.stored.meta.title);
+  return JSON.stringify({ ...record.stored, narrativeAudit: narrative, protocol: NARRATIVE_REVIEW_PROTOCOL, render: { html: file, json: record.file } }, null, 2);
 }
 function toolSaveCarousel(args) {
   const a = args || {};
@@ -1184,13 +1436,16 @@ function toolSaveCarousel(args) {
   const existing = a.company && (a.name || a.slug) ? (() => { try { return readCarousel(a.company, a.name || a.slug).stored; } catch { return null; } })() : null;
   const company = slug(a.company || input.company || input.kitSource && input.kitSource.slug || input.kit && input.kit.name || "default");
   const name = slug(a.name || a.slug || input.slug || input.meta && input.meta.title || "carrusel");
+  const rawSlides = a.slides || input.slides || existing && existing.slides || [];
+  if (!Array.isArray(rawSlides)) {
+    throw new Error("`slides` debe ser un array; recibiste " + (rawSlides === null ? "null" : typeof rawSlides) + ". Ejemplo: { slides: [{ template: 'fact', ... }] }. También podés pasar `carousel` con la propiedad slides, o `meta`/`kit` solos para actualizarlos sobre el existente.");
+  }
   const sourceDir = existing ? carouselPath(company, name) : input.company && input.slug ? carouselPath(input.company, input.slug) : null;
   const kitBase = existing && existing.kit ? existing.kit : resolveKit(company);
   const kit = deepMerge(kitBase, input.kit || a.kit || {});
-  const rawSlides = a.slides || input.slides || existing && existing.slides || [];
   const slides = partitionListSlides(rawSlides.map((slide, index) => {
     const out = normSlideArg(slide);
-    out.id = slide.id || out.id || `slide-${index + 1}`;
+    out.id = slide && slide.id || out.id || `slide-${index + 1}`;
     return out;
   }));
   const requestedFormat = a.format || input.meta && input.meta.format || a.meta && a.meta.format || existing && existing.meta && existing.meta.format;
@@ -1206,7 +1461,8 @@ function toolSaveCarousel(args) {
   };
   const saved = persistCarousel(data, company, name, sourceDir);
   const styleWarnings = lintSlideTexts(slides);
-  return JSON.stringify({ saved: saved.file, company, slug: name, title: data.meta.title || name, slides: slides.length, assets: saved.data.assets, styleWarnings }, null, 2);
+  const narrative = narrativeAudit(slides, data.meta.title || name);
+  return JSON.stringify({ saved: saved.file, company, slug: name, title: data.meta.title || name, slides: slides.length, assets: saved.data.assets, styleWarnings, narrativeAudit: narrative, protocol: NARRATIVE_REVIEW_PROTOCOL }, null, 2);
 }
 function toolSaveKit(args) {
   const a = args || {};
@@ -1436,6 +1692,7 @@ async function callTool(name, args) {
     case "review_slide_images": return toolReviewSlideImages(args);
     case "delete_carousel": return toolDeleteCarousel(args);
     case "set_slide_photo": return await toolSetSlidePhoto(args);
+    case "edit_slide": return await toolEditSlide(args);
     default: throw new Error(`Herramienta desconocida: ${name}`);
   }
 }

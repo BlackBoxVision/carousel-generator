@@ -134,7 +134,7 @@ The initial generation and MCP save operations create a persistent JSON document
 
 ## MCP tools
 
-The server exposes twelve tools. You can ask the AI to use them in plain language; you do not need to call them manually.
+The server exposes thirteen tools. You can ask the AI to use them in plain language; you do not need to call them manually.
 
 | Tool | Use it when you want to... |
 |---|---|
@@ -143,8 +143,9 @@ The server exposes twelve tools. You can ask the AI to use them in plain languag
 | `list_carousels` | See the saved carousels, grouped by company. |
 | `load_carousel` | Reopen an existing carousel with its photos and logo resolved. |
 | `save_carousel` | Create or update the persistent nested JSON and copy assets into its asset folder. |
+| `edit_slide` | Edit one slide without touching raw JSON: update text, move/reorder, duplicate, or delete. |
 | `delete_carousel` | Permanently delete a saved carousel and its assets. Two-step: without `confirm:true` it only returns a preview; the second call with `confirm:true` deletes. The AI should ask you before confirming. |
-| `review_slide_images` | Audit the photos of a saved carousel: per-slide texts, assigned photo, and `photoNeeds` with suggested search queries. |
+| `review_slide_images` | Audit the photos of a saved carousel: per-slide texts, assigned photo, `photoNeeds`, and `narrativeAudit`. |
 | `set_slide_photo` | Replace the background photo of one slide (from a URL or a local file) and re-render. |
 | `save_brand_kit` | Create or update a reusable brand kit. Partial updates are merged. |
 | `list_brand_kits` | See all personal and example brand kits available to the editor. |
@@ -207,6 +208,38 @@ local heuristics only (it cannot see images), so the agent is responsible for:
 infographics/logos/banners (`flyer`, `infograf`, `logo`, `banner`, `icon`,
 etc.) and reports every discarded candidate to stderr for diagnostics.
 
+### Narrative review protocol
+
+`carousel_from_url`, `save_carousel`, `load_carousel` and `review_slide_images` embed a
+**NARRATIVE REVIEW PROTOCOL** so the agent validates that the generated slides
+actually tell a coherent story with a common thread — not a pile of random
+slides. The server cannot judge meaning itself (same constraint as photos), so
+it combines structured signals with an explicit agent checklist:
+
+1. **Read** — read kicker, title, highlight and body of every slide in order (1..N).
+2. **Common thread** — confirm every slide talks about the same subject/topic as the note; no filler slides disconnected from the cover or title.
+3. **Arc** — full arc present: cover (hook) → development → cta (end). Order is linear, never going backwards.
+4. **Cohesion** — each slide connects to the previous one (logical bridge or sequence), no random topic jumps.
+5. **Fix** — if something fails: rewrite or reorder with `edit_slide` (`update_text` | `move`) and re-audit before delivering.
+
+Alongside the protocol, the tools return a machine-readable **`narrativeAudit`**
+`{ ok, flags }` with objective starting points:
+
+- **Solid flags** (almost certainly real): `missing-cover`, `missing-cta`, `cta-in-middle`, `multi-cover`, `duplicate-figure` (same figure on several slides), `repeated-kicker` (same kicker on several slides = filler signal).
+- **Advisory flag** (low confidence): `orphan-slide` — a slide sharing no significant tokens with the cover/title. The agent should *review* it, not treat it as definitely wrong.
+
+Typical flow:
+
+```mermaid
+flowchart LR
+    A[carousel_from_url] --> B[narrativeAudit + protocol]
+    B --> C{coherent story?}
+    C -->|no| D[edit_slide<br/>update_text / move]
+    D --> B
+    C -->|yes| E[review_slide_images photos]
+    E --> F[deliver]
+```
+
 ### Highlight colors by category
 
 The background color of **highlight** blocks is not hard-wired to the kit's primary color. It is resolved per slide with this cascade:
@@ -245,9 +278,10 @@ The tool output always states which signal detected the category and which color
 
 ### Automatic content rules
 
-- **Long words auto-shrink** — a highlighted word wider than the slide (e.g. "FINANCIAMIENTO" at hero size) is never broken mid-word. After every render, headlines are measured and any word that would not fit gets its font size reduced proportionally (min 60%). Phrases that wrap normally are left untouched.
+- **Long words auto-shrink** — a highlighted word wider than the slide (e.g. "FINANCIAMIENTO" at hero size) is never broken mid-word. After every render, headlines are measured and any word that would not fit gets its font size reduced proportionally (min 60%). Highlight blocks (`.orange`) also shrink if the phrase would wrap beyond ~2 lines at hero size. Phrases that wrap normally within 2 lines are left untouched.
 - **List partitioning** — a `list` slide accepts at most **3 items**. When generating or saving, longer lists are automatically split into consecutive slides (same photo, kicker annotated with `PARTE X`). In the editor, lists over the limit show a warning and a **Dividir** button in the slide controls.
 - **Bold key figures** — when generating, numeric data in body copy is wrapped in bold automatically: currency amounts (`US$ 1.099 millones`), percentages (`+6,9%`), figures with units (`6 meses`), and spelled-out numbers (`seis meses`). Texts that already contain manual `**bold**` or `==highlight==` markup are left untouched.
+- **Long highlight warning** — `generate_carousel`, `carousel_from_url` and `save_carousel` flag highlights longer than ~28 chars still at `sizePct >= 90` (`rule: "highlight-largo"`) because they tend to break badly; lower the `sizePct` or shorten the text.
 
 ### Regla de estilo de textos (lint, no bloqueante)
 
