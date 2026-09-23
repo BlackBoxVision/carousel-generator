@@ -7,21 +7,25 @@ Guía para agentes (humanos con IA o autonomos) que modifiquen este repo. Seguil
 1. Agregar/editar el objeto en el array `tools[]` de `mcp/server.mjs` con `name`, `description` y `inputSchema` (JSON Schema).
 2. Agregar el `case` correspondiente en `callTool()` (`mcp/server.mjs`).
 3. Actualizar `manifest.json` → `tools[]` (el bundle MCPB lo lee de ahí).
-4. Actualizar la tabla de tools en `README.md` y, si aplica, el conteo ("thirteen tools", etc.).
+4. Actualizar la tabla de tools en `README.md` y, si aplica, el conteo ("sixteen tools", etc.).
 5. Si la tool responde con protocolos o advertencias, mantener el formato de las existentes (`PHOTO_REVIEW_PROTOCOL`, `NARRATIVE_REVIEW_PROTOCOL`, `styleWarnings`).
+6. Si la tool escribe un archivo en la carpeta del carrusel (ej: `source.md`, `social.md`, `previews/`), documentarlo en README → Saved files.
 
 ## Al modificar el editor (`app/index.html`)
 
-- Correr `node /tmp/smoke.cjs` y verificar que ningún assert falle.
+- Correr `npm run smoke` (o `node scripts/smoke.cjs`) y verificar que ningún assert falle.
 - El editor es vanilla JS embebido en HTML (sin build step). Mantener las funciones auto-contenidas y el estilo del archivo.
 - Si agregás lógica de render o layout, considerar si `fitWordWidth` / `fitCopyBlocks` deben intervenir.
+- El modo preview (`?preview=1&slide=N&format=F`) debe seguir funcionando: `render_preview` depende de él.
 
 ## Al modificar `mcp/server.mjs`
 
 - Correr `node --check mcp/server.mjs` (también corre en pre-commit).
-- Smoke del server: `node mcp/server.mjs < request.jsonl`.
+- Tests de tools: `npm run test:tools` (JSON-RPC end-to-end; mantiene stdin abierto hasta las respuestas).
+- Smoke completo: `npm test`.
 - Los assets de fotos/logos van a `~/.carousel-generator/carousels/{company}/{slug}/assets/`; **nunca** guardar base64 grande en `carousel.json`.
 - Los kits personales viven en `~/.carousel-generator/brand/{empresa}/kit.json` (fuera del repo). En el repo solo se trackea `mcp/kits/example.json`.
+- `render_preview` usa Chrome headless: prioriza `chrome-headless-shell` arm64 de Playwright (`~/Library/Caches/ms-playwright/`), luego Chrome del sistema. Se puede forzar con `CHROME_PATH`.
 
 ## Formato de slides y datos
 
@@ -35,6 +39,8 @@ Guía para agentes (humanos con IA o autonomos) que modifiquen este repo. Seguil
 
 - **Fotos** (`PHOTO REVIEW PROTOCOL`): verificar visualmente cada foto, reemplazar las que no conectan con stock, re-auditar con `review_slide_images`.
 - **Narrativa** (`NARRATIVE REVIEW PROTOCOL`): leer todas las slides en orden, confirmar hilo común y arco (portada → desarrollo → cta), corregir con `edit_slide` si `narrativeAudit.flags` marca problemas sólidos.
+- **PNGs**: si el usuario pide PNGs ("en 4:5 todos los PNGs"), usar `render_preview` y verificar rutas con visión si hace falta.
+- **Publicación**: `social_copy` para captions/hashtags/altText; revisar altText ≤125 y no repetir copy literal.
 
 ## Commits
 
@@ -45,7 +51,8 @@ Guía para agentes (humanos con IA o autonomos) que modifiquen este repo. Seguil
 
 - [ ] `node --check mcp/server.mjs`
 - [ ] `node --check install.mjs`
-- [ ] `node /tmp/smoke.cjs` (si se tocó `app/index.html`)
+- [ ] `npm run smoke` (si se tocó `app/index.html`)
+- [ ] `npm run test:tools` (si se tocó tools MCP)
 - [ ] `manifest.json` sincronizado con el array `tools[]`
 - [ ] README actualizado (tabla de tools, conteo, nuevos protocolos o reglas)
 - [ ] Si se agregó una tool: caso en `callTool()` + schema en `tools[]` + manifest + README

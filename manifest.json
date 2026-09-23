@@ -29,7 +29,10 @@
     { "name": "list_brand_kits", "description": "Lists the saved brand kits" },
     { "name": "load_brand_kit", "description": "Returns the full JSON of a saved brand kit" },
     { "name": "brand_kit_from_url", "description": "Generates and saves a brand kit from a website URL (homepage heuristics), with per-field confidence for agent review" },
-    { "name": "carousel_from_url", "description": "Builds a draft carousel from an article/note URL, with photos assigned from the article" }
+    { "name": "carousel_from_url", "description": "Builds a draft carousel from an article/note URL, with photos assigned from the article" },
+    { "name": "import_editor_state", "description": "Imports editor Push JSON (or a v2 carousel) back into carousel.json, copying base64 photos to assets" },
+    { "name": "render_preview", "description": "Renders carousel slides to real PNGs with Chrome headless (formats 4:5/1:1/9:16, all or selected slides)" },
+    { "name": "social_copy", "description": "Generates social captions, hooks, hashtags and per-slide alt text (es-AR heuristics, source.md → slides → meta)" }
   ],
   "keywords": ["instagram", "carousel", "brand-kit", "design", "social-media"],
   "license": "UNLICENSED",

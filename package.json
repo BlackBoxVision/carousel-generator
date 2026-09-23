@@ -7,6 +7,9 @@
   "scripts": {
     "mcp": "node mcp/server.mjs",
     "install:mcp": "node install.mjs",
+    "smoke": "node scripts/smoke.cjs",
+    "test:tools": "node scripts/test-tools.mjs",
+    "test": "node --check mcp/server.mjs && node --check install.mjs && node scripts/smoke.cjs && node scripts/test-tools.mjs",
     "bundle": "npx -y @anthropic-ai/mcpb pack . dist/carousel-generator.mcpb",
     "prepare": "husky"
   },

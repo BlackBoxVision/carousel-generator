@@ -134,7 +134,7 @@ The initial generation and MCP save operations create a persistent JSON document
 
 ## MCP tools
 
-The server exposes thirteen tools. You can ask the AI to use them in plain language; you do not need to call them manually.
+The server exposes sixteen tools. You can ask the AI to use them in plain language; you do not need to call them manually.
 
 | Tool | Use it when you want to... |
 |---|---|
@@ -144,6 +144,9 @@ The server exposes thirteen tools. You can ask the AI to use them in plain langu
 | `load_carousel` | Reopen an existing carousel with its photos and logo resolved. |
 | `save_carousel` | Create or update the persistent nested JSON and copy assets into its asset folder. |
 | `edit_slide` | Edit one slide without touching raw JSON: update text, move/reorder, duplicate, or delete. |
+| `import_editor_state` | Import the editor's Push-to-MCP JSON (or a v2 carousel) back into `carousel.json`. |
+| `render_preview` | Render slides to real PNGs with headless Chromium (`4:5`, `1:1`, `9:16`; all slides or selected indices). |
+| `social_copy` | Generate captions, hooks, hashtags, and per-slide alt text for Instagram/LinkedIn/X (es-AR heuristics; prefers `source.md`). |
 | `delete_carousel` | Permanently delete a saved carousel and its assets. Two-step: without `confirm:true` it only returns a preview; the second call with `confirm:true` deletes. The AI should ask you before confirming. |
 | `review_slide_images` | Audit the photos of a saved carousel: per-slide texts, assigned photo, `photoNeeds`, and `narrativeAudit`. |
 | `set_slide_photo` | Replace the background photo of one slide (from a URL or a local file) and re-render. |
@@ -335,6 +338,9 @@ By default, persistent carousels live here:
 ```text
 ~/.carousel-generator/carousels/<company>/<carousel-name>/
 ├── carousel.json
+├── source.md          # optional: from carousel_from_url (url, title, curated description)
+├── social.md          # optional: from social_copy { save: true }
+├── previews/<format>/ # render_preview PNGs + preview HTML
 └── assets/
     ├── logo.png
     └── slide-1-background.jpg
@@ -396,7 +402,18 @@ Slides render at most 3 list items comfortably; longer lists are split automatic
 
 ### I edited the browser version but the saved JSON did not change
 
-The browser editor keeps its live state in browser storage. Use the editor's JSON export or ask the MCP client to call `save_carousel` with the updated carousel data.
+The browser editor keeps its live state in browser storage. Two options:
+
+1. **Push al MCP** — use the toolbar button **Push al MCP** to copy `{action, company, name, carousel}` (with base64 photos) and call `import_editor_state` with that payload; assets land in `assets/` and the HTML re-renders.
+2. **Manual export** — use the editor's JSON export and call `save_carousel` with the updated carousel data.
+
+### How do I export real PNGs from the agent?
+
+Ask: *"dame el carousel en 4:5 todos los PNGs"* → `render_preview { format: "4:5" }` (aliases `4:5|feed`, `1:1|square`, `9:16|story`; omit `slides` for all). PNGs are written under `previews/<format>/slide-NN.png`. The server prefers Playwright's arm64 `chrome-headless-shell`, then Chrome/Chromium; override with `CHROME_PATH`.
+
+### How do I get captions/hashtags for posting?
+
+`social_copy` returns hooks, captions per platform (default Instagram + LinkedIn), hashtags, and alt text ≤125 chars per slide. Priority: `source.md` → slides → meta. Pass `save: true` to also write `social.md`.
 
 ## Advanced: nested carousel data
 
@@ -446,8 +463,10 @@ There is no build step for the app or server. The main files are:
 Smoke tests:
 
 ```bash
-node /tmp/smoke.cjs
-node mcp/server.mjs < request.jsonl
+npm test
+# or individually:
+node scripts/smoke.cjs
+node scripts/test-tools.mjs
 ```
 
 Commits use Conventional Commits and are checked by commitlint and husky.

@@ -14,6 +14,7 @@ const BRAND_DIR = path.join(HOME_CG, "brand");
 const CAROUSEL_DIR = path.join(HOME_CG, "carousels");
 const LEGACY_KITS = path.join(HOME_CG, "kits");
 const MARKER = "<!--CAROUSEL_DATA-->";
+let APP_TEMPLATE_CACHE = null;
 const TEMPLATES = ["cover", "fact", "map", "list", "cta"];
 const BLOCK_TYPES = ["brand", "count", "stack", "kicker", "text", "highlight", "body", "items", "item", "box", "pill", "slogan", "foot"];
 const IMG_EXTS = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".svg": "image/svg+xml", ".avif": "image/avif", ".heic": "image/heic" };
@@ -228,14 +229,48 @@ function resolveKit(name, inline) {
   if (!scope && base && base.name) scope = slug(base.name);
   return resolveLogo(base, scope);
 }
-function brandKitsPayload() {
+function brandKitsPayload(activeSlug) {
   const out = {};
+  const act = activeSlug ? slug(activeSlug) : "";
   for (const [sl, entry] of Object.entries(allKitsRaw())) {
     if (!entry.kit) continue;
-    try { out[sl] = resolveLogo(clone(entry.kit), entry.scope || sl); }
-    catch (e) { process.stderr.write(`[carousel-mcp] kit "${sl}" sin logo (${e.message})\n`); out[sl] = entry.kit; }
+    try {
+      const kit = resolveLogo(clone(entry.kit), entry.scope || sl);
+      if (act && sl !== act && kit.logo && typeof kit.logo.img === "string" && kit.logo.img.startsWith("data:")) {
+        kit.logo = { ...kit.logo, img: undefined };
+      }
+      out[sl] = kit;
+    } catch (e) {
+      process.stderr.write(`[carousel-mcp] kit "${sl}" sin logo (${e.message})\n`);
+      out[sl] = entry.kit;
+    }
   }
   return out;
+}
+function loadAppTemplate() {
+  if (APP_TEMPLATE_CACHE) return APP_TEMPLATE_CACHE;
+  const html = fs.readFileSync(APP_PATH, "utf8");
+  if (!html.includes(MARKER)) throw new Error("La app no contiene el marcador CAROUSEL_DATA.");
+  APP_TEMPLATE_CACHE = html;
+  return html;
+}
+function handoffRender(file, jsonPath, data, extra = {}) {
+  const company = data && data.company ? slug(data.company) : "";
+  const slugName = data && data.slug ? slug(data.slug) : "";
+  const slides = data && Array.isArray(data.slides) ? data.slides.length : undefined;
+  const format = data && data.meta ? data.meta.format : undefined;
+  return {
+    render: { htmlPath: file, jsonPath: jsonPath || null, company, slug: slugName, slides, format },
+    open: process.platform === "darwin" ? `open ${JSON.stringify(file)}` : file,
+    nextSteps: extra.nextSteps || [
+      "Abrí el HTML para revisar el resultado en el editor.",
+      "Si hay fotos nuevas: verificá visualmente cada una y re-auditá con review_slide_images.",
+      "Si el copy cambió: revisá narrativeAudit / NARRATIVE_REVIEW_PROTOCOL antes de entregar.",
+    ],
+  };
+}
+function appendHandoff(text, handoff) {
+  return text + "\n\n---\nhandoff:\n" + JSON.stringify(handoff, null, 2);
 }
 
 function normSlideArg(s) {
@@ -673,6 +708,42 @@ function splitTitleForCover(t) {
   return { white: words.slice(0, idx).join(" ").toUpperCase(), orange: words.slice(idx).join(" ").toUpperCase() };
 }
 const LIST_EMOJIS = ["✅", "📈", "🔎", "💡", "⚙️", "🤝", "🌍", "📊", "🧭", "🚀", "🏷️", "📞"];
+function writeSourceMd(dir, { url, title, site, dek, category, paras, items }) {
+  const file = path.join(dir, "source.md");
+  if (fs.existsSync(file)) return { file, wrote: false, reason: "ya existía, no sobrescrito" };
+  const figParas = (paras || []).filter((p) => DATA_FIG_RE.test(p)).slice(0, 5);
+  const keyParas = figParas.length ? figParas : (paras || []).slice(0, 3);
+  const curated = [dek || "", ...(keyParas || []).map((p) => (p.length > 400 ? p.slice(0, 397).trimEnd() + "…" : p))].filter(Boolean).join("\n\n");
+  const md = [
+    "---",
+    `url: ${url}`,
+    `title: ${JSON.stringify(title || "")}`,
+    `site: ${site || ""}`,
+    `category: ${category || ""}`,
+    `extractedAt: ${new Date().toISOString()}`,
+    `dek: ${JSON.stringify(dek || "")}`,
+    "---",
+    "",
+    "## Descripción curada",
+    "",
+    curated || "(sin bajada — completar a mano)",
+    "",
+    "## Datos clave",
+    "",
+    ...(keyParas.length ? keyParas.map((p) => `- ${p}`) : ["- (sin figuras detectadas)"]),
+    "",
+    "## Puntos (items de la nota)",
+    "",
+    ...((items || []).length ? items.slice(0, 12).map((t) => `- ${t}`) : ["- (sin items)"]),
+    "",
+    "## Nota",
+    "",
+    "Extraído automáticamente de la URL. Refinar acá antes de `social_copy` si querés copy más fiel al artículo.",
+    "",
+  ].join("\n");
+  fs.writeFileSync(file, md, "utf8");
+  return { file, wrote: true };
+}
 async function toolCarouselFromURL(args) {
   const a = args || {};
   if (!a.url) throw new Error("Falta `url`.");
@@ -748,13 +819,32 @@ async function toolCarouselFromURL(args) {
     photoNeeds.push({ slide: 1, template: "cover", query: art.title });
   }
   const runtime = runtimeDataFromArgs({ ...a, title: art.title, company, carouselName, slides, category: a.category || detected && detected.category });
+  runtime.company = company;
+  runtime.slug = carouselName;
   let persisted = null;
   if (a.persist !== false) persisted = persistCarousel(runtime, company, carouselName);
-  const file = renderCarousel(runtime, a);
+  let sourceMd = null;
+  if (persisted) {
+    try {
+      sourceMd = writeSourceMd(persisted.dir, {
+        url: pageUrl,
+        title: art.title,
+        site: art.site,
+        dek: art.dek,
+        category: runtime.meta.category || (detected && detected.category) || "",
+        paras: art.paras,
+        items: art.items,
+      });
+    } catch (e) {
+      process.stderr.write(`[carousel-from-url] source.md skip: ${e.message}\n`);
+    }
+  }
+  const file = renderCarousel(runtime, { ...a, open: a.open !== false, stable: true });
   const lines = [
     `Carrusel desde URL creado (${runtime.slides.length} slides):`,
     file,
     `JSON persistido: ${persisted ? persisted.file : "no (persist:false)"}`,
+    ...(sourceMd ? [`source.md: ${sourceMd.file}${sourceMd.wrote ? " (nuevo)" : ` (${sourceMd.reason})`}`] : []),
     "",
     detected
       ? `Categoría detectada: "${runtime.meta.category || detected.category}" (señal: ${detected.source})${runtime.kit.highlightColors && runtime.kit.highlightColors[runtime.meta.category || detected.category] ? ` → highlight: ${runtime.kit.highlightColors[runtime.meta.category || detected.category]}` : " (sin color en kit.highlightColors — se usa el primario)"}`
@@ -777,7 +867,15 @@ async function toolCarouselFromURL(args) {
   }
   lines.push("", NARRATIVE_REVIEW_PROTOCOL);
   lines.push(...formatStyleWarnings(lintSlideTexts(runtime.slides)));
-  return lines.join("\n");
+  const handoff = handoffRender(file, persisted ? persisted.file : null, runtime, {
+    nextSteps: [
+      a.open === false ? "HTML generado sin abrir (open:false)." : "Se abrió en el navegador.",
+      ...(sourceMd && sourceMd.wrote ? [`source.md guardado: ${sourceMd.file} — usalo como fuente en social_copy.`] : ["source.md no se escribió (podía existir ya)."]),
+      "Seguí el PHOTO REVIEW PROTOCOL y el NARRATIVE_REVIEW_PROTOCOL antes de entregar.",
+      ...(photoNeeds.length ? [`Hay ${photoNeeds.length} slides sin foto coherente: resuelvelas con set_slide_photo / stock.`] : []),
+    ],
+  });
+  return appendHandoff(lines.join("\n"), handoff);
 }
 function slideMetaForReview(stored, dir) {
   const out = [];
@@ -886,13 +984,25 @@ async function toolSetSlidePhoto(args) {
   fs.writeFileSync(record.file, JSON.stringify(stored, null, 2), "utf8");
   if (tmpFile) { try { fs.unlinkSync(tmpFile); } catch {} }
   const runtime = hydrateCarousel(stored, record.dir);
-  const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open !== false });
+  runtime.company = company;
+  runtime.slug = name;
+  const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true });
   const photoNeeds = slideMetaForReview(stored, record.dir).filter((s) => !s.hasPhoto).map((s) => ({
     slide: s.slide,
     template: s.template,
     query: [s.title, s.highlight, s.kicker].filter(Boolean).join(" ") || s.template,
   }));
-  return `Foto actualizada en slide ${idx + 1} de ${company}/${name}.\nImagen: ${dest}${dim ? ` (${dim.w}x${dim.h})` : ""}\nPreview: ${html}\n\nphotoNeeds restantes (slides sin foto): ${photoNeeds.length ? JSON.stringify(photoNeeds) : "(ninguna)"}\n\nPaso 3 del protocolo: re-auditá con review_slide_images antes de entregar.\n${PHOTO_REVIEW_PROTOCOL}`;
+  const handoff = handoffRender(html, record.file, runtime, {
+    nextSteps: [
+      "Foto persistida en carousel.json + assets/.",
+      "photoNeeds restantes: revisalas abajo.",
+      "Re-auditá con review_slide_images antes de entregar.",
+    ],
+  });
+  return appendHandoff(
+    `Foto actualizada en slide ${idx + 1} de ${company}/${name}.\nImagen: ${dest}${dim ? ` (${dim.w}x${dim.h})` : ""}\nPreview: ${html}\n\nphotoNeeds restantes (slides sin foto): ${photoNeeds.length ? JSON.stringify(photoNeeds) : "(ninguna)"}\n\nPaso 3 del protocolo: re-auditá con review_slide_images antes de entregar.\n${PHOTO_REVIEW_PROTOCOL}`,
+    handoff
+  );
 }
 
 function walkBlocks(nodes, fn) {
@@ -964,9 +1074,18 @@ async function toolEditSlide(args) {
   stored.updatedAt = new Date().toISOString();
   fs.writeFileSync(record.file, JSON.stringify(stored, null, 2), "utf8");
   const runtime = hydrateCarousel(stored, record.dir);
-  const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName || `${name}-edit-${Date.now().toString(36)}`, open: a.open !== false });
+  runtime.company = company;
+  runtime.slug = name;
+  const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true });
   const affectedIdx = action === "move" ? +payload.to - 1 : action === "duplicate" ? idx + 1 : action === "delete" ? Math.min(idx, slides.length - 1) : idx;
   const styleWarnings = lintSlideTexts([slides[affectedIdx]]).map((w) => ({ ...w, slide: affectedIdx + 1 }));
+  const handoff = handoffRender(html, record.file, runtime, {
+    nextSteps: [
+      "Cambio persistido en carousel.json.",
+      "Si editaste copy: re-visá narrativeAudit / cohesión entre slides.",
+      ...(styleWarnings.length ? ["Corregí los styleWarnings del bloque afectado."] : []),
+    ],
+  });
   const summary = {
     action,
     appliedTo: `slide ${idx + 1}`,
@@ -975,8 +1094,7 @@ async function toolEditSlide(args) {
     ...(action === "delete" ? { deleted: original.id || `slide ${idx + 1}`, remaining: slides.length } : {}),
     ...(action === "update_text" ? { block: payload.blockId || payload.blockType || a.blockType || a.blockId } : {}),
     slides: slides.length,
-    render: { html },
-    json: record.file,
+    ...handoff,
     styleWarnings,
   };
   return JSON.stringify(summary, null, 2);
@@ -1046,7 +1164,7 @@ const tools = [
         slug: { type: "string", description: "Alias de name." },
         outputDir: { type: "string", description: "Directorio del HTML renderizado. Default ~/Downloads." },
         fileName: { type: "string", description: "Nombre del HTML renderizado." },
-        open: { type: "boolean", description: "Abrir el HTML en navegador. Default true." },
+        open: { type: "boolean", description: "Abrir el HTML en navegador (default true en generate/load/from_url; default false en edit_slide/set_slide_photo)." },
       },
       required: ["company"],
     },
@@ -1122,7 +1240,7 @@ const tools = [
         persist: { type: "boolean", description: "Guardar carousel.json (default true)." },
         outputDir: { type: "string", description: "Directorio del HTML. Default ~/Downloads." },
         fileName: { type: "string", description: "Nombre base del HTML." },
-        open: { type: "boolean", description: "Abrir el HTML (default true)." },
+        open: { type: "boolean", description: "Abrir el HTML (default true para load/generate/from_url; default false para tools iterativas)." },
       },
       required: ["url"],
     },
@@ -1173,7 +1291,7 @@ const tools = [
         bgPos: { type: "string", description: "Punto focal CSS background-position (ej: 'center 30%')." },
         outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
         fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
-        open: { type: "boolean", description: "Abrir el HTML (default true)." },
+        open: { type: "boolean", description: "Abrir el HTML (default true para load/generate/from_url; default false para tools iterativas)." },
       },
       required: ["company", "name", "source"],
     },
@@ -1208,9 +1326,83 @@ const tools = [
         to: { type: "number", description: "Alias top-level de payload.to." },
         outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
         fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
-        open: { type: "boolean", description: "Abrir el HTML (default true)." },
+        open: { type: "boolean", description: "Abrir el HTML (default true para load/generate/from_url; default false para tools iterativas)." },
       },
       required: ["company", "name", "action"],
+    },
+  },
+  {
+    name: "import_editor_state",
+    description:
+      "Importa el estado del editor visual (botón Push al MCP) hacia carousel.json. Acepta el objeto JSON copiado desde el editor ({action, company, name, carousel}) o un carousel v2 armado a mano. Reutiliza la misma validación y copia de assets que save_carousel (las fotos base64 van a assets/, nunca se guardan base64 grande en el JSON). Ideal para sincronizar ediciones hechas en el browser de vuelta al MCP.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company: { type: "string", description: "Slug de empresa (opcional si viene en payload/carousel)." },
+        name: { type: "string", description: "Slug del carrusel (alias: slug). Opcional si viene en payload." },
+        slug: { type: "string", description: "Alias de name." },
+        payload: {
+          type: ["object", "string"],
+          description: "Objeto o string JSON copiado desde el editor: {action:'upsert', company, name, carousel}. Si es string, se parsea.",
+        },
+        carousel: { type: "object", description: "carousel.json v2 completo (alternativa a payload)." },
+        open: { type: "boolean", description: "Abrir el HTML regenerado (default false)." },
+      },
+    },
+  },
+  {
+    name: "render_preview",
+    description:
+      "Renderiza el carrusel a PNGs reales con Chrome headless. Ejemplos de instrucción natural: 'dame el carousel en formato 4:5 todos los PNGs' → {format:'4:5'} u {format:'feed'} sin slides (todas); 'solo la slide 3 en 1:1' → {format:'1:1', slides:[3]}. Acepta alias de formato 4:5|feed, 1:1|square, 9:16|story. Devuelve rutas PNG por slide para que el agente los lea/verifique (fotos, layout, copy).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company: { type: "string", description: "Slug de empresa." },
+        name: { type: "string", description: "Slug del carrusel (alias: slug)." },
+        slug: { type: "string", description: "Alias de name." },
+        format: {
+          type: "string",
+          description: "Formato: feed|4:5 (1080x1350), square|1:1 (1080x1080), story|9:16 (1080x1920). Default: el formato del carrusel.",
+        },
+        slides: {
+          type: "array",
+          items: { type: "number" },
+          description: "Índices 1-based a renderizar. Omite para TODAS las slides.",
+        },
+        outputDir: { type: "string", description: "Directorio de salida. Default: carpeta del carrusel /previews/{format}/." },
+        open: { type: "boolean", description: "Abrir el primer PNG (default false)." },
+      },
+      required: ["company", "name"],
+    },
+  },
+  {
+    name: "social_copy",
+    description:
+      "Genera copy de publicación (captions, ganchos, hashtags y alt text por slide) para un carrusel persistido. Prioriza source.md → slides → meta. Plataformas: instagram, linkedin, x (default: instagram+linkedin). Idioma es-AR. Sin API key: heurísticas locales. Devuelve hooks, captions por plataforma, hashtags sugeridos y altText ≤125 chars por slide para accesibilidad.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        company: { type: "string", description: "Slug de empresa." },
+        name: { type: "string", description: "Slug del carrusel (alias: slug)." },
+        slug: { type: "string", description: "Alias de name." },
+        platforms: {
+          type: "array",
+          items: { type: "string", enum: ["instagram", "linkedin", "x", "facebook", "tiktok"] },
+          description: "Plataformas a generar. Default: ['instagram','linkedin'].",
+        },
+        tone: {
+          type: "string",
+          enum: ["directo", "inspirador", "informativo", "provocador", "cercano"],
+          description: "Tono del copy (default: informativo).",
+        },
+        audience: { type: "string", description: "Público objetivo (ej: 'marketing managers B2B')." },
+        cta: { type: "string", description: "Call to action final personalizado (si lo hay)." },
+        includeHashtags: { type: "boolean", description: "Incluir hashtags (default true)." },
+        maxHashtags: { type: "number", description: "Máximo de hashtags (default: 8 IG, 5 LinkedIn, 2 X)." },
+        language: { type: "string", description: "Idioma BCP-47 (default: es-AR)." },
+        save: { type: "boolean", description: "Guardar social.md junto al carousel.json (default false)." },
+      },
+      required: ["company", "name"],
     },
   },
 ];
@@ -1339,9 +1531,9 @@ function canvasForFormat(format) {
   return format === "square" ? { w: 1080, h: 1080 } : format === "story" ? { w: 1080, h: 1920 } : { w: 1080, h: 1350 };
 }
 function renderCarousel(data, args = {}) {
-  const brands = brandKitsPayload();
-  const html = fs.readFileSync(APP_PATH, "utf8");
-  if (!html.includes(MARKER)) throw new Error("La app no contiene el marcador CAROUSEL_DATA.");
+  const activeSlug = (data && data.kitSource && data.kitSource.slug) || (data && data.kit && data.kit.name) || "";
+  const brands = brandKitsPayload(activeSlug);
+  const html = loadAppTemplate();
   const payload =
     "<script>window.BRAND_KITS=" + JSON.stringify(brands).replace(/</g, "\\u003c") + ";</script>" +
     "<script>window.CAROUSEL_DATA=" + JSON.stringify(data).replace(/</g, "\\u003c") + ";</script>";
@@ -1349,14 +1541,19 @@ function renderCarousel(data, args = {}) {
   const dir = expandHome(args.outputDir || "~/Downloads");
   fs.mkdirSync(dir, { recursive: true });
   const stamp = new Date().toTimeString().slice(0, 5).replace(":", "");
-  const base = args.fileName ? slug(args.fileName) : slug(data.meta.title) + "-" + new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
-  const antiCache = args.fileName ? base : base + "-" + stamp;
+  let base;
+  if (args.fileName) base = slug(args.fileName);
+  else if (data && data.company && data.slug) base = `${slug(data.company)}-${slug(data.slug)}`;
+  else base = slug(data.meta.title) + "-" + new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+  const antiCache = args.stable === true || args.fileName || (data && data.company && data.slug) ? base : base + "-" + stamp;
   const file = path.join(dir, antiCache + ".html");
   fs.writeFileSync(file, out, "utf8");
-  if (args.open !== false) {
+  if (args.open === true) {
     try {
+      const url = "file://" + file.split(path.sep).map(encodeURIComponent).join("/") + "?t=" + Date.now();
       if (process.platform === "darwin") spawn("open", [file], { stdio: "ignore", detached: true }).unref();
       else if (process.platform === "linux") spawn("xdg-open", [file], { stdio: "ignore", detached: true }).unref();
+      void url;
     } catch {}
   }
   return file;
@@ -1389,12 +1586,25 @@ function toolGenerate(args) {
   const data = runtimeDataFromArgs(a);
   const company = slug(a.company || a.kitName || data.kit.name || "default");
   const carouselName = slug(a.carouselName || a.fileName || data.meta.title);
+  data.company = company;
+  data.slug = carouselName;
   let persisted = null;
   if (a.persist !== false) persisted = persistCarousel(data, company, carouselName);
-  const file = renderCarousel(data, a);
-  const kitNames = Object.keys(brandKitsPayload());
+  const file = renderCarousel(data, { ...a, open: a.open !== false, stable: true });
+  const kitNames = Object.keys(brandKitsPayload((data.kitSource && data.kitSource.slug) || data.kit.name));
   const styleLines = formatStyleWarnings(lintSlideTexts(data.slides));
-  return `Carrusel generado (${data.slides.length} slides, formato ${data.meta.format}, kit "${data.kit.name}"):\n${file}\n\nJSON persistido: ${persisted ? persisted.file : "no (persist:false)"}\nEmpresa: ${company} · Carrusel: ${carouselName}\n\nSe abrió en el navegador. Kits disponibles en el picker: ${kitNames.length ? kitNames.join(", ") : "(solo el activo)"}. El árbol nested de bloques sigue editable y el HTML se puede exportar a PNG/PDF.${styleLines.length ? "\n" + styleLines.join("\n") : ""}`;
+  const handoff = handoffRender(file, persisted ? persisted.file : null, data, {
+    nextSteps: [
+      a.open === false ? "HTML generado sin abrir (open:false). Pasá open:true o abrí la ruta a mano." : "Se abrió en el navegador.",
+      `Kits en el picker: ${kitNames.length ? kitNames.join(", ") : "(solo el activo)"}.`,
+      "Exportá PNGs/PDF desde el editor.",
+      ...(styleLines.length ? ["Corregí los styleWarnings listados arriba."] : []),
+    ],
+  });
+  return appendHandoff(
+    `Carrusel generado (${data.slides.length} slides, formato ${data.meta.format}, kit "${data.kit.name}"):\n${file}\n\nJSON persistido: ${persisted ? persisted.file : "no (persist:false)"}\nEmpresa: ${company} · Carrusel: ${carouselName}\n\nEl árbol nested de bloques sigue editable y el HTML se puede exportar a PNG/PDF.${styleLines.length ? "\n" + styleLines.join("\n") : ""}`,
+    handoff
+  );
 }
 function readCarousel(company, name) {
   const dir = carouselPath(company, name);
@@ -1426,9 +1636,18 @@ function toolLoadCarousel(args) {
   if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
   const record = readCarousel(company, name);
   const runtime = hydrateCarousel(record.stored, record.dir);
-  const file = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open !== false });
+  runtime.company = company;
+  runtime.slug = name;
+  const file = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open !== false, stable: true });
   const narrative = narrativeAudit(record.stored.slides || [], record.stored.meta && record.stored.meta.title);
-  return JSON.stringify({ ...record.stored, narrativeAudit: narrative, protocol: NARRATIVE_REVIEW_PROTOCOL, render: { html: file, json: record.file } }, null, 2);
+  const handoff = handoffRender(file, record.file, runtime, {
+    nextSteps: [
+      a.open === false ? "HTML listo sin abrir (open:false)." : "Se abrió en el navegador.",
+      "Inspeccioná el JSON nested y editá con edit_slide / save_carousel.",
+      "Narrativa: revisá narrativeAudit.flags y NARRATIVE_REVIEW_PROTOCOL.",
+    ],
+  });
+  return JSON.stringify({ ...record.stored, narrativeAudit: narrative, protocol: NARRATIVE_REVIEW_PROTOCOL, ...handoff }, null, 2);
 }
 function toolSaveCarousel(args) {
   const a = args || {};
@@ -1463,6 +1682,500 @@ function toolSaveCarousel(args) {
   const styleWarnings = lintSlideTexts(slides);
   const narrative = narrativeAudit(slides, data.meta.title || name);
   return JSON.stringify({ saved: saved.file, company, slug: name, title: data.meta.title || name, slides: slides.length, assets: saved.data.assets, styleWarnings, narrativeAudit: narrative, protocol: NARRATIVE_REVIEW_PROTOCOL }, null, 2);
+}
+async function toolImportEditorState(args) {
+  const a = args || {};
+  let payload = a.payload;
+  if (typeof payload === "string") {
+    try { payload = JSON.parse(payload); } catch (e) { throw new Error("No se pudo parsear `payload` como JSON: " + e.message); }
+  }
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    if (payload.carousel && typeof payload.carousel === "object") {
+      a.carousel = payload.carousel;
+      if (payload.company && !a.company) a.company = payload.company;
+      if ((payload.name || payload.slug) && !(a.name || a.slug)) a.name = payload.name || payload.slug;
+    } else if (payload.slides || payload.meta) {
+      a.carousel = payload;
+    } else if (payload.action && payload.carousel) {
+      a.carousel = payload.carousel;
+    }
+  }
+  if (!a.carousel || typeof a.carousel !== "object") {
+    throw new Error("Falta el estado del editor. Pegá el JSON del botón Push al MCP en `payload`, o pasá `carousel` (v2) con company/name.");
+  }
+  const resultRaw = await toolSaveCarousel(a);
+  let result;
+  try { result = JSON.parse(resultRaw); } catch { result = { saved: resultRaw }; }
+  const company = slug(a.company || result.company || "");
+  const name = slug(a.name || a.slug || result.slug || "");
+  let html = null;
+  let runtime = null;
+  try {
+    const record = readCarousel(company, name);
+    runtime = hydrateCarousel(record.stored, record.dir);
+    runtime.company = company;
+    runtime.slug = name;
+    html = renderCarousel(runtime, { open: a.open === true, stable: true });
+  } catch (e) {
+    process.stderr.write(`[import-editor] render skip: ${e.message}\n`);
+  }
+  const handoff = html ? handoffRender(html, result.saved || null, runtime || { company, slug: name, slides: [], meta: {} }, {
+    nextSteps: [
+      "Estado del editor importado a carousel.json.",
+      "Las fotos base64 (si las hubo) quedaron en assets/.",
+      "Podés seguir refinando con edit_slide / render_preview / social_copy.",
+    ],
+  }) : { nextSteps: ["Estado importado; no se pudo re-renderizar el HTML en este paso."] };
+  return JSON.stringify({ imported: true, ...result, ...handoff }, null, 2);
+}
+function normalizePreviewFormat(f, fallback) {
+  const raw = String(f || "").trim().toLowerCase();
+  const map = {
+    feed: "feed", "4:5": "feed", "45": "feed", "4x5": "feed",
+    square: "square", "1:1": "square", "11": "square", "1x1": "square",
+    story: "story", "9:16": "story", "916": "story", "9x16": "story", reels: "story", tiktok: "story",
+  };
+  if (map[raw]) return map[raw];
+  if (["feed", "square", "story"].includes(raw)) return raw;
+  return fallback && ["feed", "square", "story"].includes(fallback) ? fallback : "feed";
+}
+function findChromeBin() {
+  const envChrome = process.env.CHROME_PATH && process.env.CHROME_PATH.trim();
+  if (envChrome && fs.existsSync(envChrome)) return envChrome;
+  const candidates = [];
+  if (process.platform === "darwin") {
+    const home = os.homedir();
+    const pwRoot = path.join(home, "Library", "Caches", "ms-playwright");
+    for (const dir of safeReaddir(pwRoot)) {
+      if (!/^chromium_headless_shell/i.test(dir)) continue;
+      candidates.push(path.join(pwRoot, dir, "chrome-headless-shell-mac-arm64", "chrome-headless-shell"));
+      candidates.push(path.join(pwRoot, dir, "chrome-headless-shell-mac", "chrome-headless-shell"));
+    }
+    for (const dir of safeReaddir(pwRoot)) {
+      if (!/^chromium-\d/i.test(dir)) continue;
+      candidates.push(path.join(pwRoot, dir, "chrome-mac-arm64", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"));
+      candidates.push(path.join(pwRoot, dir, "chrome-mac", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"));
+    }
+    candidates.push(
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "/Applications/Chromium.app/Contents/MacOS/Chromium",
+      path.join(home, "Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+    );
+  } else if (process.platform === "win32") {
+    const pf = process.env["PROGRAMFILES"] || "C:\\Program Files";
+    const pf86 = process.env["PROGRAMFILES(X86)"] || "C:\\Program Files (x86)";
+    candidates.push(
+      path.join(pf, "Google", "Chrome", "Application", "chrome.exe"),
+      path.join(pf86, "Google", "Chrome", "Application", "chrome.exe")
+    );
+  } else {
+    candidates.push("/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser", "/snap/bin/chromium");
+  }
+  for (const c of candidates) {
+    try { if (fs.existsSync(c)) return c; } catch {}
+  }
+  for (const name of ["google-chrome", "chromium", "chromium-browser", "chrome"]) {
+    try {
+      const r = spawnSync("which", [name], { encoding: "utf8" });
+      if (r.status === 0 && r.stdout && r.stdout.trim()) return r.stdout.trim();
+    } catch {}
+  }
+  return null;
+}
+function safeReaddir(dir) {
+  try { return fs.readdirSync(dir); } catch { return []; }
+}
+function chromeScreenshot(bin, url, pngPath, width, height) {
+  const isHeadlessShell = /chrome-headless-shell|headless_shell/i.test(bin);
+  const args = [];
+  if (!isHeadlessShell) args.push("--headless=new");
+  args.push(
+    "--disable-gpu",
+    "--no-sandbox",
+    "--hide-scrollbars",
+    "--disable-dev-shm-usage",
+    "--allow-file-access-from-files",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--window-size=" + width + "," + height,
+    "--force-device-scale-factor=1",
+    "--virtual-time-budget=8000",
+    "--run-all-compositor-stages-before-draw",
+    "--screenshot=" + pngPath,
+    url
+  );
+  try { fs.rmSync(pngPath, { force: true }); } catch {}
+  const r = spawnSync(bin, args, { encoding: "utf8", timeout: 45000, maxBuffer: 8 * 1024 * 1024 });
+  if (r.error && (r.error.code === "ETIMEDOUT" || /ETIMEDOUT|timed out/i.test(String(r.error.message || "")))) {
+    if (fs.existsSync(pngPath)) return pngPath;
+    const r2 = spawnSync(bin, args, { encoding: "utf8", timeout: 45000, maxBuffer: 8 * 1024 * 1024 });
+    if (r2.error && !fs.existsSync(pngPath)) throw new Error("No se pudo ejecutar Chrome: " + r2.error.message);
+    if (!fs.existsSync(pngPath)) {
+      const err = (r2.stderr || r2.stdout || r.stderr || r.stdout || "").slice(0, 400);
+      throw new Error("Chrome no generó el PNG (" + pngPath + "). " + err);
+    }
+    return pngPath;
+  }
+  if (r.error) throw new Error("No se pudo ejecutar Chrome: " + r.error.message);
+  if (!fs.existsSync(pngPath)) {
+    const err = (r.stderr || r.stdout || "").slice(0, 400);
+    throw new Error("Chrome no generó el PNG (" + pngPath + "). " + err);
+  }
+  return pngPath;
+}
+function fileUrl(p) {
+  const abs = path.resolve(p);
+  let u = "file://" + abs.split(path.sep).map(encodeURIComponent).join("/");
+  return u;
+}
+function toolRenderPreview(args) {
+  const a = args || {};
+  const company = slug(a.company || "");
+  const name = slug(a.name || a.slug || "");
+  if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+  const record = readCarousel(company, name);
+  const storedFormat = (record.stored.meta && record.stored.meta.format) || "feed";
+  const format = normalizePreviewFormat(a.format, storedFormat);
+  const canvas = canvasForFormat(format);
+  const runtime = hydrateCarousel(record.stored, record.dir);
+  runtime.company = company;
+  runtime.slug = name;
+  if (runtime.meta) {
+    runtime.meta.format = format;
+    runtime.meta.canvas = canvas;
+  }
+  const total = (runtime.slides || []).length;
+  if (!total) throw new Error("El carrusel no tiene slides.");
+  let indices;
+  if (Array.isArray(a.slides) && a.slides.length) {
+    indices = a.slides.map((n) => parseInt(n, 10)).filter((n) => Number.isFinite(n) && n >= 1 && n <= total);
+    if (!indices.length) throw new Error("`slides` fuera de rango (1.." + total + ").");
+  } else {
+    indices = Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const chrome = findChromeBin();
+  const outDir = a.outputDir
+    ? expandHome(a.outputDir)
+    : path.join(record.dir, "previews", format);
+  fs.mkdirSync(outDir, { recursive: true });
+  const htmlFile = path.join(outDir, `${name}-preview.html`);
+  const brands = brandKitsPayload((runtime.kitSource && runtime.kitSource.slug) || (runtime.kit && runtime.kit.name) || "");
+  const payload =
+    "<script>window.BRAND_KITS=" + JSON.stringify(brands).replace(/</g, "\\u003c") + ";</script>" +
+    "<script>window.CAROUSEL_DATA=" + JSON.stringify(runtime).replace(/</g, "\\u003c") + ";</script>";
+  const template = loadAppTemplate();
+  fs.writeFileSync(htmlFile, template.replace(MARKER, payload), "utf8");
+  const pngs = [];
+  const errors = [];
+  if (!chrome) {
+    return JSON.stringify({
+      preview: {
+        ok: false,
+        reason: "no-chrome",
+        note: "No se encontró Chrome/Chromium headless. Abrí el HTML de preview y exportá PNGs desde el editor.",
+        format,
+        width: canvas.w,
+        height: canvas.h,
+        htmlPath: htmlFile,
+        dir: outDir,
+        slides: indices,
+        pngs: [],
+      },
+      nextSteps: [
+        "Instalá Google Chrome o pasá la ruta con CHROME_PATH.",
+        "Abrí el HTML de preview con ?preview=1&slide=N&format=" + format + " y exportá a mano.",
+      ],
+    }, null, 2);
+  }
+  for (const n of indices) {
+    const pngPath = path.join(outDir, `slide-${String(n).padStart(2, "0")}.png`);
+    const url = fileUrl(htmlFile) + `?preview=1&slide=${n}&format=${format}&t=${Date.now()}`;
+    try {
+      chromeScreenshot(chrome, url, pngPath, canvas.w, canvas.h);
+      let bytes = 0;
+      try { bytes = fs.statSync(pngPath).size; } catch {}
+      pngs.push({ slide: n, path: pngPath, bytes, width: canvas.w, height: canvas.h });
+    } catch (e) {
+      errors.push({ slide: n, error: String(e && e.message || e) });
+    }
+  }
+  if (a.open === true && pngs[0]) {
+    try {
+      if (process.platform === "darwin") spawn("open", [pngs[0].path], { stdio: "ignore", detached: true }).unref();
+      else if (process.platform === "linux") spawn("xdg-open", [pngs[0].path], { stdio: "ignore", detached: true }).unref();
+    } catch {}
+  }
+  return JSON.stringify({
+    preview: {
+      ok: pngs.length > 0 && !errors.length,
+      format,
+      width: canvas.w,
+      height: canvas.h,
+      dir: outDir,
+      htmlPath: htmlFile,
+      chrome,
+      pngs,
+      errors,
+      count: pngs.length,
+      requested: indices.length,
+    },
+    nextSteps: [
+      pngs.length
+        ? `Leé/verificá los ${pngs.length} PNG(s) con visión (copy, fotos, layout).`
+        : "No se generó ningún PNG — revisá errors.",
+      errors.length ? "Hay slides con error de render: revisá errors." : "Si el copy o fotos cambiaron, volvé a correr render_preview.",
+      "Formatos aceptados: 4:5|feed, 1:1|square, 9:16|story.",
+    ],
+  }, null, 2);
+}
+function stripMd(t) {
+  return String(t || "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/==(.+?)==/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function slidePlainText(s) {
+  const texts = { kicker: "", title: "", highlight: "", body: "", items: [] };
+  const walk = (nodes) => {
+    for (const b of nodes || []) {
+      if (b.type === "kicker" && !texts.kicker) texts.kicker = stripMd(b.text);
+      if (b.type === "text" && !texts.title) texts.title = stripMd(b.text);
+      if (b.type === "highlight" && !texts.highlight) texts.highlight = stripMd(b.text);
+      if (b.type === "body") texts.body += (texts.body ? " " : "") + stripMd(b.text);
+      if (b.type === "item") {
+        const t = stripMd(b.title || b.text);
+        const d = stripMd(b.desc);
+        if (t) texts.items.push(d ? `${t}: ${d}` : t);
+      }
+      if (b.type === "slogan" && !texts.slogan) texts.slogan = stripMd(b.text);
+      if (b.type === "pill" && b.text) texts.items.push(stripMd(b.text));
+      if (b.children) walk(b.children);
+    }
+  };
+  walk(s.elements);
+  return texts;
+}
+function readSourceMd(dir) {
+  const file = path.join(dir, "source.md");
+  if (!fs.existsSync(file)) return null;
+  try {
+    const raw = fs.readFileSync(file, "utf8");
+    const fm = {};
+    const m = raw.match(/^---\n([\s\S]*?)\n---/);
+    if (m) {
+      for (const line of m[1].split("\n")) {
+        const kv = line.match(/^(\w+):\s*(.*)$/);
+        if (!kv) continue;
+        let v = kv[2].trim();
+        if (v.startsWith('"') && v.endsWith('"')) { try { v = JSON.parse(v); } catch {} }
+        fm[kv[1]] = v;
+      }
+    }
+    const sections = {};
+    let cur = null;
+    for (const line of raw.split("\n")) {
+      const h = line.match(/^##\s+(.+)/);
+      if (h) { cur = h[1].trim(); sections[cur] = []; continue; }
+      if (cur && line.trim() && !line.startsWith("---") && !line.startsWith("- Extraído")) {
+        sections[cur].push(line.trim());
+      }
+    }
+    return { file, frontmatter: fm, sections };
+  } catch { return null; }
+}
+function slugTag(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "")
+    .slice(0, 30);
+}
+function buildHashtags(terms, category, kitName, max) {
+  const out = [];
+  const push = (t) => {
+    const bare = slugTag(t);
+    if (!bare || bare.length < 3) return;
+    const tag = "#" + bare;
+    if (!out.includes(tag)) out.push(tag);
+  };
+  for (const t of terms) push(t);
+  if (category) push(category);
+  if (kitName) push(kitName);
+  push("carousel");
+  push("contenido");
+  push("redessociales");
+  push("marketing");
+  return out.slice(0, max || 8);
+}
+function hookVariants(title, highlight, kicker, tone) {
+  const t = stripMd(title) || "este carrusel";
+  const h = stripMd(highlight);
+  const k = stripMd(kicker);
+  const base = [
+    h ? `${h} — lo que nadie te cuenta.` : `${t}: por qué importa ahora.`,
+    `Si solo leés una slide, que sea esta: ${t}.`,
+    k ? `${k}: ${t}` : t,
+  ];
+  const byTone = {
+    directo: [`Directo al grano: ${t}.`, h ? `${h}. Punto.` : `${t}. Punto.`],
+    inspirador: [`Imaginate ${t.toLowerCase()} — mirá cómo se hace.`, `Cambio real empieza con una idea: ${t}.`],
+    informativo: [`${t}: datos, contexto y qué sigue.`, h ? `El dato que cambia todo: ${h}.` : `Todo lo que hay que saber de ${t}.`],
+    provocador: [`¿Y si te digo que ${t.toLowerCase()} no es lo que pensás?`, h ? `Esto incomoda: ${h}.` : `La verdad incómoda sobre ${t}.`],
+    cercano: [`Te cuento algo que vimos con ${t}…`, `Pasa seguido con ${t}. Mirá esto.`],
+  };
+  return [...base, ...(byTone[tone] || byTone.informativo)].filter(Boolean).slice(0, 5);
+}
+function buildCaption(platform, { title, dek, hooks, audience, cta, tone, figures, category, slideCount }) {
+  const t = stripMd(title) || "Carrusel";
+  const d = stripMd(dek);
+  const figLine = figures.length ? `Dato clave: ${figures[0]}.` : "";
+  const aud = audience ? ` Para ${audience}.` : "";
+  const ends = cta ? cta : "Deslizá para ver el hilo completo →";
+  const short = platform === "x";
+  const linkedin = platform === "linkedin";
+  if (short) {
+    const body = [hooks[0] || t, d && !short ? d.slice(0, 120) : "", `${slideCount} slides.`, ends].filter(Boolean);
+    return body.join("\n\n").slice(0, 270);
+  }
+  const paras = [];
+  paras.push(hooks[0] || t);
+  if (d) paras.push(d + aud);
+  else paras.push(`Un hilo de ${slideCount} slides con lo esencial de ${t}.${aud}`);
+  if (figLine) paras.push(figLine);
+  if (linkedin) {
+    paras.push("Guardalo y compartilo si te sirvió.");
+    paras.push(ends);
+  } else {
+    paras.push("Guardá el post y compartilo con quien lo necesite 💾");
+    paras.push(ends);
+  }
+  if (hooks[1] && !short) paras.push(`\nOtro gancho: ${hooks[1]}`);
+  return paras.join("\n\n");
+}
+function altTextFor(slide, texts, index) {
+  const parts = [texts.kicker, texts.title, texts.highlight].filter(Boolean).map(stripMd);
+  const core = parts.join(" — ") || stripMd(slide.template) || `Slide ${index + 1}`;
+  const extra = texts.body ? stripMd(texts.body).slice(0, 40) : "";
+  let alt = extra && !core.includes(extra) ? `${core}. ${extra}` : core;
+  if (alt.length > 125) alt = alt.slice(0, 122).replace(/\s+\S*$/, "") + "…";
+  if (!alt) alt = `Slide ${index + 1} del carrusel`;
+  return alt.slice(0, 125);
+}
+function toolSocialCopy(args) {
+  const a = args || {};
+  const company = slug(a.company || "");
+  const name = slug(a.name || a.slug || "");
+  if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+  const record = readCarousel(company, name);
+  const stored = record.stored;
+  const meta = stored.meta || {};
+  const title = meta.title || name;
+  const category = meta.category || "";
+  const kitName = (stored.kit && stored.kit.name) || "";
+  const source = readSourceMd(record.dir);
+  const dek = (source && (source.frontmatter.dek || (source.sections["Descripción curada"] || []).join(" "))) || "";
+  const tone = a.tone || "informativo";
+  const audience = a.audience || "";
+  const language = a.language || "es-AR";
+  const platforms = (Array.isArray(a.platforms) && a.platforms.length
+    ? a.platforms
+    : ["instagram", "linkedin"]
+  ).map((p) => String(p).toLowerCase()).filter((p) => ["instagram", "linkedin", "x", "facebook", "tiktok"].includes(p));
+  if (!platforms.length) throw new Error("`platforms` vacío o inválido.");
+  const slides = stored.slides || [];
+  if (!slides.length) throw new Error("El carrusel no tiene slides.");
+  const slideTexts = slides.map((s) => slidePlainText(s));
+  const cover = slideTexts[0] || {};
+  const allText = slideTexts.map((st) => [st.kicker, st.title, st.highlight, st.body, ...(st.items || [])].filter(Boolean).join(" ")).join(" ");
+  const figures = [...extractFigures(allText)];
+  const terms = [
+    cover.title, cover.highlight, cover.kicker, title,
+    ...(source && source.sections["Puntos"] ? source.sections["Puntos"].slice(0, 3).map((x) => x.replace(/^-\s*/, "")) : []),
+  ].filter(Boolean);
+  const hooks = hookVariants(title, cover.highlight || figures[0], cover.kicker, tone);
+  const hashtagBudget = { instagram: 8, linkedin: 5, x: 2, facebook: 6, tiktok: 8 };
+  const includeHashtags = a.includeHashtags !== false;
+  const captions = {};
+  const hashtags = {};
+  for (const p of platforms) {
+    captions[p] = buildCaption(p, {
+      title, dek: dek || meta.description || "", hooks, audience,
+      cta: a.cta || "", tone, figures, category, slideCount: slides.length,
+    });
+    if (includeHashtags) {
+      const max = Number.isFinite(a.maxHashtags) && a.maxHashtags > 0 ? Math.min(a.maxHashtags, 30) : hashtagBudget[p];
+      hashtags[p] = buildHashtags(terms, category, kitName, max);
+      if (hashtags[p].length && p !== "x") {
+        captions[p] = captions[p] + "\n\n" + hashtags[p].join(" ");
+      } else if (hashtags[p].length && p === "x") {
+        captions[p] = (captions[p] + " " + hashtags[p].join(" ")).slice(0, 280);
+      }
+    } else {
+      hashtags[p] = [];
+    }
+  }
+  const altTexts = slideTexts.map((st, i) => ({
+    slide: i + 1,
+    template: slides[i] && slides[i].template,
+    alt: altTextFor(slides[i] || {}, st, i),
+    chars: altTextFor(slides[i] || {}, st, i).length,
+  }));
+  const result = {
+    company, slug: name, title, language, tone, audience: audience || null,
+    source: source ? { path: source.file, used: true } : { used: false, note: "Sin source.md — copy basado solo en slides/meta." },
+    hooks,
+    captions,
+    hashtags,
+    altTexts,
+    figures: figures.slice(0, 8),
+    charLimits: { instagram: 2200, linkedin: 3000, x: 280, facebook: 63206, tiktok: 2200 },
+    notes: [
+      "Copy generado con heurísticas locales (sin API). Revisá y ajustá tono/CTA a mano.",
+      "altText ≤125 chars por accesibilidad; no repetir el título literal si la slide ya lo dice.",
+      "Hashtags: recortá a los relevantes para tu audiencia antes de publicar.",
+    ],
+    nextSteps: [
+      "Elegí el caption de la plataforma y pegalo en el scheduler/redacción.",
+      "Revisá altTexts contra las fotos reales (PHOTO REVIEW PROTOCOL).",
+      "Si querés persistir, pasá save:true para escribir social.md.",
+    ],
+  };
+  let savedPath = null;
+  if (a.save === true) {
+    const sf = path.join(record.dir, "social.md");
+    const lines = [
+      `# Social copy — ${title}`,
+      "",
+      `- company: ${company}`,
+      `- slug: ${name}`,
+      `- tone: ${tone}`,
+      `- language: ${language}`,
+      `- generatedAt: ${new Date().toISOString()}`,
+      "",
+      "## Hooks",
+      "",
+      ...hooks.map((h, i) => `${i + 1}. ${h}`),
+      "",
+      ...platforms.map((p) => `## Caption — ${p}\n\n${captions[p]}\n`),
+      "## Hashtags",
+      "",
+      ...platforms.map((p) => `- ${p}: ${(hashtags[p] || []).join(" ") || "(ninguno)"}\n`),
+      "## Alt texts",
+      "",
+      ...altTexts.map((x) => `- slide ${x.slide} (${x.template}): ${x.alt}`),
+      "",
+      "## Notas",
+      "",
+      ...result.notes.map((n) => `- ${n}`),
+      "",
+    ];
+    fs.writeFileSync(sf, lines.join("\n"), "utf8");
+    savedPath = sf;
+    result.saved = sf;
+  }
+  return JSON.stringify(result, null, 2);
 }
 function toolSaveKit(args) {
   const a = args || {};
@@ -1693,6 +2406,9 @@ async function callTool(name, args) {
     case "delete_carousel": return toolDeleteCarousel(args);
     case "set_slide_photo": return await toolSetSlidePhoto(args);
     case "edit_slide": return await toolEditSlide(args);
+    case "import_editor_state": return await toolImportEditorState(args);
+    case "render_preview": return toolRenderPreview(args);
+    case "social_copy": return toolSocialCopy(args);
     default: throw new Error(`Herramienta desconocida: ${name}`);
   }
 }
