@@ -35,8 +35,13 @@ export function slideMetaForReview(stored, dir) {
 
 export default {
   name: "review_slide_images",
-  description:
-    "Audita las fotos de un carrusel persistido: por slide devuelve textos (kicker/título/highlight/body), la foto asignada (ruta, dimensiones, scrim) y photoNeeds con queries sugeridas para las slides sin foto. La respuesta incluye el PHOTO REVIEW PROTOCOL para que el agente verifique visualmente, reemplace con stock y re-audite.",
+  description: [
+    "Audit photos of a persisted carousel: per-slide texts, assigned photo, photoNeeds.",
+    "WHAT: for each slide return kicker/title/highlight/body, photo path+dimensions+scrim, and photoNeeds (missing photos + suggested query).",
+    "WHEN: after carousel_from_url / set_slide_photo, or when applying PHOTO_REVIEW_PROTOCOL before deliver.",
+    "SISTERS: set_slide_photo (replace), edit_slide (copy fixes), validate_carousel (narrative), render_preview (PNGs).",
+    "ANTI: the agent MUST verify each photo visually, replace bad ones with stock via set_slide_photo, and re-audit before delivering.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

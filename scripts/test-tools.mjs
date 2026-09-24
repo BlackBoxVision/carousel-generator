@@ -14,6 +14,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
 const SERVER = path.join(ROOT, "mcp", "server.mjs");
 const TMP_COMPANY = "smoketest";
+const HOME = process.env.CAROUSEL_GENERATOR_HOME || path.join(os.homedir(), ".carousel-generator");
+const CAROUSELS = path.join(HOME, "carousels");
+const BRAND = path.join(HOME, "brand");
 
 function rpc(msgs, waitIds, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
@@ -158,7 +161,7 @@ async function main() {
 
   const dupText = contentText(phase4.get(8));
   assert(dupText.includes("smoke-copy"), "duplicate_carousel target");
-  assert(fs.existsSync(path.join(os.homedir(), ".carousel-generator", "carousels", TMP_COMPANY, "smoke-copy", "carousel.json")), "duplicate carousel.json exists");
+  assert(fs.existsSync(path.join(CAROUSELS, TMP_COMPANY, "smoke-copy", "carousel.json")), "duplicate carousel.json exists");
 
   const pdfOut = JSON.parse(contentText(phase4.get(9)));
   assert(pdfOut.pdf && pdfOut.pdf.htmlPath, "export_pdf htmlPath");
@@ -169,16 +172,16 @@ async function main() {
   const prev = JSON.parse(contentText(phase4.get(11)));
   assert(prev.deleted === false, "delete_brand_kit preview");
   assert(/eliminado/i.test(contentText(phase4.get(12))), "delete_brand_kit confirm");
-  assert(!fs.existsSync(path.join(os.homedir(), ".carousel-generator", "brand", "smoke-doomed", "kit.json")), "kit folder removed");
+  assert(!fs.existsSync(path.join(BRAND, "smoke-doomed", "kit.json")), "kit folder removed");
 
   console.log("---");
   console.log(fails.length ? "FAILURES: " + fails.length + " -> " + fails.join(" | ") : "ALL PASS (" + passed + ")");
   // cleanup
   try {
-    fs.rmSync(path.join(os.homedir(), ".carousel-generator", "carousels", TMP_COMPANY), { recursive: true, force: true });
+    fs.rmSync(path.join(CAROUSELS, TMP_COMPANY), { recursive: true, force: true });
   } catch {}
   try {
-    fs.rmSync(path.join(os.homedir(), ".carousel-generator", "brand", "smoke-doomed"), { recursive: true, force: true });
+    fs.rmSync(path.join(BRAND, "smoke-doomed"), { recursive: true, force: true });
   } catch {}
   const html = path.join(os.tmpdir(), "smoketest-smoke-tools.html");
   try { if (fs.existsSync(html)) fs.unlinkSync(html); } catch {}

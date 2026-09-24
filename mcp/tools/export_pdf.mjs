@@ -10,8 +10,13 @@ import { fileUrl, findChromeBin, normalizePreviewFormat } from "../lib/preview.m
 
 export default {
   name: "export_pdf",
-  description:
-    "Exporta el carrusel a un PDF multipágina con Chrome headless (print-to-pdf). Acepta format feed|4:5, square|1:1, story|9:16 (default: el formato del carrusel). Genera un HTML preview y lo imprime a PDF. Devuelve la ruta del PDF y del HTML intermedio. Si no hay Chrome, devuelve el HTML para exportar a mano desde el editor.",
+  description: [
+    "Export the carousel to a multi-page PDF with headless Chrome (print-to-pdf).",
+    "WHAT: accept format feed|4:5, square|1:1, story|9:16 (default: carousel format); write HTML preview then print PDF; return pdfPath + htmlPath.",
+    "WHEN: user asks for a PDF export of the full carousel or selected slides.",
+    "SISTERS: render_preview (PNGs), load_carousel (HTML), set_carousel_meta (format).",
+    "ANTI: if Chrome is missing, return the HTML path with pdf.ok=false — do not invent a PDF path.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

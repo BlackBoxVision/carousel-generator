@@ -4,7 +4,13 @@ import { slug } from "../lib/text.mjs";
 
 export default {
   name: "load_brand_kit",
-  description: "Devuelve el JSON completo de un brand kit guardado (busca en ~/.carousel-generator/brand/{empresa}/kit.json y en mcp/kits/ del repo).",
+  description: [
+    "Return the full JSON of a saved brand kit.",
+    "WHAT: look up personal kit (~/.carousel-generator/brand/{empresa}/kit.json) then repo kit (mcp/kits/).",
+    "WHEN: inspecting a kit before save_brand_kit merge or generate_carousel kitName.",
+    "SISTERS: list_brand_kits (names), save_brand_kit (write), brand_kit_from_url (derive), generate_carousel (apply).",
+    "ANTI: do NOT read kit files with shell/file tools; use this tool.",
+  ].join("\n"),
   inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
   handler(args) {
     const name = slug((args && args.name) || "");

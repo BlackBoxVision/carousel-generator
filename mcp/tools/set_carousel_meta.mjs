@@ -7,8 +7,13 @@ import { slug } from "../lib/text.mjs";
 
 export default {
   name: "set_carousel_meta",
-  description:
-    "Actualiza meta de un carrusel persistido sin tocar las slides: title, format (feed|square|story + canvas), category (cascade de highlightColors) y showCount. Persiste carousel.json, re-renderiza el preview y devuelve el meta resultante.",
+  description: [
+    "Update carousel meta without touching slides: title, format, category, showCount.",
+    "WHAT: write meta.title / meta.format(+canvas) / meta.category (highlightColors cascade) / meta.showCount; persist and re-render preview.",
+    "WHEN: renaming, switching feed|square|story, changing category, toggling N/M chips.",
+    "SISTERS: edit_slide (slide content), save_carousel (bulk meta+kit+slides), validate_carousel, render_preview / export_pdf.",
+    "ANTI: do NOT pass slides to this tool; do NOT edit carousel.json yourself.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

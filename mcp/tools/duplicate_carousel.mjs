@@ -8,8 +8,13 @@ import { clone, slug } from "../lib/text.mjs";
 
 export default {
   name: "duplicate_carousel",
-  description:
-    "Duplica un carrusel persistido a otra empresa y/o otro slug (para variantes A/B o copias de trabajo). Copia el JSON (meta, kit, slides, assets referenciados) al nuevo destino, re-idemp de assets, re-renderiza el preview del duplicado y lo devuelve. El original no se modifica.",
+  description: [
+    "Duplicate a persisted carousel to another company and/or slug (A/B variants or working copies).",
+    "WHAT: copy meta/kit/slides/referenced assets to the destination, re-idemp assets, re-render the duplicate preview; original untouched.",
+    "WHEN: branching a carousel without mutating the source; A/B copy experiments.",
+    "SISTERS: list_carousels (pick source), edit_slide (edit the copy), delete_carousel (cleanup), set_carousel_meta (rename).",
+    "ANTI: do NOT mutate the source; destination slug must differ from origin.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

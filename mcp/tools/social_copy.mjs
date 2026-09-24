@@ -7,8 +7,13 @@ import { altTextFor, buildCaption, buildHashtags, hookVariants, readSourceMd, sl
 
 export default {
   name: "social_copy",
-  description:
-    "Genera copy de publicación (captions, ganchos, hashtags y alt text por slide) para un carrusel persistido. Prioriza source.md → slides → meta. Plataformas: instagram, linkedin, x (default: instagram+linkedin). Idioma es-AR. Sin API key: heurísticas locales. Devuelve hooks, captions por plataforma, hashtags sugeridos y altText ≤125 chars por slide para accesibilidad.",
+  description: [
+    "Generate social post copy (captions, hooks, hashtags, altText) for a persisted carousel.",
+    "WHAT: source priority source.md → slides → meta; platforms instagram|linkedin|x|facebook|tiktok (default instagram+linkedin); es-AR; local heuristics, no API key; altText ≤125 chars per slide.",
+    "WHEN: after validate_carousel is green, when user asks to publish or needs captions/hashtags.",
+    "SISTERS: validate_carousel (pre-check), review_slide_images (alt context), render_preview / export_pdf (assets).",
+    "ANTI: do NOT deliver without reviewing altText ≤125 and avoiding literal slide-copy repetition; fix styleWarnings first.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

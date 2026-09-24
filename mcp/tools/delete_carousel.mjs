@@ -5,8 +5,13 @@ import { slug } from "../lib/text.mjs";
 
 export default {
   name: "delete_carousel",
-  description:
-    "Elimina permanentemente un carrusel persistido (carpeta carousel.json + assets). Seguro en dos pasos: sin confirm:true devuelve un preview de lo que se va a borrar sin tocar nada; con confirm:true ejecuta el borrado. Pedi confirmación al usuario antes de usar confirm:true.",
+  description: [
+    "Permanently delete a persisted carousel folder (carousel.json + assets).",
+    "WHAT: two-step safety — without confirm:true returns a preview only; with confirm:true deletes for real.",
+    "WHEN: user explicitly asked to remove a carousel after confirmation.",
+    "SISTERS: list_carousels (find), duplicate_carousel (copy before delete), delete_brand_kit (kits).",
+    "ANTI: NEVER call with confirm:true without asking the user first.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

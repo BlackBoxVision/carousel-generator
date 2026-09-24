@@ -7,7 +7,13 @@ import { findKitFile, resolveLogo } from "../lib/kits.mjs";
 
 export default {
   name: "save_brand_kit",
-  description: "Guarda un brand kit en ~/.carousel-generator/brand/{empresa}/kit.json para reutilizarlo con generate_carousel y verlo en el picker multi-kit del editor. Acepta logo.imagePath (ruta de imagen relativa a la carpeta de la empresa, o 'file:' + absoluta) que se embebe en base64 dentro del kit. Si el kit ya existe, se mergea sobre él.",
+  description: [
+    "Save or merge a brand kit under ~/.carousel-generator/brand/{empresa}/kit.json.",
+    "WHAT: accept full or partial kit (colors, fonts, logo, gradients, photoOverlay); merge over existing kit; logo.imagePath embeds base64.",
+    "WHEN: after brand_kit_from_url / manual kit authoring, to reuse with generate_carousel kitName and the editor multi-kit picker.",
+    "SISTERS: brand_kit_from_url (from site), load_brand_kit (inspect), list_brand_kits (see), generate_carousel (apply).",
+    "ANTI: do NOT overwrite other company kits; pass only fields to change when refining (partial merge).",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

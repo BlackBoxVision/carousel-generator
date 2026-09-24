@@ -6,8 +6,13 @@ import { slug } from "../lib/text.mjs";
 
 export default {
   name: "validate_carousel",
-  description:
-    "Dry-run de calidad sobre un carrusel persistido (o slides sueltas sin guardar): narrativeAudit (cover/cta/figuras/kickers/orphans) + styleWarnings (raya larga, contrastes 'no es X, es Y', clichés de IA). NO escribe ni re-renderiza. Usalo antes de entregar o para auditar sin mutar.",
+  description: [
+    "Quality dry-run on a persisted carousel (or unsaved slides): narrativeAudit + styleWarnings.",
+    "WHAT: cover/cta/figures/kickers/orphans audit + em-dash / 'no es X, es Y' / AI cliché warnings; NO write, NO re-render.",
+    "WHEN: before delivering or when auditing without mutating; also after large rewrites.",
+    "SISTERS: edit_slide (fix findings), load_carousel (inspect), review_slide_images (photo audit), social_copy (after green).",
+    "ANTI: never persist from this tool; follow NARRATIVE_REVIEW_PROTOCOL when flags are non-empty.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

@@ -5,7 +5,13 @@ import { slug } from "../lib/text.mjs";
 
 export default {
   name: "list_carousels",
-  description: "Lista los carouseles persistidos por empresa en ~/.carousel-generator/carousels/. Filtrá con company para ver solo una empresa. Devuelve company, slug, título, formato, cantidad de slides, fecha y ruta JSON para elegir cuál cargar.",
+  description: [
+    "List persisted carousels grouped by company under ~/.carousel-generator/carousels/.",
+    "WHAT: return company, slug, title, format, slide count, updatedAt and JSON path per carousel.",
+    "WHEN: discovering what exists before load_carousel / edit_slide; optional company filter.",
+    "SISTERS: load_carousel (open one), duplicate_carousel (copy), delete_carousel (remove), list_brand_kits (kits).",
+    "ANTI: do NOT read directories yourself; do NOT assume a slug — pick from this list.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

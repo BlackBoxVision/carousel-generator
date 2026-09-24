@@ -8,8 +8,13 @@ import { slug } from "../lib/text.mjs";
 
 export default {
   name: "generate_carousel",
-  description:
-    "Genera un carrusel HTML editable y lo abre. La definición se persiste por defecto como carousel.json v2 en un árbol nested de bloques (brand, stack, text, highlight, body, items, box, etc.) con posiciones, tamaños, estilos y assets referenciados por archivo. El HTML incluye TODOS los brand kits guardados para cambiar de kit en vivo. La respuesta incluye advertencias de estilo si los textos usan raya larga (—), contrastes 'no es X, es Y' o clichés de IA: corregilos.",
+  description: [
+    "Create a new editable carousel HTML and optionally open it.",
+    "WHAT: build slides from a nested block tree (brand, stack, text, highlight, body, items, box, ...) with positions/styles; persist carousel.json v2 by default; HTML includes all saved brand kits for live switching.",
+    "WHEN: starting a new carousel from scratch or from an inline kit; first step of any create flow.",
+    "SISTERS: carousel_from_url (from article), load_carousel (reopen), save_carousel (bulk upsert), edit_slide (refine slides), set_slide_photo / set_slide_bg (media), set_carousel_meta (title/format), validate_carousel (audit), render_preview / export_pdf (output).",
+    "ANTI: do NOT edit carousel.json on disk yourself; do NOT invent block types outside BLOCK_TYPES; fix every styleWarnings entry (em-dash, 'no es X, es Y', AI clichés) before delivering.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

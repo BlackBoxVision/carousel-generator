@@ -6,8 +6,13 @@ import { slug } from "../lib/text.mjs";
 
 export default {
   name: "delete_brand_kit",
-  description:
-    "Elimina un brand kit personal (~/.carousel-generator/brand/{empresa}/kit.json). Seguro en dos pasos: sin confirm:true devuelve un preview; con confirm:true ejecuta el borrado. No borra kits del repo (mcp/kits/). Pedi confirmación al usuario antes de usar confirm:true.",
+  description: [
+    "Delete a personal brand kit under ~/.carousel-generator/brand/{empresa}/kit.json.",
+    "WHAT: two-step safety — without confirm:true returns a preview; with confirm:true deletes. Repo kits (mcp/kits/) are protected.",
+    "WHEN: user explicitly asked to remove a personal kit after confirmation.",
+    "SISTERS: list_brand_kits (find), save_brand_kit (create/update), load_brand_kit (inspect).",
+    "ANTI: NEVER confirm:true without asking the user first; never delete repo kits.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

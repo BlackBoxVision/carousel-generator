@@ -7,7 +7,13 @@ import { slug } from "../lib/text.mjs";
 
 export default {
   name: "load_carousel",
-  description: "Carga un carousel.json v2 por empresa/slug, resuelve sus assets, genera un HTML editable y lo abre. Devuelve el JSON nested completo más las rutas render/json. Usalo para inspeccionar y refinar un carrusel existente.",
+  description: [
+    "Load a persisted carousel.json v2 by company/slug, resolve assets, render editable HTML.",
+    "WHAT: return full nested JSON plus render/json paths; HTML opens for inspection.",
+    "WHEN: resuming work on an existing carousel before edit_slide / save_carousel / set_*.",
+    "SISTERS: list_carousels (find), save_carousel (upsert), edit_slide (mutate slides), validate_carousel (audit), render_preview (PNGs).",
+    "ANTI: do NOT open carousel.json with shell/file tools; use this tool's returned JSON. Follow NARRATIVE_REVIEW_PROTOCOL on the returned narrativeAudit.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

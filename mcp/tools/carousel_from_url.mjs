@@ -10,8 +10,13 @@ import { slug } from "../lib/text.mjs";
 
 export default {
   name: "carousel_from_url",
-  description:
-    "Crea un carrusel borrador desde la URL de una nota/artículo (fetch + extracción de título, bajada, datos e imágenes). Aplica boldifyData (negrita automática a cifras) y particiona listas a ≤3 items. Asigna fotos del artículo por heurística (descarta infografías/logos) y devuelve photoNeeds (slides sin foto + query sugerida). La respuesta incluye el PHOTO REVIEW PROTOCOL: el agente DEBE verificar visualmente cada foto, reemplazar las que no tienen sentido con stock (websearch) usando set_slide_photo, y re-auditar con review_slide_images antes de entregar.",
+  description: [
+    "Create a draft carousel from an article URL (fetch + title/lead/data/image extraction).",
+    "WHAT: apply boldifyData (auto-bold figures), partition lists to ≤3 items, assign article photos by heuristic (drops infographics/logos), return photoNeeds; include PHOTO_REVIEW_PROTOCOL.",
+    "WHEN: user shares a note/article URL and wants a carousel draft.",
+    "SISTERS: review_slide_images (photo audit), set_slide_photo (replace), edit_slide (refine), validate_carousel (narrative), render_preview (PNGs).",
+    "ANTI: the agent MUST visually verify each photo, replace bad ones with stock via set_slide_photo, and re-audit with review_slide_images before delivering.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

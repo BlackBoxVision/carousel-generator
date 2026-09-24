@@ -10,8 +10,13 @@ import { slideMetaForReview } from "./review_slide_images.mjs";
 
 export default {
   name: "set_slide_photo",
-  description:
-    "Reemplaza la foto de fondo de una slide de un carrusel persistido. Acepta URL http(s) (descarga) o ruta local file:/absoluta. Copia la imagen a assets/, actualiza carousel.json (asset, scrim, bgPos) y re-renderiza el preview. Después de aplicar, re-auditá con review_slide_images.",
+  description: [
+    "Replace the background photo of one slide in a persisted carousel.",
+    "WHAT: accept http(s) URL (download) or absolute file: path; copy image to assets/, update carousel.json (asset, scrim, bgPos), re-render preview.",
+    "WHEN: after carousel_from_url / generate / load, when a photo is missing or wrong; follow PHOTO_REVIEW_PROTOCOL after.",
+    "SISTERS: set_slide_bg (gradient/css/remove), review_slide_images (audit), edit_slide set_layout (scrim/bgPos), validate_carousel.",
+    "ANTI: do NOT edit carousel.json yourself; after applying, re-audit with review_slide_images before delivering.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

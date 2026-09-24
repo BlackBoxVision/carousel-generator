@@ -10,8 +10,13 @@ import { chromeScreenshot, fileUrl, findChromeBin, normalizePreviewFormat } from
 
 export default {
   name: "render_preview",
-  description:
-    "Renderiza el carrusel a PNGs reales con Chrome headless. Ejemplos de instrucción natural: 'dame el carousel en formato 4:5 todos los PNGs' → {format:'4:5'} u {format:'feed'} sin slides (todas); 'solo la slide 3 en 1:1' → {format:'1:1', slides:[3]}. Acepta alias de formato 4:5|feed, 1:1|square, 9:16|story. Devuelve rutas PNG por slide para que el agente los lea/verifique (fotos, layout, copy).",
+  description: [
+    "Render the carousel to real PNGs with headless Chrome.",
+    "WHAT: format feed|4:5, square|1:1, story|9:16 (aliases 4:5|feed, 1:1|square, 9:16|story); optional slides (1-based, omit = all); return PNG path per slide.",
+    "WHEN: user asks for PNGs ('todos los PNGs en 4:5', 'solo slide 3 en 1:1') or agent must verify photos/layout visually.",
+    "SISTERS: export_pdf (PDF), load_carousel (HTML), set_carousel_meta (format), edit_slide (fix before re-render).",
+    "ANTI: do NOT invent PNG paths — use returned paths; read them with vision before claiming success.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

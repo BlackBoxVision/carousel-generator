@@ -10,7 +10,13 @@ import { resolveKit } from "../lib/kits.mjs";
 
 export default {
   name: "save_carousel",
-  description: "Guarda o mergea un carousel.json v2 nested. Acepta carousel completo, slides nested o legacy; copia fotos/logo data URL o file: a assets/ y nunca guarda base64 en carousel.json. Sirve para el ciclo load -> refinar -> save. Devuelve styleWarnings si los textos usan raya larga (—), contrastes 'no es X, es Y' o clichés de IA: corregilos.",
+  description: [
+    "Upsert a nested carousel.json v2 (full object, slides, or meta/kit partials).",
+    "WHAT: accept carousel|slides|meta|kit; copy photo/logo data URLs or file: paths into assets/; never store large base64 in carousel.json.",
+    "WHEN: after load/generate/edit when you need a bulk save; prefer edit_slide / set_slide_* / set_carousel_meta for single-field changes.",
+    "SISTERS: edit_slide (structured slide edits), set_slide_photo / set_slide_bg, set_carousel_meta, import_editor_state (editor Push), validate_carousel (pre-save audit).",
+    "ANTI: do NOT write carousel.json on disk yourself; fix styleWarnings (em-dash, 'no es X, es Y', AI clichés) before delivering.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

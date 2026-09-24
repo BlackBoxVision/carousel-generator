@@ -6,8 +6,13 @@ import { slug } from "../lib/text.mjs";
 
 export default {
   name: "set_slide_bg",
-  description:
-    "Cambia el fondo de una slide persistida sin foto: gradiente del kit (por nombre), CSS custom, o remove (vuelve al primer gradiente del kit y limpia scrim/overlay). Para fotos usá set_slide_photo. Persiste carousel.json y re-renderiza el preview.",
+  description: [
+    "Change the background of a non-photo slide: kit gradient by name, custom CSS, or remove.",
+    "WHAT: mode gradient|css|remove; remove clears photo/scrim and restores first kit gradient; persists carousel.json and re-renders preview.",
+    "WHEN: adjusting non-photo slide backgrounds after generate / load / edit_slide.",
+    "SISTERS: set_slide_photo (photos), edit_slide set_layout (align/overlayLight/scrim), set_carousel_meta, render_preview.",
+    "ANTI: for photos use set_slide_photo, not this tool; do NOT edit carousel.json yourself.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

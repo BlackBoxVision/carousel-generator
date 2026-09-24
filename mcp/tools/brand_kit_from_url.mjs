@@ -9,8 +9,13 @@ import { findKitFile } from "../lib/kits.mjs";
 
 export default {
   name: "brand_kit_from_url",
-  description:
-    "Genera un brand kit desde la homepage de un sitio (fetch + heurística, sin dependencias) y lo guarda en ~/.carousel-generator/brand/{empresa}/kit.json. Extrae nombre, theme-color, colores frecuentes, Google Fonts y logo/favicon. Devuelve resumen con confianza por campo y qué revisar. Loop de ajuste: previsualizá con generate_carousel (kitName) y refiná con save_brand_kit pasando solo los campos a cambiar (ej: {\"colors\":{\"primary\":\"#ff5a00\"}}).",
+  description: [
+    "Generate a brand kit from a site homepage (fetch + heuristics, no deps) and optionally save it.",
+    "WHAT: extract name, theme-color, frequent colors, Google Fonts, logo/favicon; return per-field confidence and what to review; save under brand/{empresa}/kit.json when save:true.",
+    "WHEN: starting branding for a new site URL before generate_carousel.",
+    "SISTERS: save_brand_kit (refine fields), load_brand_kit (inspect), list_brand_kits (see), generate_carousel (preview with kitName).",
+    "ANTI: refine loop — preview with generate_carousel(kitName) then save_brand_kit with only changed fields (e.g. {colors:{primary:'#ff5a00'}}); do NOT invent brand colors when extraction failed.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {

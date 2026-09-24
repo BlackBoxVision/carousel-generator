@@ -6,8 +6,13 @@ import saveCarousel from "./save_carousel.mjs";
 
 export default {
   name: "import_editor_state",
-  description:
-    "Importa el estado del editor visual (botón Push al MCP) hacia carousel.json. Preferí args top-level company + name + carousel (v2) — es lo más robusto con clientes MCP que truncan JSON anidado. Alternativa: payload = string JSON o objeto {action, company, name, carousel}. Reutiliza la misma validación y copia de assets que save_carousel (las fotos base64 van a assets/, nunca se guardan base64 grande en el JSON). Ideal para sincronizar ediciones hechas en el browser de vuelta al MCP.",
+  description: [
+    "Import visual editor state (Push to MCP button) into carousel.json.",
+    "WHAT: prefer top-level company + name + carousel (v2) — most robust with clients that truncate nested JSON; alt payload string/object; reuses save_carousel validation and asset copy (base64 photos → assets/, never large base64 in JSON).",
+    "WHEN: syncing browser editor edits back to the MCP after manual edits in app/index.html.",
+    "SISTERS: save_carousel (API upsert), load_carousel (read), edit_slide (structured MCP edits), import only after editor Push.",
+    "ANTI: do NOT write carousel.json yourself; prefer top-level args over payload when the client truncates nested objects.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {
