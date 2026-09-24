@@ -9,31 +9,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-
-const EXPECTED_TOOLS = [
-  "generate_carousel",
-  "list_carousels",
-  "load_carousel",
-  "save_carousel",
-  "delete_carousel",
-  "duplicate_carousel",
-  "export_pdf",
-  "delete_brand_kit",
-  "review_slide_images",
-  "set_slide_photo",
-  "edit_slide",
-  "set_slide_bg",
-  "set_carousel_meta",
-  "validate_carousel",
-  "save_brand_kit",
-  "list_brand_kits",
-  "load_brand_kit",
-  "brand_kit_from_url",
-  "carousel_from_url",
-  "import_editor_state",
-  "render_preview",
-  "social_copy",
-];
+import { EXPECTED_TOOL_NAMES as EXPECTED_TOOLS } from "../tests/helpers/tools.mjs";
 
 function parseArgs(argv) {
   const out = {};

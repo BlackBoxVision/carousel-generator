@@ -9,34 +9,12 @@ import path from "node:path";
  */
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { EXPECTED_TOOL_NAMES } from "../helpers/tools.mjs";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const VERIFIER = path.join(ROOT, "scripts", "verify-agent-output.mjs");
 
-const EXPECTED = [
-  "generate_carousel",
-  "list_carousels",
-  "load_carousel",
-  "save_carousel",
-  "delete_carousel",
-  "duplicate_carousel",
-  "export_pdf",
-  "delete_brand_kit",
-  "review_slide_images",
-  "set_slide_photo",
-  "edit_slide",
-  "set_slide_bg",
-  "set_carousel_meta",
-  "validate_carousel",
-  "save_brand_kit",
-  "list_brand_kits",
-  "load_brand_kit",
-  "brand_kit_from_url",
-  "carousel_from_url",
-  "import_editor_state",
-  "render_preview",
-  "social_copy",
-];
+const EXPECTED = EXPECTED_TOOL_NAMES;
 
 function makeHome() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "verify-home-"));

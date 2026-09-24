@@ -19,7 +19,7 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 4. Actualizar la tabla de tools en `README.md` y, si aplica, el conteo ("twenty-two tools", etc.).
 5. Si la tool responde con protocolos o advertencias, mantener el formato de las existentes (`PHOTO_REVIEW_PROTOCOL`, `NARRATIVE_REVIEW_PROTOCOL`, `styleWarnings`).
 6. Si la tool escribe un archivo en la carpeta del carrusel (ej: `source.md`, `social.md`, `previews/`), documentarlo en README → Saved files.
-7. Agregar tests: contrato en `tests/tools/registry.test.mjs` (lista EXPECTED), handler en `tests/tools/handlers.test.mjs` si aplica, y validación en `tests/tools/validate.test.mjs` si el schema es nuevo/cambia.
+7. Agregar tests: la checklist de nombres vive en `tests/helpers/tools.mjs` (`EXPECTED_TOOL_NAMES` — la usan `registry.test.mjs`, `test-tools.mjs`, `verify-agent-output.mjs` y `integration/docs.test.mjs`, que también valida la tabla de tools del README y las versiones); handler en `tests/tools/handlers.test.mjs` si aplica, y validación en `tests/tools/validate.test.mjs` si el schema es nuevo/cambia.
 8. Si la tool manda un campo que el handler lee pero no está en `inputSchema` (ej: `open`), **agregarlo al schema** — con `additionalProperties: false` en runtime lo rechazaría la validación antes del handler.
 
 ## Al modificar el editor (`app/index.html`)

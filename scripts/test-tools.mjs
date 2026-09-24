@@ -9,6 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { EXPECTED_TOOL_COUNT, EXPECTED_TOOL_NAMES } from "../tests/helpers/tools.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -133,16 +134,10 @@ async function main() {
 
   const phase1 = await rpc([init, list, gen], [1, 2, 3]);
   const tools = phase1.get(2).result.tools.map((t) => t.name);
-  assert(tools.includes("render_preview"), "tools/list has render_preview");
-  assert(tools.includes("social_copy"), "tools/list has social_copy");
-  assert(tools.includes("import_editor_state"), "tools/list has import_editor_state");
-  assert(tools.includes("set_slide_bg"), "tools/list has set_slide_bg");
-  assert(tools.includes("set_carousel_meta"), "tools/list has set_carousel_meta");
-  assert(tools.includes("validate_carousel"), "tools/list has validate_carousel");
-  assert(tools.includes("duplicate_carousel"), "tools/list has duplicate_carousel");
-  assert(tools.includes("export_pdf"), "tools/list has export_pdf");
-  assert(tools.includes("delete_brand_kit"), "tools/list has delete_brand_kit");
-  assert(tools.length >= 22, "tools count >= 22 (got " + tools.length + ")");
+  for (const name of EXPECTED_TOOL_NAMES) {
+    assert(tools.includes(name), "tools/list has " + name);
+  }
+  assert(tools.length === EXPECTED_TOOL_COUNT, "tools/list has exactly " + EXPECTED_TOOL_COUNT + " tools");
 
   const genText = contentText(phase1.get(3));
   assert(/Smoke Tools|smoke-tools|smoke/.test(genText), "generate_carousel returns path");
