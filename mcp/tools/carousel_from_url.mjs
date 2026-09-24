@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import {
   detectCategory,
   extractArticle,
@@ -117,6 +118,7 @@ export default {
     const assigned = [];
     const photoNeeds = [];
     const slots = [];
+    const tmpFiles = [];
     for (let i = 0; i < slides.length; i++) if (["cover", "fact", "list"].includes(slides[i].template)) slots.push(i);
     let ci = 0;
     for (const si of slots) {
@@ -132,6 +134,7 @@ export default {
         }
       }
       if (file) {
+        tmpFiles.push(file);
         slides[si].background = `file:${file}`;
         slides[si].scrim = slides[si].template === "cover" ? 55 : 50;
         slides[si].bgPos = "center";
@@ -158,6 +161,12 @@ export default {
     });
     runtime.company = company;
     runtime.slug = carouselName;
+    // Las fotos ya quedaron embebidas como data URL / assets: limpiá los temporales.
+    for (const f of tmpFiles) {
+      try {
+        fs.unlinkSync(f);
+      } catch {}
+    }
     let persisted = null;
     if (a.persist !== false) persisted = persistCarousel(runtime, company, carouselName);
     let sourceMd = null;

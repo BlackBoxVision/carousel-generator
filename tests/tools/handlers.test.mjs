@@ -896,3 +896,108 @@ describe("F1 integrity guards", () => {
     assert.ok(fs.existsSync(path.join(guardDir(), "carousel.json")));
   });
 });
+
+describe("F2 security guards", () => {
+  const GUARD = "f2-guard";
+
+  test("set_slide_bg rejects css with HTML injection", async () => {
+    await generate.handler({
+      title: "F2 Guard",
+      company: COMPONENT_SAFE(),
+      carouselName: GUARD,
+      slides: slides(),
+      open: false,
+      persist: true,
+      outputDir: path.join(home.home, "out"),
+    });
+    assert.throws(
+      () =>
+        setSlideBg.handler({
+          company: COMPONENT_SAFE(),
+          name: GUARD,
+          slide: 1,
+          mode: "css",
+          css: "linear-gradient(90deg,#000,#111)</style><script>alert(1)</script>",
+        }),
+      /caracteres no permitidos/,
+    );
+    assert.throws(
+      () =>
+        setSlideBg.handler({
+          company: COMPONENT_SAFE(),
+          name: GUARD,
+          slide: 1,
+          mode: "css",
+          css: 'red" onmouseover="alert(1)',
+        }),
+      /caracteres no permitidos/,
+    );
+    const stored = JSON.parse(fs.readFileSync(path.join(guardDirF2(), "carousel.json"), "utf8"));
+    assert.ok(!(stored.slides[0].bg && stored.slides[0].bg.type === "css"), "css inyectado nunca se persiste");
+  });
+
+  test("edit_slide set_block rejects injected style values", async () => {
+    await assert.rejects(
+      () =>
+        editSlide.handler({
+          company: COMPONENT_SAFE(),
+          name: GUARD,
+          action: "set_block",
+          payload: { blockType: "text", style: { background: "red;x</style>" } },
+        }),
+      /caracteres no permitidos/,
+    );
+    const out = JSON.parse(
+      await editSlide.handler({
+        company: COMPONENT_SAFE(),
+        name: GUARD,
+        action: "set_block",
+        payload: { blockType: "text", style: { background: "#ff5a00" } },
+      }),
+    );
+    assert.equal(out.action, "set_block");
+  });
+
+  test("save_carousel rejects injected slide background css", () => {
+    assert.throws(
+      () =>
+        saveCarousel.handler({
+          company: COMPONENT_SAFE(),
+          name: GUARD,
+          slides: [
+            { template: "fact", titleWhite: "X", titleOrange: "Y", background: "linear-gradient(1,#000,#111)</style>" },
+          ],
+          open: false,
+        }),
+      /caracteres no permitidos/,
+    );
+  });
+
+  test("load_brand_kit masks logo base64 unless includeLogo", async () => {
+    await saveKit.handler({
+      name: "f2-masked",
+      kit: {
+        name: "F2 Masked",
+        colors: { primary: "#ff5a00" },
+        logo: { letter: "f", img: "data:image/png;base64,AAAA" },
+      },
+    });
+    const masked = JSON.parse(await loadKit.handler({ name: "f2-masked" }));
+    assert.equal(masked.logo.img, undefined, "img base64 no se devuelve por defecto");
+    assert.ok(masked.logo.logoBytes > 0, "se informa el tamaño");
+    assert.equal(masked.colors.primary, "#ff5a00");
+    const full = JSON.parse(await loadKit.handler({ name: "f2-masked", includeLogo: true }));
+    assert.equal(full.logo.img, "data:image/png;base64,AAAA");
+  });
+
+  test("save_brand_kit rejects non-https googleUrl", () => {
+    assert.throws(
+      () => saveKit.handler({ name: "f2-url", kit: { fonts: { googleUrl: "http://evil.example/x.css" } } }),
+      /https:\/\//,
+    );
+  });
+});
+
+function guardDirF2() {
+  return path.join(home.carouselDir, COMPANY, "f2-guard");
+}

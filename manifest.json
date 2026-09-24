@@ -88,7 +88,7 @@
     },
     {
       "name": "load_brand_kit",
-      "description": "Return the full JSON of a saved brand kit."
+      "description": "Return the JSON of a saved brand kit (logo base64 masked by default)."
     },
     {
       "name": "brand_kit_from_url",

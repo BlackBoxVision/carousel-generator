@@ -3,7 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { CONVERTIBLE_EXTS, IMG_EXTS } from "./const.mjs";
-import { brandDir } from "./paths.mjs";
+import { safeFetch } from "./net.mjs";
+import { assertPathAllowed, brandDir } from "./paths.mjs";
 import { expandHome } from "./text.mjs";
 
 export function convertToJpeg(file) {
@@ -97,32 +98,24 @@ export function loadImageDataURL(ref, scope) {
     throw new Error(
       `Logo no encontrado: ${p}. Rutas relativas se buscan en la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/) y luego en ~/.carousel-generator/brand/.`,
     );
+  // Contencion: el logo no puede venir de fuera de $HOME/$TMPDIR/CAROUSEL_GENERATOR_HOME.
+  assertPathAllowed(p, "logo.imagePath");
   const ext = path.extname(p).toLowerCase();
   const mime = IMG_EXTS[ext];
   if (!mime) throw new Error(`Formato de logo no soportado: "${ext}". Usá PNG, JPG, WEBP, GIF o SVG.`);
   return `data:${mime};base64,` + fs.readFileSync(p).toString("base64");
 }
 export async function downloadPhotoToTmp(url) {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), 15000);
-  try {
-    const res = await globalThis.fetch(url, {
-      signal: ctl.signal,
-      headers: { "User-Agent": "carousel-generator/2.2 (+carousel-from-url)" },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const ct = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-    if (!ct.startsWith("image/")) throw new Error(`no es imagen (${ct})`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length < 15000) throw new Error("imagen muy chica (¿icono?)");
-    if (buf.length > 6000000) throw new Error("imagen mayor a 6MB");
-    const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
-    const dir = path.join(os.tmpdir(), "carousel-from-url");
-    fs.mkdirSync(dir, { recursive: true });
-    const file = path.join(dir, `photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
-    fs.writeFileSync(file, buf);
-    return file;
-  } finally {
-    clearTimeout(t);
-  }
+  const res = await safeFetch(url, { timeoutMs: 15000, maxBytes: 6000000 });
+  const ct = res.contentType;
+  if (!ct || !ct.startsWith("image/")) throw new Error(`no es imagen (${ct || "?"})`);
+  const buf = res.buffer;
+  if (buf.length < 15000) throw new Error("imagen muy chica (¿icono?)");
+  if (buf.length > 6000000) throw new Error("imagen mayor a 6MB");
+  const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
+  const dir = path.join(os.tmpdir(), "carousel-from-url");
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, `photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
+  fs.writeFileSync(file, buf);
+  return file;
 }

@@ -1,3 +1,5 @@
+import { safeFetch } from "./net.mjs";
+
 export function metaContent(html, attr, val) {
   const re = new RegExp(`<meta[^>]*${attr}=["']${val}["'][^>]*>`, "i");
   const m = html.match(re);
@@ -19,23 +21,10 @@ export function linksHref(html, relRe) {
   return out;
 }
 export async function fetchBrandHTML(url) {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), 15000);
-  try {
-    const res = await globalThis.fetch(url, {
-      signal: ctl.signal,
-      headers: { "User-Agent": "carousel-generator/2.2 (+brand-kit)", Accept: "text/html" },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status} al pedir ${url}`);
-    const ct = res.headers.get("content-type") || "";
-    if (ct && !/text\/html|text\/plain|application\/xhtml/i.test(ct)) throw new Error(`Contenido no-HTML (${ct})`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 1500000) throw new Error("HTML mayor a 1.5MB, abortado por seguridad.");
-    return buf.toString("utf8");
-  } catch (e) {
-    if (e && e.name === "AbortError") throw new Error("Timeout (15s) al pedir " + url);
-    throw e;
-  } finally {
-    clearTimeout(t);
+  const res = await safeFetch(url, { accept: "text/html", timeoutMs: 15000, maxBytes: 1500000 });
+  if (res.contentType && !/text\/html|text\/plain|application\/xhtml/i.test(res.contentType)) {
+    throw new Error(`Contenido no-HTML (${res.contentType})`);
   }
+  if (res.buffer.length > 1500000) throw new Error("HTML mayor a 1.5MB, abortado por seguridad.");
+  return res.buffer.toString("utf8");
 }

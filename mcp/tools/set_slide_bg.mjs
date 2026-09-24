@@ -2,6 +2,7 @@ import { writeJsonAtomic } from "../lib/fsutil.mjs";
 import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarouselSafe } from "../lib/render.mjs";
+import { safeCss } from "../lib/safe.mjs";
 import { slug } from "../lib/text.mjs";
 
 export default {
@@ -84,7 +85,7 @@ export default {
       overlayLight = a.overlayLight !== undefined ? !!a.overlayLight : !!g.light;
       applied = { mode, gradient: g.name };
     } else if (mode === "css") {
-      const css = String(a.css || "").trim();
+      const css = safeCss(String(a.css || ""), "css");
       if (!css) throw new Error("Falta `css` (regla CSS de fondo) para mode=css.");
       if (!/gradient|url\(|color\(/i.test(css) && !css.startsWith("#") && !css.startsWith("rgb")) {
         throw new Error("`css` no parece un fondo válido (esperaba linear-gradient, url(...), color o hex).");

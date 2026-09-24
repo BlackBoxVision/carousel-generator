@@ -4,6 +4,7 @@ import { CONVERTIBLE_EXTS, IMG_EXTS, PHOTO_REVIEW_PROTOCOL } from "../lib/const.
 import { pruneAssets, writeJsonAtomic } from "../lib/fsutil.mjs";
 import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { convertToJpeg, downloadPhotoToTmp, imageSize } from "../lib/images.mjs";
+import { assertPathAllowed } from "../lib/paths.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarouselSafe } from "../lib/render.mjs";
 import { expandHome, slug } from "../lib/text.mjs";
@@ -61,6 +62,8 @@ export default {
     } else {
       file = expandHome(src.replace(/^file:(\/\/)?/, ""));
       if (!fs.existsSync(file)) throw new Error(`Archivo no encontrado: ${file}`);
+      // Contencion: solo rutas bajo $HOME/$TMPDIR/CAROUSEL_GENERATOR_HOME.
+      assertPathAllowed(file, "source");
       if (CONVERTIBLE_EXTS.has(path.extname(file).toLowerCase())) {
         const converted = convertToJpeg(file);
         if (converted !== file) {

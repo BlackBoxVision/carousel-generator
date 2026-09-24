@@ -102,9 +102,14 @@ export function persistCarousel(data, company, name, baseDir) {
 }
 export function hydrateCarousel(stored, dir) {
   const data = clone(stored);
+  // Contención: un asset con ../ no puede leer archivos fuera de la carpeta del carrusel.
+  const safeIn = (rel) => {
+    const abs = path.resolve(dir, String(rel));
+    return abs.startsWith(path.resolve(dir) + path.sep) ? abs : null;
+  };
   if (data.kit && data.kit.logo && data.kit.logo.asset) {
-    const file = path.resolve(dir, data.kit.logo.asset);
-    if (fs.existsSync(file)) data.kit.logo.img = fileDataURL(file);
+    const file = safeIn(data.kit.logo.asset);
+    if (file && fs.existsSync(file)) data.kit.logo.img = fileDataURL(file);
   }
   for (const slide of data.slides || []) {
     if (slide.bg) {
@@ -113,8 +118,8 @@ export function hydrateCarousel(stored, dir) {
       if (slide.bg.overlayLight !== undefined) slide.overlayLight = slide.bg.overlayLight;
     }
     if (slide.bg && slide.bg.type === "photo" && slide.bg.asset) {
-      const file = path.resolve(dir, slide.bg.asset);
-      if (fs.existsSync(file)) slide.bg.src = fileDataURL(file);
+      const file = safeIn(slide.bg.asset);
+      if (file && fs.existsSync(file)) slide.bg.src = fileDataURL(file);
     }
   }
   return data;
@@ -123,6 +128,12 @@ export function readCarousel(company, name) {
   const dir = carouselPath(company, name);
   const file = path.join(dir, "carousel.json");
   if (!fs.existsSync(file)) throw new Error(`Carrusel "${slug(company)}/${slug(name)}" no existe.`);
+  const stat = fs.statSync(file);
+  if (stat.size > 32 * 1024 * 1024) {
+    throw new Error(
+      `carousel.json demasiado grande (${stat.size} bytes > 32MB). Revisá que no haya base64 embebido; las fotos van a assets/.`,
+    );
+  }
   const raw = fs.readFileSync(file, "utf8");
   let stored;
   try {

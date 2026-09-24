@@ -67,7 +67,11 @@ export function allKitsRaw() {
 export function resolveLogo(kit, scope) {
   const l = kit && kit.logo;
   if (l && typeof l.imagePath === "string" && l.imagePath.trim()) {
-    l.img = loadImageDataURL(l.imagePath.trim(), scope);
+    const p = l.imagePath.trim();
+    if (/^https?:\/\//i.test(p)) {
+      throw new Error("`logo.imagePath` debe ser una ruta local (no URL); usá save_brand_kit con img en base64.");
+    }
+    l.img = loadImageDataURL(p, scope);
     delete l.imagePath;
   }
   return kit;

@@ -4,6 +4,7 @@ import { DEFAULT_KIT } from "../lib/const.mjs";
 import { writeJsonAtomic } from "../lib/fsutil.mjs";
 import { findKitFile, resolveLogo } from "../lib/kits.mjs";
 import { brandDir } from "../lib/paths.mjs";
+import { safeKit } from "../lib/safe.mjs";
 import { deepMerge, slug } from "../lib/text.mjs";
 
 export default {
@@ -41,7 +42,7 @@ export default {
         throw new Error(`kit.json corrupto en "${existing.file}": ${e.message}. Borralo o re-creá el kit.`);
       }
     } else base = clone(DEFAULT_KIT);
-    const kit = resolveLogo(deepMerge(base, a.kit), name);
+    const kit = safeKit(resolveLogo(deepMerge(base, a.kit), name));
     kit.name = (a.kit && a.kit.name) || base.name || name;
     const dir = path.join(brandDir(), name);
     fs.mkdirSync(dir, { recursive: true });

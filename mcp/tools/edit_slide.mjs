@@ -19,6 +19,7 @@ import { handoffRender } from "../lib/handoff.mjs";
 import { lintSlideTexts } from "../lib/narrative.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarouselSafe } from "../lib/render.mjs";
+import { safeCss, safeStyleObject } from "../lib/safe.mjs";
 import { clone, slug } from "../lib/text.mjs";
 
 const ACTIONS = [
@@ -296,7 +297,7 @@ export default {
           applyPhotoLayout(slide, {
             overlayLight: pick("overlayLight"),
             scrim: pick("scrim"),
-            bgPos: pick("bgPos"),
+            bgPos: pick("bgPos") !== undefined ? safeCss(pick("bgPos"), "bgPos") : undefined,
           }) || ok;
       }
       if (!ok)
@@ -313,7 +314,7 @@ export default {
       const type = pick("type") || pick("blockType") || "body";
       if (!BLOCK_TYPES.includes(type))
         throw new Error(`\`payload.type\` debe ser uno de: ${BLOCK_TYPES.join(", ")}. Recibiste: ${type}.`);
-      const node = createBlockNode(type, pick("text"), pick("style"));
+      const node = createBlockNode(type, pick("text"), safeStyleObject(pick("style")));
       node.id = uniqueBlockId(slide, type);
       let stack = findStackBlock(slide);
       if (!stack && ["kicker", "text", "highlight", "body", "slogan", "foot", "items", "box", "item"].includes(type)) {
@@ -410,7 +411,7 @@ export default {
       const style = pick("style");
       if (style && typeof style === "object") {
         block.style = block.style && typeof block.style === "object" ? block.style : {};
-        Object.assign(block.style, style);
+        Object.assign(block.style, safeStyleObject(style));
       }
       if (text === undefined && (!style || typeof style !== "object")) {
         throw new Error("set_block requiere `payload.text` y/o `payload.style`.");

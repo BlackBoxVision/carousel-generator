@@ -41,6 +41,7 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 - `render_preview` usa Chrome headless: prioriza `chrome-headless-shell` de Playwright, luego Chrome del sistema. Se puede forzar con `CHROME_PATH`.
 - El home se puede aislar con `CAROUSEL_GENERATOR_HOME` (lo usan los tests y el agent-e2e).
 - `CAROUSEL_TOOL_LOG=/ruta/calls.jsonl` registra cada tools/call `{name, ok, durationMs, ...}` — lo consume `scripts/verify-agent-output.mjs`.
+- **Guardas de seguridad** (F2): fetches salientes por `mcp/lib/net.mjs` (`safeFetch`: solo http(s), sin IPs privadas/loopback/metadata, redirects manuales, tope de bytes); paths locales por `mcp/lib/paths.mjs` (`assertPathAllowed`: `$HOME`/`$TMPDIR`/`/tmp`/homeDir); valores CSS/style por `mcp/lib/safe.mjs` (`safeCss`/`safeStyleObject`/`safeKit`: rechazan `<`, `"` y controles). `load_brand_kit` devuelve `logoBytes` en vez de base64 salvo `includeLogo:true`. El bypass en tests/e2e es `CAROUSEL_GENERATOR_ALLOW_LOCAL=1` (lo setean `test-from-url.mjs` y `run-agent-e2e.mjs`). Si agregás una tool que lea un archivo local o escriba en `outputDir`, pasá el path por `assertPathAllowed`; si persistís CSS/style, pasalo por `safeCss`.
 
 ## CI (`.github/workflows/ci.yml`)
 

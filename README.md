@@ -160,7 +160,7 @@ The server exposes twenty-two tools. You can ask the AI to use them in plain lan
 | `save_brand_kit` | Create or update a reusable brand kit. Partial updates are merged. |
 | `delete_brand_kit` | Remove a personal brand kit. Two-step: preview first, `confirm:true` to delete (repo kits are protected). |
 | `list_brand_kits` | See all personal and example brand kits available to the editor. |
-| `load_brand_kit` | Inspect the complete JSON of one brand kit. |
+| `load_brand_kit` | Inspect the JSON of one brand kit (logo base64 is masked; pass `includeLogo:true` to get it). |
 | `brand_kit_from_url` | Infer a brand kit from a website homepage and optionally save it. |
 
 ### Common tool flows
@@ -503,6 +503,13 @@ Useful env vars:
 - `CAROUSEL_GENERATOR_HOME` — override `~/.carousel-generator` (tests and agent-e2e isolate here; `npm run test:tools` uses a throwaway home unless you export one).
 - `CAROUSEL_TOOL_LOG` — JSONL log of every `tools/call` (`{ name, ok, durationMs, … }`).
 - `CHROME_PATH` — force a Chrome binary for `render_preview`.
+- `CAROUSEL_GENERATOR_ALLOW_LOCAL=1` — safety bypass (see below).
+
+Safety guards (defaults; bypass with `CAROUSEL_GENERATOR_ALLOW_LOCAL=1`):
+
+- **SSRF**: outgoing fetches (`carousel_from_url`, `brand_kit_from_url`, `set_slide_photo`, HTML/logo downloads) only accept `http(s)`, skip private/loopback/link-local addresses (including `169.254.169.254`), follow at most 3 redirects manually and stream with a byte cap.
+- **Local files**: `set_slide_photo`, `logo.imagePath`, `hydrateCarousel` assets and `outputDir` are contained to `$HOME`, `$TMPDIR`, `/tmp` and `CAROUSEL_GENERATOR_HOME`.
+- **Injection**: CSS/style values (`set_slide_bg css`, `edit_slide` styles, kit gradients/colors/fonts) reject `<`, `"` and control characters; `load_brand_kit` returns logo sizes instead of base64 unless asked.
 
 ### CI
 

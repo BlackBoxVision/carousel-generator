@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { BLOCK_TYPES, CONVERTIBLE_EXTS, IMG_EXTS, MAX_LIST_ITEMS, TEMPLATES } from "./const.mjs";
 import { convertToJpeg } from "./images.mjs";
+import { safeCss, safeStyleObject } from "./safe.mjs";
 import { clone, expandHome, slug } from "./text.mjs";
 
 export function blockId(type, index) {
@@ -17,7 +18,7 @@ export function normalizeBlock(block, index = 0) {
   for (const key of ["emoji", "title", "desc", "layout", "visible"]) {
     if (block[key] !== undefined) out[key] = key === "visible" ? !!block[key] : String(block[key]);
   }
-  if (block.style && typeof block.style === "object") out.style = clone(block.style);
+  if (block.style && typeof block.style === "object") out.style = safeStyleObject(clone(block.style), "style");
   else out.style = {};
   out.pos = block.pos && typeof block.pos === "object" ? clone(block.pos) : null;
   if (block.children !== undefined)
@@ -116,11 +117,13 @@ export function normSlideArg(s) {
       out.bg = { type: "photo", src: `data:${mime};base64,` + fs.readFileSync(fp).toString("base64"), sourcePath: fp };
     } else {
       out.bg = background.includes("gradient")
-        ? { type: "css", css: background }
+        ? { type: "css", css: safeCss(background, "background") }
         : { type: "gradient", value: slug(background) };
     }
   } else if (background && typeof background === "object") {
     out.bg = clone(background);
+    // El css del fondo termina en un atributo style del editor: sin < > " '.
+    if (out.bg.type === "css" && typeof out.bg.css === "string") out.bg.css = safeCss(out.bg.css, "bg.css");
   }
   if (s.overlayLight !== undefined) out.overlayLight = !!s.overlayLight;
   if (s.scrim !== undefined) out.scrim = Math.max(0, Math.min(85, +s.scrim || 0));

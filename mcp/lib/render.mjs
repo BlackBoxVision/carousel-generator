@@ -6,6 +6,7 @@ import { canvasForFormat, MARKER, TEMPLATES } from "./const.mjs";
 import { loadAppTemplate } from "./handoff.mjs";
 import { brandKitsPayload, resolveKit } from "./kits.mjs";
 import { applyBoldify, applyCategoryColors } from "./narrative.mjs";
+import { assertPathAllowed } from "./paths.mjs";
 import { expandHome, slug } from "./text.mjs";
 
 export function renderCarousel(data, args = {}) {
@@ -22,6 +23,7 @@ export function renderCarousel(data, args = {}) {
   // replace con función: payload puede contener $& / $` que si no se interpretan
   const out = html.replace(MARKER, () => payload);
   const dir = expandHome(args.outputDir || "~/Downloads");
+  assertPathAllowed(dir, "outputDir");
   fs.mkdirSync(dir, { recursive: true });
   const stamp = new Date().toTimeString().slice(0, 5).replace(":", "");
   let base;

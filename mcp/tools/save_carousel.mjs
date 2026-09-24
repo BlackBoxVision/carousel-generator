@@ -5,6 +5,7 @@ import { lintSlideTexts, narrativeAudit } from "../lib/narrative.mjs";
 import { carouselPath } from "../lib/paths.mjs";
 import { persistCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarouselSafe } from "../lib/render.mjs";
+import { safeKit } from "../lib/safe.mjs";
 import { deepMerge, slug } from "../lib/text.mjs";
 
 export default {
@@ -83,7 +84,7 @@ export default {
         kitBase = resolveKit();
       }
     }
-    const kit = deepMerge(kitBase, input.kit || a.kit || {});
+    const kit = safeKit(deepMerge(kitBase, input.kit || a.kit || {}));
     const slides = partitionListSlides(
       rawSlides.map((slide, index) => {
         const out = normSlideArg(slide);
@@ -91,6 +92,9 @@ export default {
         return out;
       }),
     );
+    if (slides.length > 80) {
+      throw new Error(`Demasiadas slides (${slides.length} > 80). Partí el contenido en varios carruseles.`);
+    }
     const requestedFormat =
       a.format ||
       (input.meta && input.meta.format) ||

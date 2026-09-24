@@ -14,6 +14,8 @@ const ROOT = path.join(__dirname, "..");
 const SERVER = path.join(ROOT, "mcp", "server.mjs");
 const BASE = process.argv[2] || "http://127.0.0.1:8765";
 const TMP_COMPANY = "fromurltest";
+// El fixture server vive en 127.0.0.1: la guarda SSRF se saltea con este env.
+process.env.CAROUSEL_GENERATOR_ALLOW_LOCAL = process.env.CAROUSEL_GENERATOR_ALLOW_LOCAL || "1";
 
 function rpc(msgs, waitIds, { timeoutMs = 90000, env = {} } = {}) {
   return new Promise((resolve, reject) => {

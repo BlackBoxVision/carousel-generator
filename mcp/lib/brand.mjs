@@ -1,27 +1,18 @@
 import { hexLum, hexMix, hexNorm, isGray } from "./colors.mjs";
 import { DEFAULT_KIT, IMG_EXTS } from "./const.mjs";
 import { linksHref, metaContent } from "./html.mjs";
+import { safeFetch } from "./net.mjs";
 import { clone } from "./text.mjs";
 
 export async function downloadLogoDataURL(logoUrl) {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), 12000);
-  try {
-    const res = await globalThis.fetch(logoUrl, {
-      signal: ctl.signal,
-      headers: { "User-Agent": "carousel-generator/2.2 (+brand-kit)" },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const ct = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-    const ext = logoUrl.split("?")[0].split(".").pop().toLowerCase();
-    const mime = ct.startsWith("image/") ? ct : IMG_EXTS["." + ext];
-    if (!mime) throw new Error(`MIME no-imagen (${ct || "?"})`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (!buf.length || buf.length > 500000) throw new Error("logo vacío o mayor a 500KB");
-    return { dataURL: `data:${mime};base64,` + buf.toString("base64"), source: logoUrl };
-  } finally {
-    clearTimeout(t);
-  }
+  const res = await safeFetch(logoUrl, { timeoutMs: 12000, maxBytes: 500000 });
+  const ct = res.contentType;
+  const ext = String(logoUrl).split("?")[0].split(".").pop().toLowerCase();
+  const mime = ct && ct.startsWith("image/") ? ct : IMG_EXTS["." + ext];
+  if (!mime) throw new Error(`MIME no-imagen (${ct || "?"})`);
+  const buf = res.buffer;
+  if (!buf.length || buf.length > 500000) throw new Error("logo vacío o mayor a 500KB");
+  return { dataURL: `data:${mime};base64,` + buf.toString("base64"), source: logoUrl };
 }
 export function inferKitFromHTML(html, pageUrl) {
   const conf = {};

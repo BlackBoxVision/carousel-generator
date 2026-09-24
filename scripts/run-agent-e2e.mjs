@@ -94,6 +94,8 @@ const env = {
   CAROUSEL_GENERATOR_HOME: home,
   CAROUSEL_TOOL_LOG: logFile,
   OPENCODE_MODEL: model,
+  // Fixture server local (127.0.0.1): se saltea la guarda SSRF / allowlist de paths.
+  CAROUSEL_GENERATOR_ALLOW_LOCAL: "1",
   // Allow external_directory under /tmp (home + artifacts) without interactive prompt.
   OPENCODE_PERMISSION: JSON.stringify({
     external_directory: {
