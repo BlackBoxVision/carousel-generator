@@ -44,9 +44,9 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 
 ## CI (`.github/workflows/ci.yml`)
 
-- **unit**: syntax + `sync-manifest --check` + `node --test 'tests/**/*.test.mjs'` + editor smoke.
+- **unit**: biome lint (`npx biome check .`) + syntax + `sync-manifest --check` + `bundle:check` + `node --test 'tests/**/*.test.mjs'` + editor smoke.
 - **tools-e2e**: `scripts/test-tools.mjs` con chrome-headless-shell + `scripts/test-from-url.mjs` contra `scripts/fixture-server.mjs`.
-- **agent-e2e**: instala opencode CLI, corre `scripts/run-agent-e2e.mjs` con model `opencode/mimo-v2.6-flash-free` (override: `OPENCODE_MODEL`) y home/log aislados, luego `scripts/verify-agent-output.mjs` (cobertura 22/22 `ok:true` + artefactos). El exit code del job es el del **verifier**, no el del modelo. Contingencia: si free devuelve 401, agregar secret `OPENCODE_API_KEY` (costo $0). **No usar** `--model free` (no es un model ID válido).
+- **agent-e2e** (canario, `continue-on-error: true`): instala opencode CLI, corre `scripts/run-agent-e2e.mjs` con model `opencode/mimo-v2.6-flash-free` (override: `OPENCODE_MODEL`) y home/log aislados, luego `scripts/verify-agent-output.mjs` (cobertura de tools `ok:true` + artefactos). El exit code del job es el del **verifier**, no el del modelo, y no bloquea PRs: la cobertura obligatoria es unit + tools-e2e. Contingencia: si free devuelve 401, agregar secret `OPENCODE_API_KEY` (costo $0). **No usar** `--model free` (no es un model ID válido).
 
 ## Formato de slides y datos
 
@@ -66,6 +66,11 @@ Los protocolos y el `SERVER_INSTRUCTIONS` del MCP están en **inglés** (model a
 - **Publicación**: `social_copy` para captions/hashtags/altText; revisar altText ≤125 y no repetir copy literal.
 - **edit_slide acciones**: `update_text | move | duplicate | delete | add | split | set_layout | add_block | delete_block | move_block | set_block | add_item | delete_item | add_pill | update_pill | delete_pill`. El schema es la fuente de verdad; no leer el handler para descubrir args.
 
+## Modo de formatting / lint
+
+- `biome.json` cubre `mcp/`, `scripts/`, `tests/` y los `*.mjs`/`*.json` de la raíz; `app/index.html` queda fuera a propósito (editor vanilla de un solo archivo con su propio smoke test).
+- `npm run lint` debe dar 0 errores antes de commitear (`npx biome check --write .` aplica fixes seguros). Reglas ruidosas de estilo (`useTemplate`, `useOptionalChain`, `noAssignInExpressions`) están en `warn` para no pelear con los idiomas del repo.
+
 ## Commits
 
 - Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `ci:`. Commitlint + husky lo validan en `commit-msg` (subject en minúsculas).
@@ -73,8 +78,10 @@ Los protocolos y el `SERVER_INSTRUCTIONS` del MCP están en **inglés** (model a
 
 ## Verificación antes de dar por terminado
 
+- [ ] `npm run lint` (biome; también corre en pre-commit y en `npm test`)
 - [ ] `node --check` en los archivos tocados (o confiar en el pre-commit)
 - [ ] `node scripts/sync-manifest.mjs --check` (o `npm run test:sync`)
+- [ ] `node scripts/bundle-check.mjs` si cambió la versión o el set de tools (o `npm run bundle`)
 - [ ] `npm run test:unit` + `npm run test:integration` (o `npm test` completo)
 - [ ] `npm run smoke` (si se tocó `app/index.html`)
 - [ ] `npm run test:tools` (si se tocó tools MCP)

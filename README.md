@@ -53,7 +53,7 @@ Run this command from the repository folder:
 node install.mjs
 ```
 
-To install for one specific client:
+With **no flags it configures every detected client** (`--all` is equivalent). To install for specific clients only:
 
 ```bash
 node install.mjs --opencode
@@ -62,6 +62,8 @@ node install.mjs --claude-desktop
 node install.mjs --codex
 node install.mjs --cursor
 ```
+
+Existing client config files are never overwritten if they fail to parse (the installer skips them with a warning).
 
 Restart the MCP client after installation. Local MCP servers are started when the client starts.
 
@@ -460,10 +462,11 @@ The preferred visual hierarchy is a smaller white title, a larger highlighted ti
 To create a one-click-installable bundle for Claude Desktop or another MCPB-compatible client:
 
 ```bash
-npm run bundle
+npm run bundle        # writes dist/carousel-generator.mcpb
+npm run bundle:check  # fails if the bundle is missing or stale (version/tool count vs registry)
 ```
 
-This creates `dist/carousel-generator.mcpb`.
+Dev-only files (`.husky`, `tests`, `scripts`, devDependencies) are excluded via `.mcpbignore`.
 
 ## Development
 
@@ -477,10 +480,14 @@ There is no build step for the app or server. The main files are:
 - `mcp/lib/*.mjs`: shared helpers (paths, kits, narrative, images, persist, render, …).
 - `mcp/kits/`: repository example brand kits.
 
+Formatting and linting use [Biome](https://biomejs.dev) (`biome.json`); `app/index.html` is intentionally out of scope (vanilla single-file editor with its own smoke test).
+
 Tests and checks (also run by `npm test` and CI):
 
 ```bash
-npm test                              # syntax + manifest sync + node:test + smoke + tools e2e + fixture
+npm test                              # lint + syntax + manifest sync + node:test + smoke + tools e2e + fixture
+npm run lint                          # biome check (mcp/, scripts/, tests/, *.mjs)
+npm run lint:fix                      # apply safe fixes + format
 npm run test:unit                     # tests/lib + tests/tools
 npm run test:integration              # JSON-RPC + verifier tests
 npm run test:tools                    # MCP tools end-to-end (needs Chrome for PNGs)
@@ -488,11 +495,12 @@ npm run test:fixture                  # offline fixture server
 node scripts/fixture-server.mjs &     # then: npm run test:from-url
 npm run sync:manifest                 # regenerate manifest.json tools[]
 npm run test:sync                     # fail if manifest is out of sync
+npm run bundle:check                  # fail if dist/*.mcpb is stale
 ```
 
 Useful env vars:
 
-- `CAROUSEL_GENERATOR_HOME` — override `~/.carousel-generator` (tests and agent-e2e isolate here).
+- `CAROUSEL_GENERATOR_HOME` — override `~/.carousel-generator` (tests and agent-e2e isolate here; `npm run test:tools` uses a throwaway home unless you export one).
 - `CAROUSEL_TOOL_LOG` — JSONL log of every `tools/call` (`{ name, ok, durationMs, … }`).
 - `CHROME_PATH` — force a Chrome binary for `render_preview`.
 
@@ -500,9 +508,9 @@ Useful env vars:
 
 `.github/workflows/ci.yml` runs three jobs:
 
-1. **unit** — syntax, `sync-manifest --check`, `node --test`, editor smoke.
+1. **unit** — biome lint, syntax, `sync-manifest --check`, `bundle:check`, `node --test`, editor smoke.
 2. **tools-e2e** — JSON-RPC tools test with `chrome-headless-shell`, plus offline `*_from_url` against `scripts/fixture-server.mjs`.
-3. **agent-e2e** — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `opencode/mimo-v2.6-flash-free`) that must exercise all 22 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (22/22 `ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's. Artifacts upload on failure for debugging.
+3. **agent-e2e** (non-blocking canary) — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `opencode/mimo-v2.6-flash-free`) that should exercise all 22 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (`ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's, and `continue-on-error` keeps flaky free-model runs from blocking PRs — required coverage comes from **unit** and **tools-e2e**. Artifacts upload on failure for debugging.
 
 ```bash
 # local agent e2e (requires opencode CLI + fixture server):

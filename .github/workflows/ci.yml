@@ -20,6 +20,8 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Lint (biome)
+        run: npx biome check .
       - name: Syntax check
         run: |
           node --check mcp/server.mjs
@@ -27,6 +29,8 @@ jobs:
           node --check install.mjs
       - name: Manifest sync
         run: node scripts/sync-manifest.mjs --check
+      - name: Bundle freshness
+        run: node scripts/bundle-check.mjs
       - name: Unit + integration tests
         run: node --test 'tests/**/*.test.mjs'
       - name: Editor smoke
@@ -76,8 +80,9 @@ jobs:
   agent-e2e:
     name: agent e2e (opencode free model)
     runs-on: ubuntu-24.04
-    # Free Zen models can rate-limit; don't block PRs on flaky agent runs if needed.
-    continue-on-error: false
+    # Free models rate-limit and the run is non-deterministic: canary only.
+    # Required PR coverage comes from the deterministic tools-e2e + e2e-driver jobs.
+    continue-on-error: true
     env:
       OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/mimo-v2.6-flash-free' }}
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
@@ -113,7 +118,7 @@ jobs:
             --log /tmp/agent-artifacts/calls.jsonl \
             --home /tmp/agent-home \
             --artifacts /tmp/agent-artifacts
-      - name: Verify agent output (coverage 22/22 + artifacts)
+      - name: Verify agent output (tool coverage + artifacts)
         run: |
           node scripts/verify-agent-output.mjs \
             --log /tmp/agent-artifacts/calls.jsonl \
