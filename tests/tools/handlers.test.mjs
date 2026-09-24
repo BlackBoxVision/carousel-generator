@@ -543,6 +543,88 @@ describe("edit_slide", () => {
     );
     assert.equal(out.action, "delete_block");
   });
+
+  test("delete requires an explicit, valid slide", async () => {
+    await assert.rejects(
+      () => editSlide.handler({ company: COMPONENT_SAFE(), name: "edit-test", action: "delete", open: false }),
+      /Falta `slide` para action=delete/,
+    );
+    await assert.rejects(
+      () =>
+        editSlide.handler({ company: COMPONENT_SAFE(), name: "edit-test", slide: 0, action: "delete", open: false }),
+      /entero >= 1/,
+    );
+    await assert.rejects(
+      () =>
+        editSlide.handler({ company: COMPONENT_SAFE(), name: "edit-test", slide: 99, action: "delete", open: false }),
+      /inexistente/,
+    );
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
+    assert.ok(stored.slides.length >= 3, "no slides were deleted");
+  });
+
+  test("delete refuses to remove the last slide of a carousel", async () => {
+    await generate.handler({
+      title: "Solo Una",
+      company: COMPANY,
+      carouselName: "only-one",
+      slides: [{ template: "cover", titleWhite: "UNA", titleOrange: "SLIDE", paragraphs: ["Bajada."] }],
+      open: false,
+      persist: true,
+      outputDir: path.join(home.home, "out"),
+    });
+    await assert.rejects(
+      () => editSlide.handler({ company: COMPONENT_SAFE(), name: "only-one", slide: 1, action: "delete", open: false }),
+      /única slide/,
+    );
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "only-one", "carousel.json"), "utf8"),
+    );
+    assert.equal(stored.slides.length, 1, "last slide survives");
+  });
+
+  test("delete_block refuses protected roots without blockId and missing ids", async () => {
+    await assert.rejects(
+      () =>
+        editSlide.handler({
+          company: COMPONENT_SAFE(),
+          name: "edit-test",
+          slide: 1,
+          action: "delete_block",
+          payload: {},
+          open: false,
+        }),
+      /Falta `payload.blockId`/,
+    );
+    await assert.rejects(
+      () =>
+        editSlide.handler({
+          company: COMPONENT_SAFE(),
+          name: "edit-test",
+          slide: 1,
+          action: "delete_block",
+          payload: { blockType: "stack" },
+          open: false,
+        }),
+      /sin blockId/,
+    );
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
+    const walk = (ns) => {
+      for (const b of ns || []) {
+        if (b.type === "stack") return true;
+        if (b.children && walk(b.children)) return true;
+      }
+      return false;
+    };
+    assert.ok(
+      stored.slides.some((s) => walk(s.elements)),
+      "stack intact",
+    );
+  });
 });
 
 function COMPONENT_SAFE() {
