@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import { canvasForFormat } from "../lib/const.mjs";
+import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarousel } from "../lib/render.mjs";
-import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { slug } from "../lib/text.mjs";
 
 export default {
@@ -21,7 +21,11 @@ export default {
       name: { type: "string", description: "Slug del carrusel (alias: slug)." },
       slug: { type: "string", description: "Alias de name." },
       title: { type: "string", description: "Nuevo título del carrusel (meta.title)." },
-      format: { type: "string", enum: ["feed", "square", "story"], description: "Formato del carrusel. Actualiza meta.format y meta.canvas." },
+      format: {
+        type: "string",
+        enum: ["feed", "square", "story"],
+        description: "Formato del carrusel. Actualiza meta.format y meta.canvas.",
+      },
       category: { type: "string", description: "Categoría para cascade de highlightColors del kit (meta.category)." },
       showCount: { type: "boolean", description: "Muestra/oculta el chip N/M en cada slide (meta.showCount)." },
       outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
@@ -73,7 +77,12 @@ export default {
     const runtime = hydrateCarousel(stored, record.dir);
     runtime.company = company;
     runtime.slug = name;
-    const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true });
+    const html = renderCarousel(runtime, {
+      outputDir: a.outputDir,
+      fileName: a.fileName,
+      open: a.open === true,
+      stable: true,
+    });
     const handoff = handoffRender(html, record.file, runtime, {
       nextSteps: [
         "Meta persistido en carousel.json.",
@@ -83,7 +92,7 @@ export default {
     });
     return appendHandoff(
       `Meta actualizado en ${company}/${name}: ${JSON.stringify(changed)}\nfull meta: ${JSON.stringify(stored.meta)}\nPreview: ${html}`,
-      handoff
+      handoff,
     );
   },
 };

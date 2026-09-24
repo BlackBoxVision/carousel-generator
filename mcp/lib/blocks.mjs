@@ -1,13 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { BLOCK_TYPES, CONVERTIBLE_EXTS, IMG_EXTS, MAX_LIST_ITEMS, TEMPLATES } from "./const.mjs";
-import { clone, expandHome, slug } from "./text.mjs";
 import { convertToJpeg } from "./images.mjs";
+import { clone, expandHome, slug } from "./text.mjs";
 
-export function blockId(type, index) { return `${type || "block"}-${index + 1}`; }
+export function blockId(type, index) {
+  return `${type || "block"}-${index + 1}`;
+}
 
 export function normalizeBlock(block, index = 0) {
-  if (!block || typeof block !== "object") return { id: blockId("block", index), type: "body", text: String(block || ""), style: {} };
+  if (!block || typeof block !== "object")
+    return { id: blockId("block", index), type: "body", text: String(block || ""), style: {} };
   const type = BLOCK_TYPES.includes(block.type) ? block.type : "body";
   const out = { id: String(block.id || blockId(type, index)), type };
   if (block.text !== undefined) out.text = String(block.text);
@@ -17,31 +20,42 @@ export function normalizeBlock(block, index = 0) {
   if (block.style && typeof block.style === "object") out.style = clone(block.style);
   else out.style = {};
   out.pos = block.pos && typeof block.pos === "object" ? clone(block.pos) : null;
-  if (block.children !== undefined) out.children = (Array.isArray(block.children) ? block.children : []).map(normalizeBlock);
+  if (block.children !== undefined)
+    out.children = (Array.isArray(block.children) ? block.children : []).map(normalizeBlock);
   return out;
 }
 
-export function legacyElements(s, out) {
+export function legacyElements(out) {
   const align = out.align || { eyebrow: "left", title: "left", body: "left" };
   const children = [];
   if (out.eyebrow) children.push({ type: "kicker", text: out.eyebrow, style: { align: align.eyebrow } });
   if (out.titleWhite) children.push({ type: "text", text: out.titleWhite, style: { align: align.title, sizePct: 60 } });
-  if (out.titleOrange) children.push({ type: "highlight", text: out.titleOrange, style: { align: align.title, sizePct: 100 } });
+  if (out.titleOrange)
+    children.push({ type: "highlight", text: out.titleOrange, style: { align: align.title, sizePct: 100 } });
   for (const text of out.paragraphs || []) children.push({ type: "body", text, style: { align: align.body } });
-  if (out.items && out.items.length) children.push({
-    type: "items",
-    layout: "stack",
-    style: { align: align.body },
-    children: out.items.map((item, i) => ({ id: `item-${i + 1}`, type: "item", emoji: item.emoji, title: item.title, desc: item.desc, style: { align: align.body } })),
-  });
-  if (out.ctaBox && (out.ctaBox.title || out.ctaBox.text)) children.push({
-    type: "box",
-    style: { align: align.body, background: "secondary" },
-    children: [
-      { type: "text", text: out.ctaBox.title, style: { align: align.body, role: "box-title" } },
-      { type: "body", text: out.ctaBox.text, style: { align: align.body } },
-    ],
-  });
+  if (out.items && out.items.length)
+    children.push({
+      type: "items",
+      layout: "stack",
+      style: { align: align.body },
+      children: out.items.map((item, i) => ({
+        id: `item-${i + 1}`,
+        type: "item",
+        emoji: item.emoji,
+        title: item.title,
+        desc: item.desc,
+        style: { align: align.body },
+      })),
+    });
+  if (out.ctaBox && (out.ctaBox.title || out.ctaBox.text))
+    children.push({
+      type: "box",
+      style: { align: align.body, background: "secondary" },
+      children: [
+        { type: "text", text: out.ctaBox.title, style: { align: align.body, role: "box-title" } },
+        { type: "body", text: out.ctaBox.text, style: { align: align.body } },
+      ],
+    });
   if (out.slogan) children.push({ type: "slogan", text: out.slogan, style: { align: align.body } });
   if (out.foot) children.push({ type: "foot", text: out.foot, style: { align: align.body } });
   return [
@@ -50,8 +64,8 @@ export function legacyElements(s, out) {
     {
       type: "stack",
       style: {
-        anchor: out.copyPos && out.copyPos.anchor || "bottom",
-        offsetPct: out.copyPos && out.copyPos.offset || 0,
+        anchor: (out.copyPos && out.copyPos.anchor) || "bottom",
+        offsetPct: (out.copyPos && out.copyPos.offset) || 0,
         widthPct: 87.6,
         maxHeightPct: out.template === "cta" ? 76 : 62,
       },
@@ -73,7 +87,9 @@ export function normSlideArg(s) {
   for (const f of ["eyebrow", "titleWhite", "titleOrange", "slogan", "foot"]) {
     out[f] = s[f] !== undefined ? String(s[f]) : "";
   }
-  out.paragraphs = (s.paragraphs !== undefined ? (Array.isArray(s.paragraphs) ? s.paragraphs : [s.paragraphs]) : []).map(String);
+  out.paragraphs = (
+    s.paragraphs !== undefined ? (Array.isArray(s.paragraphs) ? s.paragraphs : [s.paragraphs]) : []
+  ).map(String);
   out.items = (s.items !== undefined ? (Array.isArray(s.items) ? s.items : []) : []).map((x) => ({
     emoji: String((x && x.emoji) || "✨"),
     title: String((x && x.title) || ""),
@@ -85,9 +101,10 @@ export function normSlideArg(s) {
     side: x && x.side === "right" ? "right" : "left",
     offset: Number((x && x.offset) || 8),
   }));
-  out.ctaBox = s.ctaBox !== undefined && s.ctaBox
-    ? { title: String(s.ctaBox.title || ""), text: String(s.ctaBox.text || "") }
-    : { title: "", text: "" };
+  out.ctaBox =
+    s.ctaBox !== undefined && s.ctaBox
+      ? { title: String(s.ctaBox.title || ""), text: String(s.ctaBox.text || "") }
+      : { title: "", text: "" };
   const background = s.background !== undefined ? s.background : s.bg;
   if (typeof background === "string") {
     if (background.startsWith("file:")) {
@@ -126,7 +143,7 @@ export function normSlideArg(s) {
       offset: Math.max(-10, Math.min(10, +s.copyPos.offset || 0)),
     };
   }
-  out.elements = Array.isArray(s.elements) ? s.elements.map(normalizeBlock) : legacyElements(s, out);
+  out.elements = Array.isArray(s.elements) ? s.elements.map(normalizeBlock) : legacyElements(out);
   out.__mcp = true;
   return out;
 }
@@ -157,16 +174,21 @@ export function partitionListSlides(slides) {
   const out = [];
   for (const s of slides) {
     const itemsBlock = findItemsBlock(s);
-    const items = itemsBlock ? (itemsBlock.children || []) : (Array.isArray(s.items) ? s.items : []);
-    if (items.length <= MAX_LIST_ITEMS) { out.push(s); continue; }
+    const items = itemsBlock ? itemsBlock.children || [] : Array.isArray(s.items) ? s.items : [];
+    if (items.length <= MAX_LIST_ITEMS) {
+      out.push(s);
+      continue;
+    }
     const baseId = s.id || "slide";
     for (let i = 0, part = 1; i < items.length; i += MAX_LIST_ITEMS, part++) {
       const chunk = items.slice(i, i + MAX_LIST_ITEMS);
       const partSlide = part === 1 ? s : clone(s);
       if (part > 1) {
         partSlide.id = `${baseId}-p${part}`;
-        const kb = (partSlide.elements || []).find((el) => el.type === "stack" && (el.children || []).some((c) => c.type === "kicker"))
-          || (partSlide.elements || []).find((el) => el.type === "kicker");
+        const kb =
+          (partSlide.elements || []).find(
+            (el) => el.type === "stack" && (el.children || []).some((c) => c.type === "kicker"),
+          ) || (partSlide.elements || []).find((el) => el.type === "kicker");
         const kicker = kb && kb.type === "kicker" ? kb : kb && (kb.children || []).find((c) => c.type === "kicker");
         if (kicker) kicker.text = `${kicker.text || ""} (PARTE ${part})`.trim();
         if (partSlide.eyebrow) partSlide.eyebrow = `${partSlide.eyebrow} (PARTE ${part})`;
@@ -183,7 +205,6 @@ export function partitionListSlides(slides) {
 }
 
 const ALIGN_TYPES = new Set(["kicker", "text", "highlight", "body", "items", "item", "box", "slogan", "foot"]);
-const PROTECT_ROOTS = new Set(["brand", "count", "stack"]);
 
 export function findBlockPath(slide, blockId, blockType) {
   function walk(list, parent) {
@@ -215,7 +236,8 @@ export function applyAlignToSlide(slide, align) {
   if (align.body !== undefined && va.includes(align.body)) next.body = align.body;
   slide.align = next;
 
-  const mapType = (type) => (type === "kicker" ? next.eyebrow : type === "text" || type === "highlight" ? next.title : next.body);
+  const mapType = (type) =>
+    type === "kicker" ? next.eyebrow : type === "text" || type === "highlight" ? next.title : next.body;
   const apply = (nodes) => {
     for (const n of nodes || []) {
       if (ALIGN_TYPES.has(n.type)) {
@@ -273,7 +295,7 @@ export function applyPhotoLayout(slide, { scrim, bgPos, overlayLight }) {
 
 export function splitListSlide(slide, atItems = MAX_LIST_ITEMS) {
   const itemsBlock = findItemsBlock(slide);
-  const items = itemsBlock ? (itemsBlock.children || []) : (Array.isArray(slide.items) ? slide.items : []);
+  const items = itemsBlock ? itemsBlock.children || [] : Array.isArray(slide.items) ? slide.items : [];
   if (items.length < 2) return { error: `Slide has ${items.length} item(s) — nothing to split (need at least 2).` };
   const cut = Math.max(1, Math.min(items.length - 1, +atItems || MAX_LIST_ITEMS));
   const first = items.slice(0, cut);
@@ -285,13 +307,14 @@ export function splitListSlide(slide, atItems = MAX_LIST_ITEMS) {
   if (nib) nib.children = rest;
   if (Array.isArray(part.items)) part.items = rest;
   const baseId = slide.id || "slide";
-  const existingParts = (slide.__parts || 1);
+  const existingParts = slide.__parts || 1;
   const partN = existingParts + 1;
   slide.__parts = partN;
   part.__parts = partN;
   part.id = `${baseId}-p${partN}`;
-  const nk = (part.elements || []).find((el) => el.type === "kicker")
-    || (part.elements || []).reduce((acc, el) => acc || (el.children || []).find((c) => c.type === "kicker"), null);
+  const nk =
+    (part.elements || []).find((el) => el.type === "kicker") ||
+    (part.elements || []).reduce((acc, el) => acc || (el.children || []).find((c) => c.type === "kicker"), null);
   if (nk) nk.text = nk.text ? `${nk.text} (PARTE ${partN})` : `PARTE ${partN}`;
   if (part.eyebrow) part.eyebrow = `${part.eyebrow} (PARTE ${partN})`;
   return { newSlide: part, kept: first.length, moved: rest.length };
@@ -302,9 +325,17 @@ export function uniqueBlockId(slide, type) {
   let i = 1;
   let id = `${base}-${i}`;
   const seen = new Set();
-  const collect = (nodes) => { for (const n of nodes || []) { if (n.id) seen.add(n.id); if (n.children) collect(n.children); } };
+  const collect = (nodes) => {
+    for (const n of nodes || []) {
+      if (n.id) seen.add(n.id);
+      if (n.children) collect(n.children);
+    }
+  };
   collect(slide.elements);
-  while (seen.has(id)) { i += 1; id = `${base}-${i}`; }
+  while (seen.has(id)) {
+    i += 1;
+    id = `${base}-${i}`;
+  }
   return id;
 }
 
@@ -324,11 +355,14 @@ export function createBlockNode(type, text, style) {
 }
 
 export function findOrCreateItemsBlock(slide) {
-  let found = findItemsBlock(slide);
+  const found = findItemsBlock(slide);
   if (found) return found;
   let stack = findStackBlock(slide);
   if (!stack) {
-    stack = normalizeBlock({ type: "stack", style: { anchor: "bottom", offsetPct: 0, widthPct: 87.6, maxHeightPct: 62 }, children: [] }, 0);
+    stack = normalizeBlock(
+      { type: "stack", style: { anchor: "bottom", offsetPct: 0, widthPct: 87.6, maxHeightPct: 62 }, children: [] },
+      0,
+    );
     slide.elements = slide.elements || [];
     slide.elements.push(stack);
   }

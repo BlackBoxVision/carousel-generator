@@ -17,8 +17,11 @@
     "sync:manifest": "node scripts/sync-manifest.mjs",
     "verify:agent": "node scripts/verify-agent-output.mjs",
     "agent:e2e": "node scripts/run-agent-e2e.mjs",
-    "test": "node --check mcp/server.mjs && node --check mcp/registry.mjs && node --check install.mjs && node scripts/sync-manifest.mjs --check && node --test 'tests/**/*.test.mjs' && node scripts/smoke.cjs && node scripts/test-tools.mjs && node scripts/test-fixture-server.mjs",
+    "test": "npm run lint && node --check mcp/server.mjs && node --check mcp/registry.mjs && node --check install.mjs && node scripts/sync-manifest.mjs --check && node --test 'tests/**/*.test.mjs' && node scripts/smoke.cjs && node scripts/test-tools.mjs && node scripts/test-fixture-server.mjs",
     "bundle": "npx -y @anthropic-ai/mcpb pack . dist/carousel-generator.mcpb",
+    "bundle:check": "node scripts/bundle-check.mjs",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "prepare": "husky"
   },
   "keywords": [
@@ -30,6 +33,7 @@
   ],
   "license": "UNLICENSED",
   "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "husky": "^9.1.7"

@@ -14,8 +14,13 @@ const PORT = 8791;
 let passed = 0;
 const fails = [];
 function assert(cond, label) {
-  if (cond) { passed++; console.log("PASS", label); }
-  else { fails.push(label); console.log("FAIL", label); }
+  if (cond) {
+    passed++;
+    console.log("PASS", label);
+  } else {
+    fails.push(label);
+    console.log("FAIL", label);
+  }
 }
 
 async function waitForReady(child) {
@@ -57,7 +62,7 @@ async function main() {
     assert(nota.text.includes("42%"), "article has figure 42%");
     assert(nota.text.includes("article:section"), "article has category meta");
     assert(nota.text.includes("beans.jpg"), "article has photo");
-    assert(!nota.text.includes("logo.png\" alt=\"logo\"") || true, "logo present but filterable");
+    assert(!nota.text.includes('logo.png" alt="logo"') || true, "logo present but filterable");
 
     const logo = await get("/static/logo.png");
     assert(logo.status === 200, "logo 200");
@@ -78,7 +83,9 @@ async function main() {
     fails.push("FATAL: " + e.message);
     console.error(e);
   } finally {
-    try { child.kill("SIGTERM"); } catch {}
+    try {
+      child.kill("SIGTERM");
+    } catch {}
   }
   console.log("---");
   console.log(fails.length ? "FAILURES: " + fails.length + " -> " + fails.join(" | ") : "ALL PASS (" + passed + ")");

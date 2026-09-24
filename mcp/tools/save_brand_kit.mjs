@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_KIT } from "../lib/const.mjs";
+import { findKitFile, resolveLogo } from "../lib/kits.mjs";
 import { brandDir } from "../lib/paths.mjs";
 import { deepMerge, slug } from "../lib/text.mjs";
-import { findKitFile, resolveLogo } from "../lib/kits.mjs";
 
 export default {
   name: "save_brand_kit",
@@ -20,7 +20,8 @@ export default {
       name: { type: "string", description: "Nombre/slug del kit (a-z, 0-9, -)." },
       kit: {
         type: "object",
-        description: "El kit (completo o parcial): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, logoSize, photoOverlay:{enabled,css}, gradients:[{name,css,light}] }.",
+        description:
+          "El kit (completo o parcial): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, logoSize, photoOverlay:{enabled,css}, gradients:[{name,css,light}] }.",
       },
     },
     required: ["name", "kit"],
@@ -42,4 +43,6 @@ export default {
   },
 };
 
-function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function clone(o) {
+  return JSON.parse(JSON.stringify(o));
+}

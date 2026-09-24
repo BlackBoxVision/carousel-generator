@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { BAD_IMG_HINTS, DATA_FIG_RE, LIST_EMOJIS } from "./const.mjs";
-import { decodeEntities } from "./text.mjs";
 import { metaContent } from "./html.mjs";
+import { decodeEntities } from "./text.mjs";
 
 export function normalizeImageUrl(raw, pageUrl) {
-  let u = String(raw || "").trim();
+  const u = String(raw || "").trim();
   if (!u || u.startsWith("data:")) return null;
   try {
     const parsed = new URL(u, pageUrl);
@@ -14,16 +14,28 @@ export function normalizeImageUrl(raw, pageUrl) {
       if (inner) return new URL(decodeURIComponent(inner), pageUrl).href;
     }
     return parsed.href;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 export function extractArticle(html, pageUrl) {
   const u = new URL(pageUrl);
   const site = metaContent(html, "property", "og:site_name") || u.hostname.replace(/^www\./, "");
-  const title = decodeEntities(metaContent(html, "property", "og:title") || (html.match(/<title[^>]*>([\s\S]{1,200}?)<\/title>/i) || [])[1] || "");
-  const dek = decodeEntities(metaContent(html, "property", "og:description") || metaContent(html, "name", "description") || "");
+  const title = decodeEntities(
+    metaContent(html, "property", "og:title") || (html.match(/<title[^>]*>([\s\S]{1,200}?)<\/title>/i) || [])[1] || "",
+  );
+  const dek = decodeEntities(
+    metaContent(html, "property", "og:description") || metaContent(html, "name", "description") || "",
+  );
   const ogImage = metaContent(html, "property", "og:image") || metaContent(html, "name", "twitter:image") || "";
   const bodyHtml = (html.match(/<body[\s\S]*<\/body>/i) || [html])[0];
-  const clean = (raw) => decodeEntities(String(raw || "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " "));
+  const clean = (raw) =>
+    decodeEntities(
+      String(raw || "")
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<[^>]+>/g, " "),
+    );
   const paras = [];
   const pre = /<(?:p|h2|h3)[^>]*>([\s\S]*?)<\/(?:p|h2|h3)>/gi;
   let m;
@@ -39,7 +51,10 @@ export function extractArticle(html, pageUrl) {
   }
   const imgs = [];
   const imgRe = /<img[^>]+(?:src|data-src|data-lazy-src)=["']([^"']+)["']/gi;
-  while ((m = imgRe.exec(bodyHtml))) { const n = normalizeImageUrl(m[1], pageUrl); if (n) imgs.push(n); }
+  while ((m = imgRe.exec(bodyHtml))) {
+    const n = normalizeImageUrl(m[1], pageUrl);
+    if (n) imgs.push(n);
+  }
   const wpRe = /(?:https?:\/\/)?(?:i\d|wp\d?|s\d)?\.?wp\.com\/[^\s"'<>\\]+?\.(?:jpe?g|png|webp)/gi;
   while ((m = wpRe.exec(html))) {
     let u2 = m[0];
@@ -47,7 +62,15 @@ export function extractArticle(html, pageUrl) {
     const n = normalizeImageUrl(u2, pageUrl);
     if (n) imgs.push(n);
   }
-  return { site, title, dek, ogImage: normalizeImageUrl(ogImage, pageUrl) || "", paras, items, imgs: [...new Set(imgs)] };
+  return {
+    site,
+    title,
+    dek,
+    ogImage: normalizeImageUrl(ogImage, pageUrl) || "",
+    paras,
+    items,
+    imgs: [...new Set(imgs)],
+  };
 }
 export function pickPhotoCandidates(article) {
   const out = [];
@@ -70,7 +93,10 @@ export function splitTitleForCover(t) {
   const target = Math.max(2, Math.round(words.length * 0.4));
   let idx = target;
   for (let i = target; i < Math.min(words.length, target + 4); i++) {
-    if (/%|\d|millones/i.test(words[i])) { idx = i + 1; break; }
+    if (/%|\d|millones/i.test(words[i])) {
+      idx = i + 1;
+      break;
+    }
   }
   return { white: words.slice(0, idx).join(" ").toUpperCase(), orange: words.slice(idx).join(" ").toUpperCase() };
 }
@@ -85,20 +111,32 @@ export function detectCategory(html) {
       const graph = Array.isArray(data["@graph"]) ? data["@graph"] : [data];
       for (const node of graph) {
         if (node && node["@type"] === "BreadcrumbList" && Array.isArray(node.itemListElement)) {
-          const names = node.itemListElement.map((x) => {
-            const it = x && (x.item || x);
-            return it && (typeof it === "string" ? it : (it.name || (typeof it.item === "string" ? null : it.item && it.item.name)));
-          }).filter(Boolean).map((n) => String(n).trim());
-          const pick = names.filter((n) => n && !/^(home|inicio|portada|principal)$/i.test(n) && !/^https?:/i.test(n)).pop();
+          const names = node.itemListElement
+            .map((x) => {
+              const it = x && (x.item || x);
+              return (
+                it &&
+                (typeof it === "string"
+                  ? it
+                  : it.name || (typeof it.item === "string" ? null : it.item && it.item.name))
+              );
+            })
+            .filter(Boolean)
+            .map((n) => String(n).trim());
+          const pick = names
+            .filter((n) => n && !/^(home|inicio|portada|principal)$/i.test(n) && !/^https?:/i.test(n))
+            .pop();
           if (pick) return { category: decodeEntities(pick), source: "BreadcrumbList" };
         }
       }
     } catch {}
   }
   const bodyHtml = (html.match(/<body[\s\S]*<\/body>/i) || [html])[0];
-  const mainHtml = (bodyHtml.match(/<(?:article|main)[^>]*>([\s\S]*?)<\/(?:article|main)>/i) || [bodyHtml])[1] || bodyHtml;
+  const mainHtml =
+    (bodyHtml.match(/<(?:article|main)[^>]*>([\s\S]*?)<\/(?:article|main)>/i) || [bodyHtml])[1] || bodyHtml;
   const counts = {};
-  const re = /<a[^>]+href=["'][^"']*\/(?:categor(?:y|ies|ia|ias)|secci[oó]n|seccion|tema|tags?)\/([a-z0-9\-_%]+)\/?["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const re =
+    /<a[^>]+href=["'][^"']*\/(?:categor(?:y|ies|ia|ias)|secci[oó]n|seccion|tema|tags?)\/([a-z0-9\-_%]+)\/?["'][^>]*>([\s\S]*?)<\/a>/gi;
   let m;
   while ((m = re.exec(mainHtml))) {
     const label = decodeEntities(m[2].replace(/<[^>]+>/g, " ")).trim();
@@ -115,7 +153,9 @@ export function writeSourceMd(dir, { url, title, site, dek, category, paras, ite
   if (fs.existsSync(file)) return { file, wrote: false, reason: "ya existía, no sobrescrito" };
   const figParas = (paras || []).filter((p) => DATA_FIG_RE.test(p)).slice(0, 5);
   const keyParas = figParas.length ? figParas : (paras || []).slice(0, 3);
-  const curated = [dek || "", ...(keyParas || []).map((p) => (p.length > 400 ? p.slice(0, 397).trimEnd() + "…" : p))].filter(Boolean).join("\n\n");
+  const curated = [dek || "", ...(keyParas || []).map((p) => (p.length > 400 ? p.slice(0, 397).trimEnd() + "…" : p))]
+    .filter(Boolean)
+    .join("\n\n");
   const md = [
     "---",
     `url: ${url}`,
@@ -146,4 +186,4 @@ export function writeSourceMd(dir, { url, title, site, dek, category, paras, ite
   fs.writeFileSync(file, md, "utf8");
   return { file, wrote: true };
 }
-export { LIST_EMOJIS, DATA_FIG_RE };
+export { DATA_FIG_RE, LIST_EMOJIS };

@@ -1,5 +1,5 @@
-import { brandDir, REPO_KITS } from "../lib/paths.mjs";
 import { allKitsRaw } from "../lib/kits.mjs";
+import { brandDir, REPO_KITS } from "../lib/paths.mjs";
 
 export default {
   name: "list_brand_kits",
@@ -14,7 +14,14 @@ export default {
   handler() {
     const all = allKitsRaw();
     const slugs = Object.keys(all).sort();
-    if (!slugs.length) return "No hay kits guardados. Carpetas de empresa en " + brandDir() + " (cada una con kit.json), ejemplos en " + REPO_KITS + ".";
+    if (!slugs.length)
+      return (
+        "No hay kits guardados. Carpetas de empresa en " +
+        brandDir() +
+        " (cada una con kit.json), ejemplos en " +
+        REPO_KITS +
+        "."
+      );
     const lines = slugs.map((sl) => {
       const entry = all[sl];
       if (!entry.kit) return `- ${sl} (JSON inválido en ${entry.source})`;

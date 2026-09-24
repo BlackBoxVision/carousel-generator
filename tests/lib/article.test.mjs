@@ -1,6 +1,12 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectCategory, extractArticle, normalizeImageUrl, pickPhotoCandidates, splitTitleForCover } from "../../mcp/lib/article.mjs";
+import { test } from "node:test";
+import {
+  detectCategory,
+  extractArticle,
+  normalizeImageUrl,
+  pickPhotoCandidates,
+  splitTitleForCover,
+} from "../../mcp/lib/article.mjs";
 
 const HTML = `<!doctype html>
 <html><head>

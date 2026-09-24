@@ -15,10 +15,10 @@ import {
   uniqueBlockId,
 } from "../lib/blocks.mjs";
 import { BLOCK_TYPES, TEMPLATES } from "../lib/const.mjs";
+import { handoffRender } from "../lib/handoff.mjs";
 import { lintSlideTexts } from "../lib/narrative.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarousel } from "../lib/render.mjs";
-import { handoffRender } from "../lib/handoff.mjs";
 import { clone, slug } from "../lib/text.mjs";
 
 const ACTIONS = [
@@ -42,20 +42,40 @@ const ACTIONS = [
 
 const PAYLOAD_PROPS = {
   blockId: { type: "string", description: "Precise block id (update_text / block ops)." },
-  blockType: { type: "string", description: "First matching block type: kicker | text | highlight | body | slogan | foot | item | items | pill | box (update_text / block ops)." },
+  blockType: {
+    type: "string",
+    description:
+      "First matching block type: kicker | text | highlight | body | slogan | foot | item | items | pill | box (update_text / block ops).",
+  },
   text: { type: "string", description: "New text (update_text / add_block / pills)." },
-  field: { type: "string", enum: ["title", "desc", "emoji"], description: "Item field to overwrite (update_text on item): title | desc | emoji." },
+  field: {
+    type: "string",
+    enum: ["title", "desc", "emoji"],
+    description: "Item field to overwrite (update_text on item): title | desc | emoji.",
+  },
   title: { type: "string", description: "Item title (update_text shortcut or add_item)." },
   desc: { type: "string", description: "Item description (update_text shortcut or add_item)." },
   emoji: { type: "string", description: "Item emoji (update_text shortcut or add_item)." },
   to: { type: "number", description: "Destination position 1-based (move / move_block)." },
-  template: { type: "string", enum: ["cover", "fact", "map", "list", "cta"], description: "New slide template (add). Default list." },
+  template: {
+    type: "string",
+    enum: ["cover", "fact", "map", "list", "cta"],
+    description: "New slide template (add). Default list.",
+  },
   at: { type: "number", description: "Insertion position 1-based (add / split cut index). Default: end / 3." },
-  type: { type: "string", description: "Block type for add_block (brand | count | stack | kicker | text | highlight | body | items | item | box | pill | slogan | foot)." },
-  style: { type: "object", description: "Partial style patch for set_block (align, sizePct, anchor, offsetPct, background, color, ...)." },
+  type: {
+    type: "string",
+    description:
+      "Block type for add_block (brand | count | stack | kicker | text | highlight | body | items | item | box | pill | slogan | foot).",
+  },
+  style: {
+    type: "object",
+    description: "Partial style patch for set_block (align, sizePct, anchor, offsetPct, background, color, ...).",
+  },
   align: {
     type: "object",
-    description: "Slide-level alignment {eyebrow?, title?, body?} each left|center|right (set_layout). Also mirrors onto blocks.",
+    description:
+      "Slide-level alignment {eyebrow?, title?, body?} each left|center|right (set_layout). Also mirrors onto blocks.",
     properties: {
       eyebrow: { type: "string", enum: ["left", "center", "right"] },
       title: { type: "string", enum: ["left", "center", "right"] },
@@ -64,7 +84,8 @@ const PAYLOAD_PROPS = {
   },
   copyPos: {
     type: "object",
-    description: "Copy stack position {anchor?: top|center|bottom, offset?: -10..10} (set_layout). Mirrors onto the stack block.",
+    description:
+      "Copy stack position {anchor?: top|center|bottom, offset?: -10..10} (set_layout). Mirrors onto the stack block.",
     properties: {
       anchor: { type: "string", enum: ["top", "center", "bottom"] },
       offset: { type: "number" },
@@ -106,7 +127,8 @@ export default {
       action: { type: "string", enum: ACTIONS, description: "Action to perform." },
       payload: {
         type: "object",
-        description: "Action parameters. See each key description. Top-level aliases (blockId, field, ...) are merged over payload.",
+        description:
+          "Action parameters. See each key description. Top-level aliases (blockId, field, ...) are merged over payload.",
         properties: PAYLOAD_PROPS,
       },
       blockId: { type: "string", description: "Top-level alias of payload.blockId." },
@@ -125,11 +147,18 @@ export default {
       bgPos: { type: "string", description: "Top-level alias of payload.bgPos." },
       index: { type: "number", description: "Top-level alias of payload.index." },
       to: { type: "number", description: "Top-level alias of payload.to." },
-      template: { type: "string", enum: ["cover", "fact", "map", "list", "cta"], description: "Top-level alias of payload.template (add)." },
+      template: {
+        type: "string",
+        enum: ["cover", "fact", "map", "list", "cta"],
+        description: "Top-level alias of payload.template (add).",
+      },
       at: { type: "number", description: "Top-level alias of payload.at (add / split)." },
       top: { type: "number", description: "Top-level alias of payload.top (pills)." },
       side: { type: "string", enum: ["left", "right"], description: "Top-level alias of payload.side (pills)." },
-      offset: { type: "number", description: "Top-level alias of payload.offset (pills / set_layout copyPos is nested)." },
+      offset: {
+        type: "number",
+        description: "Top-level alias of payload.offset (pills / set_layout copyPos is nested).",
+      },
       outputDir: { type: "string", description: "Re-render HTML directory. Default ~/Downloads." },
       fileName: { type: "string", description: "Re-render HTML basename." },
       open: { type: "boolean", description: "Open HTML (default false for iterative tools)." },
@@ -146,7 +175,7 @@ export default {
     const record = readCarousel(company, name);
     const stored = record.stored;
     const slides = stored.slides || [];
-    const payload = (a.payload && typeof a.payload === "object") ? a.payload : {};
+    const payload = a.payload && typeof a.payload === "object" ? a.payload : {};
     const pick = (key) => (payload[key] !== undefined ? payload[key] : a[key]);
     const idx = Math.max(0, (+a.slide || +a.slideIndex || 1) - 1);
     const needsSlide = !["add"].includes(action);
@@ -159,9 +188,15 @@ export default {
       const blockType = pick("blockType") || "";
       const text = pick("text");
       if (text === undefined || text === null) throw new Error("Falta `payload.text` para update_text.");
-      if (!blockId && !blockType) throw new Error("Falta `payload.blockId` o `payload.blockType` para ubicar el bloque (ej: kicker | text | highlight | body, o un blockId preciso como box-title).");
+      if (!blockId && !blockType)
+        throw new Error(
+          "Falta `payload.blockId` o `payload.blockType` para ubicar el bloque (ej: kicker | text | highlight | body, o un blockId preciso como box-title).",
+        );
       const block = findBlockInSlide(slides[idx], blockId, blockType);
-      if (!block) throw new Error(`Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`);
+      if (!block)
+        throw new Error(
+          `Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`,
+        );
       let field = pick("field");
       if (!field) {
         if (block.type === "item") {
@@ -174,17 +209,24 @@ export default {
       if (block.type === "item" && ["title", "desc", "emoji"].includes(field)) {
         const direct = pick(field);
         block[field] = String(direct !== undefined ? direct : text);
-      } else if (block.text !== undefined || ["kicker", "text", "highlight", "body", "slogan", "foot", "pill"].includes(block.type)) {
+      } else if (
+        block.text !== undefined ||
+        ["kicker", "text", "highlight", "body", "slogan", "foot", "pill"].includes(block.type)
+      ) {
         block.text = String(text);
       } else {
-        throw new Error(`El bloque tipo "${block.type}" no tiene campo de texto editable con update_text. Usá field: title|desc|emoji si es un item.`);
+        throw new Error(
+          `El bloque tipo "${block.type}" no tiene campo de texto editable con update_text. Usá field: title|desc|emoji si es un item.`,
+        );
       }
       summaryExtra.block = blockId || blockType;
       summaryExtra.field = field;
     } else if (action === "move") {
       const to = +pick("to");
       if (!Number.isFinite(to) || to < 1 || to > slides.length) {
-        throw new Error(`\`payload.to\` debe ser la posición destino entre 1 y ${slides.length} (1-based). Recibiste: ${pick("to")}.`);
+        throw new Error(
+          `\`payload.to\` debe ser la posición destino entre 1 y ${slides.length} (1-based). Recibiste: ${pick("to")}.`,
+        );
       }
       const moved = slides.splice(idx, 1)[0];
       slides.splice(to - 1, 0, moved);
@@ -234,13 +276,15 @@ export default {
       if (pick("align") !== undefined) ok = applyAlignToSlide(slide, pick("align")) || ok;
       if (pick("copyPos") !== undefined) ok = applyCopyPosToSlide(slide, pick("copyPos")) || ok;
       if (pick("overlayLight") !== undefined || pick("scrim") !== undefined || pick("bgPos") !== undefined) {
-        ok = applyPhotoLayout(slide, {
-          overlayLight: pick("overlayLight"),
-          scrim: pick("scrim"),
-          bgPos: pick("bgPos"),
-        }) || ok;
+        ok =
+          applyPhotoLayout(slide, {
+            overlayLight: pick("overlayLight"),
+            scrim: pick("scrim"),
+            bgPos: pick("bgPos"),
+          }) || ok;
       }
-      if (!ok) throw new Error("Falta payload con al menos uno de: align, copyPos, overlayLight, scrim (foto), bgPos (foto).");
+      if (!ok)
+        throw new Error("Falta payload con al menos uno de: align, copyPos, overlayLight, scrim (foto), bgPos (foto).");
       summaryExtra.layout = {
         ...(slide.align ? { align: slide.align } : {}),
         ...(slide.copyPos ? { copyPos: slide.copyPos } : {}),
@@ -251,7 +295,8 @@ export default {
     } else if (action === "add_block") {
       const slide = slides[idx];
       const type = pick("type") || pick("blockType") || "body";
-      if (!BLOCK_TYPES.includes(type)) throw new Error(`\`payload.type\` debe ser uno de: ${BLOCK_TYPES.join(", ")}. Recibiste: ${type}.`);
+      if (!BLOCK_TYPES.includes(type))
+        throw new Error(`\`payload.type\` debe ser uno de: ${BLOCK_TYPES.join(", ")}. Recibiste: ${type}.`);
       const node = createBlockNode(type, pick("text"), pick("style"));
       node.id = uniqueBlockId(slide, type);
       let stack = findStackBlock(slide);
@@ -267,7 +312,10 @@ export default {
       } else if (stack) {
         stack.children = stack.children || [];
         const atRaw = pick("at");
-        const at = Number.isFinite(+atRaw) && +atRaw >= 1 ? Math.min(+atRaw, stack.children.length + 1) : stack.children.length + 1;
+        const at =
+          Number.isFinite(+atRaw) && +atRaw >= 1
+            ? Math.min(+atRaw, stack.children.length + 1)
+            : stack.children.length + 1;
         stack.children.splice(at - 1, 0, node);
       } else {
         slide.elements = slide.elements || [];
@@ -281,9 +329,14 @@ export default {
       const blockType = pick("blockType") || "";
       if (!blockId && !blockType) throw new Error("Falta `payload.blockId` o `payload.blockType` para delete_block.");
       const path = findBlockPath(slide, blockId, blockType);
-      if (!path) throw new Error(`Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`);
+      if (!path)
+        throw new Error(
+          `Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`,
+        );
       if (!blockId && PROTECT_ROOTS.has(path.block.type)) {
-        throw new Error(`No se puede eliminar un root block tipo "${path.block.type}" sin blockId preciso. Usá blockId.`);
+        throw new Error(
+          `No se puede eliminar un root block tipo "${path.block.type}" sin blockId preciso. Usá blockId.`,
+        );
       }
       path.list.splice(path.index, 1);
       summaryExtra.deletedBlock = path.block.id;
@@ -296,7 +349,10 @@ export default {
       if (!Number.isFinite(to) || to < 1) throw new Error("`payload.to` debe ser posición 1-based dentro del padre.");
       if (!blockId && !blockType) throw new Error("Falta `payload.blockId` o `payload.blockType` para move_block.");
       const path = findBlockPath(slide, blockId, blockType);
-      if (!path) throw new Error(`Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`);
+      if (!path)
+        throw new Error(
+          `Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`,
+        );
       const [node] = path.list.splice(path.index, 1);
       const dest = Math.max(0, Math.min(path.list.length, to - 1));
       path.list.splice(dest, 0, node);
@@ -308,15 +364,22 @@ export default {
       const blockType = pick("blockType") || "";
       if (!blockId && !blockType) throw new Error("Falta `payload.blockId` o `payload.blockType` para set_block.");
       const block = findBlockInSlide(slide, blockId, blockType);
-      if (!block) throw new Error(`Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`);
+      if (!block)
+        throw new Error(
+          `Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`,
+        );
       const text = pick("text");
       if (text !== undefined && text !== null) {
         if (block.type === "item") {
           const field = pick("field") || "title";
-          if (!["title", "desc", "emoji"].includes(field)) throw new Error("`payload.field` debe ser title|desc|emoji para items.");
+          if (!["title", "desc", "emoji"].includes(field))
+            throw new Error("`payload.field` debe ser title|desc|emoji para items.");
           const direct = pick(field);
           block[field] = String(direct !== undefined ? direct : text);
-        } else if (block.text !== undefined || ["kicker", "text", "highlight", "body", "slogan", "foot", "pill"].includes(block.type)) {
+        } else if (
+          block.text !== undefined ||
+          ["kicker", "text", "highlight", "body", "slogan", "foot", "pill"].includes(block.type)
+        ) {
           block.text = String(text);
         } else {
           throw new Error(`El bloque tipo "${block.type}" no tiene campo text.`);
@@ -341,13 +404,15 @@ export default {
         emoji: String(pick("emoji") || "✨"),
         title: String(pick("title") || pick("text") || ""),
         desc: String(pick("desc") || ""),
-        style: (ib.style && ib.style.align) ? { align: ib.style.align } : {},
+        style: ib.style && ib.style.align ? { align: ib.style.align } : {},
       };
       ib.children = ib.children || [];
       const atRaw = pick("at");
-      const at = Number.isFinite(+atRaw) && +atRaw >= 1 ? Math.min(+atRaw, ib.children.length + 1) : ib.children.length + 1;
+      const at =
+        Number.isFinite(+atRaw) && +atRaw >= 1 ? Math.min(+atRaw, ib.children.length + 1) : ib.children.length + 1;
       ib.children.splice(at - 1, 0, item);
-      if (Array.isArray(slide.items)) slide.items = ib.children.map((c) => ({ emoji: c.emoji, title: c.title, desc: c.desc }));
+      if (Array.isArray(slide.items))
+        slide.items = ib.children.map((c) => ({ emoji: c.emoji, title: c.title, desc: c.desc }));
       summaryExtra.itemId = item.id;
       summaryExtra.items = ib.children.length;
     } else if (action === "delete_item") {
@@ -364,7 +429,8 @@ export default {
         throw new Error(`\`payload.index\` fuera de rango (0..${ib.children.length - 1}) o title no encontrado.`);
       }
       const [removed] = ib.children.splice(i, 1);
-      if (Array.isArray(slide.items)) slide.items = ib.children.map((c) => ({ emoji: c.emoji, title: c.title, desc: c.desc }));
+      if (Array.isArray(slide.items))
+        slide.items = ib.children.map((c) => ({ emoji: c.emoji, title: c.title, desc: c.desc }));
       summaryExtra.deletedItem = removed.id;
       summaryExtra.items = ib.children.length;
     } else if (action === "add_pill") {
@@ -394,7 +460,8 @@ export default {
         const text = pick("text");
         i = text !== undefined ? pills.findIndex((p) => p.text === String(text)) : 0;
       } else i = +i;
-      if (!Number.isFinite(i) || i < 0 || i >= pills.length) throw new Error(`\`payload.index\` fuera de rango (0..${pills.length - 1}).`);
+      if (!Number.isFinite(i) || i < 0 || i >= pills.length)
+        throw new Error(`\`payload.index\` fuera de rango (0..${pills.length - 1}).`);
       const pill = pills[i];
       if (pick("text") !== undefined) pill.text = String(pick("text"));
       pill.pos = pill.pos && typeof pill.pos === "object" ? pill.pos : { topPct: 30, side: "left", offsetPct: 8 };
@@ -414,7 +481,8 @@ export default {
         const text = pick("text");
         i = text !== undefined ? pills.findIndex((p) => p.text === String(text)) : 0;
       } else i = +i;
-      if (!Number.isFinite(i) || i < 0 || i >= pills.length) throw new Error(`\`payload.index\` fuera de rango (0..${pills.length - 1}).`);
+      if (!Number.isFinite(i) || i < 0 || i >= pills.length)
+        throw new Error(`\`payload.index\` fuera de rango (0..${pills.length - 1}).`);
       const globalIdx = (slide.elements || []).indexOf(pills[i]);
       if (globalIdx >= 0) slide.elements.splice(globalIdx, 1);
       if (Array.isArray(slide.pills)) slide.pills.splice(i, 1);
@@ -427,14 +495,24 @@ export default {
     const runtime = hydrateCarousel(stored, record.dir);
     runtime.company = company;
     runtime.slug = name;
-    const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true });
+    const html = renderCarousel(runtime, {
+      outputDir: a.outputDir,
+      fileName: a.fileName,
+      open: a.open === true,
+      stable: true,
+    });
     const affectedIdx =
-      action === "move" ? (summaryExtra.to || 1) - 1 :
-      action === "duplicate" ? idx + 1 :
-      action === "delete" ? Math.min(idx, slides.length - 1) :
-      action === "add" ? Math.max(0, (summaryExtra.addedAt || slides.length) - 1) :
-      action === "split" ? idx + 1 :
-      idx;
+      action === "move"
+        ? (summaryExtra.to || 1) - 1
+        : action === "duplicate"
+          ? idx + 1
+          : action === "delete"
+            ? Math.min(idx, slides.length - 1)
+            : action === "add"
+              ? Math.max(0, (summaryExtra.addedAt || slides.length) - 1)
+              : action === "split"
+                ? idx + 1
+                : idx;
     const styleWarnings = lintSlideTexts([slides[affectedIdx]]).map((w) => ({ ...w, slide: affectedIdx + 1 }));
     const handoff = handoffRender(html, record.file, runtime, {
       nextSteps: [
@@ -458,7 +536,12 @@ export default {
 const PROTECT_ROOTS = new Set(["brand", "count", "stack"]);
 
 function normalizeStack(slide) {
-  const stack = createBlockNode("stack", undefined, { anchor: "bottom", offsetPct: 0, widthPct: 87.6, maxHeightPct: 62 });
+  const stack = createBlockNode("stack", undefined, {
+    anchor: "bottom",
+    offsetPct: 0,
+    widthPct: 87.6,
+    maxHeightPct: 62,
+  });
   stack.id = uniqueBlockId(slide, "stack");
   stack.children = [];
   slide.elements = slide.elements || [];

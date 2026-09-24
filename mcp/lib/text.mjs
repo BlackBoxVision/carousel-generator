@@ -5,13 +5,15 @@ export function expandHome(p) {
   return String(p).replace(/^~(?=\/|$)/, os.homedir());
 }
 export function slug(s) {
-  return String(s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 50) || "carrusel";
+  return (
+    String(s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 50) || "carrusel"
+  );
 }
 export function deepMerge(base, over) {
   if (over === null || over === undefined) return base;
@@ -20,16 +22,31 @@ export function deepMerge(base, over) {
   for (const k of Object.keys(over)) out[k] = deepMerge(base[k], over[k]);
   return out;
 }
-export function clone(o) { return JSON.parse(JSON.stringify(o)); }
+export function clone(o) {
+  return JSON.parse(JSON.stringify(o));
+}
 export function decodeEntities(t) {
   return String(t || "")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&#(\d+);/g, (x, n) => { try { return String.fromCodePoint(+n); } catch { return x; } })
-    .replace(/\s+/g, " ").trim();
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (x, n) => {
+      try {
+        return String.fromCodePoint(+n);
+      } catch {
+        return x;
+      }
+    })
+    .replace(/\s+/g, " ")
+    .trim();
 }
 export function excerptText(t) {
-  const s = String(t == null ? "" : t).replace(/\s+/g, " ").trim();
+  const s = String(t == null ? "" : t)
+    .replace(/\s+/g, " ")
+    .trim();
   return s.length > 70 ? s.slice(0, 67).trimEnd() + "…" : s;
 }
 export function slugTag(s) {

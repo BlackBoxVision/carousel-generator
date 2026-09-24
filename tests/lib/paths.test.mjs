@@ -1,7 +1,7 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { homeDir, brandDir, carouselDir, carouselPath } from "../../mcp/lib/paths.mjs";
+import { test } from "node:test";
+import { brandDir, carouselDir, carouselPath, homeDir } from "../../mcp/lib/paths.mjs";
 import { tmpHome } from "../helpers/tmp-home.mjs";
 
 test("CAROUSEL_GENERATOR_HOME redirects homeDir/brandDir/carouselDir", () => {

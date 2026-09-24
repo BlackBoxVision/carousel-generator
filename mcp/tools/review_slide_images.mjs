@@ -58,12 +58,25 @@ export default {
     if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
     const record = readCarousel(company, name);
     const slides = slideMetaForReview(record.stored, record.dir);
-    const photoNeeds = slides.filter((s) => !s.hasPhoto).map((s) => ({
-      slide: s.slide,
-      template: s.template,
-      query: [s.title, s.highlight, s.kicker].filter(Boolean).join(" ") || s.template,
-    }));
+    const photoNeeds = slides
+      .filter((s) => !s.hasPhoto)
+      .map((s) => ({
+        slide: s.slide,
+        template: s.template,
+        query: [s.title, s.highlight, s.kicker].filter(Boolean).join(" ") || s.template,
+      }));
     const audit = narrativeAudit(record.stored.slides || [], record.stored.meta && record.stored.meta.title);
-    return JSON.stringify({ company, slug: name, slides, photoNeeds, narrativeAudit: audit, protocol: PHOTO_REVIEW_PROTOCOL + "\n\n" + NARRATIVE_REVIEW_PROTOCOL }, null, 2);
+    return JSON.stringify(
+      {
+        company,
+        slug: name,
+        slides,
+        photoNeeds,
+        narrativeAudit: audit,
+        protocol: PHOTO_REVIEW_PROTOCOL + "\n\n" + NARRATIVE_REVIEW_PROTOCOL,
+      },
+      null,
+      2,
+    );
   },
 };

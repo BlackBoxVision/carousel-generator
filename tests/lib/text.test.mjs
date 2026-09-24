@@ -1,8 +1,16 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
-import { deepMerge, decodeEntities, excerptText, expandHome, significantTokens, slug, stripMd } from "../../mcp/lib/text.mjs";
+import { test } from "node:test";
+import {
+  decodeEntities,
+  deepMerge,
+  excerptText,
+  expandHome,
+  significantTokens,
+  slug,
+  stripMd,
+} from "../../mcp/lib/text.mjs";
 
 test("slug normalizes accents, spaces and trims", () => {
   assert.equal(slug("¡Hola Mundo!"), "hola-mundo");

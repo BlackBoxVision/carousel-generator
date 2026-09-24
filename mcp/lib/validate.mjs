@@ -20,9 +20,7 @@ function strictSchema(node) {
     out.properties = props;
   }
   if (out.items !== undefined) {
-    out.items = Array.isArray(out.items)
-      ? out.items.map(strictSchema)
-      : strictSchema(out.items);
+    out.items = Array.isArray(out.items) ? out.items.map(strictSchema) : strictSchema(out.items);
   }
   // type can be an array (e.g. ["object","string"]) — leave as-is
   return out;

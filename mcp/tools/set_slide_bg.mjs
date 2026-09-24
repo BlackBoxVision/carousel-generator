@@ -1,7 +1,7 @@
 import fs from "node:fs";
+import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarousel } from "../lib/render.mjs";
-import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { slug } from "../lib/text.mjs";
 
 export default {
@@ -21,10 +21,21 @@ export default {
       slug: { type: "string", description: "Alias de name." },
       slide: { type: "number", description: "Número de slide (1-based)." },
       slideIndex: { type: "number", description: "Alias de slide." },
-      mode: { type: "string", enum: ["gradient", "css", "remove"], description: "Tipo de fondo: gradient (nombre del kit), css (linear-gradient u otra regla), remove (quita foto y vuelve al gradiente default del kit)." },
-      gradient: { type: "string", description: "Nombre del gradiente del kit (mode=gradient). Ej: navy, sunset, mint, deep." },
+      mode: {
+        type: "string",
+        enum: ["gradient", "css", "remove"],
+        description:
+          "Tipo de fondo: gradient (nombre del kit), css (linear-gradient u otra regla), remove (quita foto y vuelve al gradiente default del kit).",
+      },
+      gradient: {
+        type: "string",
+        description: "Nombre del gradiente del kit (mode=gradient). Ej: navy, sunset, mint, deep.",
+      },
       css: { type: "string", description: "Regla CSS de fondo (mode=css). Ej: linear-gradient(135deg,#111,#333)." },
-      overlayLight: { type: "boolean", description: "Override de overlayLight (texto oscuro sobre fondo claro). Default: según el gradiente del kit." },
+      overlayLight: {
+        type: "boolean",
+        description: "Override de overlayLight (texto oscuro sobre fondo claro). Default: según el gradiente del kit.",
+      },
       outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
       fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
       open: { type: "boolean", description: "Abrir el HTML (default false para tools iterativas)." },
@@ -46,9 +57,10 @@ export default {
     const idx = Math.max(0, (+a.slide || +a.slideIndex || 1) - 1);
     if (idx >= slides.length) throw new Error(`Slide ${idx + 1} inexistente (${slides.length} slides).`);
     const slide = slides[idx];
-    const gradients = (stored.kit && Array.isArray(stored.kit.gradients) && stored.kit.gradients.length)
-      ? stored.kit.gradients
-      : [{ name: "navy", css: "linear-gradient(145deg,#1e3a5f,#0f172a 65%)" }];
+    const gradients =
+      stored.kit && Array.isArray(stored.kit.gradients) && stored.kit.gradients.length
+        ? stored.kit.gradients
+        : [{ name: "navy", css: "linear-gradient(145deg,#1e3a5f,#0f172a 65%)" }];
 
     let applied;
     let overlayLight;
@@ -56,7 +68,10 @@ export default {
       const gname = String(a.gradient || "").trim();
       if (!gname) throw new Error("Falta `gradient` (nombre del gradiente del kit) para mode=gradient.");
       const g = gradients.find((x) => slug(x.name) === slug(gname)) || gradients.find((x) => x.name === gname);
-      if (!g) throw new Error(`Gradiente "${gname}" no existe en el kit. Disponibles: ${gradients.map((x) => x.name).join(", ")}.`);
+      if (!g)
+        throw new Error(
+          `Gradiente "${gname}" no existe en el kit. Disponibles: ${gradients.map((x) => x.name).join(", ")}.`,
+        );
       slide.bg = { type: "gradient", value: slug(g.name) };
       overlayLight = a.overlayLight !== undefined ? !!a.overlayLight : !!g.light;
       applied = { mode, gradient: g.name };
@@ -83,7 +98,12 @@ export default {
     const runtime = hydrateCarousel(stored, record.dir);
     runtime.company = company;
     runtime.slug = name;
-    const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true });
+    const html = renderCarousel(runtime, {
+      outputDir: a.outputDir,
+      fileName: a.fileName,
+      open: a.open === true,
+      stable: true,
+    });
     const handoff = handoffRender(html, record.file, runtime, {
       nextSteps: [
         "Fondo persistido en carousel.json.",
@@ -93,7 +113,7 @@ export default {
     });
     return appendHandoff(
       `Fondo actualizado en slide ${idx + 1} de ${company}/${name}: ${JSON.stringify(applied)}\noverlayLight: ${overlayLight}\nPreview: ${html}`,
-      handoff
+      handoff,
     );
   },
 };

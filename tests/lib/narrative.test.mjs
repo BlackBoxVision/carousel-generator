@@ -1,6 +1,12 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { boldifyData, extractFigures, lintSlideTexts, narrativeAudit, formatStyleWarnings } from "../../mcp/lib/narrative.mjs";
+import { test } from "node:test";
+import {
+  boldifyData,
+  extractFigures,
+  formatStyleWarnings,
+  lintSlideTexts,
+  narrativeAudit,
+} from "../../mcp/lib/narrative.mjs";
 
 test("extractFigures finds currency and percent", () => {
   const figs = [...extractFigures("Subió 12,5% con US$ 3 millones y $ 450")];
@@ -32,7 +38,10 @@ test("narrativeAudit flags missing cover/cta and middle cta", () => {
 
 test("narrativeAudit flags duplicate figures across slides", () => {
   const slides = [
-    { template: "cover", elements: [{ type: "stack", children: [{ type: "body", text: "Portada con 42% crecimiento" }] }] },
+    {
+      template: "cover",
+      elements: [{ type: "stack", children: [{ type: "body", text: "Portada con 42% crecimiento" }] }],
+    },
     { template: "fact", elements: [{ type: "stack", children: [{ type: "body", text: "Otra vez el 42%" }] }] },
     { template: "cta", elements: [] },
   ];
@@ -44,10 +53,15 @@ test("lintSlideTexts catches em-dash, no-es contrast and AI clichés", () => {
   const slides = [
     {
       template: "cover",
-      elements: [{ type: "stack", children: [
-        { type: "body", text: "No es suerte, es método — funciona." },
-        { type: "body", text: "En un mundo donde todo cambia, cabe destacar el logro." },
-      ] }],
+      elements: [
+        {
+          type: "stack",
+          children: [
+            { type: "body", text: "No es suerte, es método — funciona." },
+            { type: "body", text: "En un mundo donde todo cambia, cabe destacar el logro." },
+          ],
+        },
+      ],
     },
   ];
   const warnings = lintSlideTexts(slides);

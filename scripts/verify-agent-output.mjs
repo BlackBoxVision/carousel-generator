@@ -78,15 +78,6 @@ function exists(p) {
   }
 }
 
-function isNonTinyFile(p, minBytes = 100) {
-  try {
-    const st = fs.statSync(p);
-    return st.isFile() && st.size >= minBytes;
-  } catch {
-    return false;
-  }
-}
-
 function listCarouselsHome(home) {
   const root = path.join(home, "carousels");
   const out = [];
@@ -137,7 +128,10 @@ function main() {
           ok(`tool called ok:true — ${name}`);
         } else if (calls.length) {
           const err = calls.find((c) => c.ok === false);
-          fail(`tool called ok:true — ${name}`, `only failed calls: ${err && err.error ? err.error.slice(0, 300) : "unknown error"}`);
+          fail(
+            `tool called ok:true — ${name}`,
+            `only failed calls: ${err && err.error ? err.error.slice(0, 300) : "unknown error"}`,
+          );
         } else {
           fail(`tool called ok:true — ${name}`, "never called");
         }
@@ -146,7 +140,8 @@ function main() {
       if (extra.length) warn("extra tools called", extra.join(", "));
       console.log(`coverage: ${covered}/${EXPECTED_TOOLS.length}`);
       if (covered === EXPECTED_TOOLS.length) ok(`coverage ${EXPECTED_TOOLS.length}/${EXPECTED_TOOLS.length}`);
-      else fail(`coverage ${EXPECTED_TOOLS.length}/${EXPECTED_TOOLS.length}`, `only ${covered}/${EXPECTED_TOOLS.length}`);
+      else
+        fail(`coverage ${EXPECTED_TOOLS.length}/${EXPECTED_TOOLS.length}`, `only ${covered}/${EXPECTED_TOOLS.length}`);
     }
   }
 

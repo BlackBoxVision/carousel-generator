@@ -1,8 +1,8 @@
 import { NARRATIVE_REVIEW_PROTOCOL } from "../lib/const.mjs";
+import { handoffRender } from "../lib/handoff.mjs";
 import { narrativeAudit } from "../lib/narrative.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarousel } from "../lib/render.mjs";
-import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { slug } from "../lib/text.mjs";
 
 export default {
@@ -22,7 +22,11 @@ export default {
       slug: { type: "string", description: "Alias de name." },
       outputDir: { type: "string", description: "Directorio del HTML renderizado. Default ~/Downloads." },
       fileName: { type: "string", description: "Nombre del HTML renderizado." },
-      open: { type: "boolean", description: "Abrir el HTML en navegador (default true en generate/load/from_url; default false en edit_slide/set_slide_photo)." },
+      open: {
+        type: "boolean",
+        description:
+          "Abrir el HTML en navegador (default true en generate/load/from_url; default false en edit_slide/set_slide_photo).",
+      },
     },
     required: ["company"],
   },
@@ -35,7 +39,12 @@ export default {
     const runtime = hydrateCarousel(record.stored, record.dir);
     runtime.company = company;
     runtime.slug = name;
-    const file = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open !== false, stable: true });
+    const file = renderCarousel(runtime, {
+      outputDir: a.outputDir,
+      fileName: a.fileName,
+      open: a.open !== false,
+      stable: true,
+    });
     const narrative = narrativeAudit(record.stored.slides || [], record.stored.meta && record.stored.meta.title);
     const handoff = handoffRender(file, record.file, runtime, {
       nextSteps: [
@@ -44,6 +53,10 @@ export default {
         "Narrativa: revisá narrativeAudit.flags y NARRATIVE_REVIEW_PROTOCOL.",
       ],
     });
-    return JSON.stringify({ ...record.stored, narrativeAudit: narrative, protocol: NARRATIVE_REVIEW_PROTOCOL, ...handoff }, null, 2);
+    return JSON.stringify(
+      { ...record.stored, narrativeAudit: narrative, protocol: NARRATIVE_REVIEW_PROTOCOL, ...handoff },
+      null,
+      2,
+    );
   },
 };

@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_KIT } from "./const.mjs";
-import { clone, deepMerge, slug } from "./text.mjs";
-import { brandDir, companyKitFile, legacyKitsDir, REPO_KITS } from "./paths.mjs";
 import { loadImageDataURL } from "./images.mjs";
+import { brandDir, companyKitFile, legacyKitsDir, REPO_KITS } from "./paths.mjs";
+import { clone, deepMerge, slug } from "./text.mjs";
 
 export function findKitFile(name) {
   const sl = slug(name);
@@ -41,7 +41,11 @@ export function allKitsRaw() {
       const sl = f.replace(/\.json$/, "");
       if (out[sl]) continue;
       try {
-        out[sl] = { kit: JSON.parse(fs.readFileSync(path.join(LEGACY_KITS, f), "utf8")), source: "personal-legacy", scope: sl };
+        out[sl] = {
+          kit: JSON.parse(fs.readFileSync(path.join(LEGACY_KITS, f), "utf8")),
+          source: "personal-legacy",
+          scope: sl,
+        };
       } catch {
         out[sl] = { kit: null, source: "personal-legacy", broken: f };
       }
@@ -69,17 +73,24 @@ export function resolveLogo(kit, scope) {
   return kit;
 }
 export function resolveKit(name, inline) {
-  let base, scope = null;
+  let base,
+    scope = null;
   if (!name) {
     const kits = allKitsRaw();
-    const firstUserKit = Object.values(kits).find((k) => k && k.kit && (k.source === "personal" || k.source === "injected"));
-    if (firstUserKit) { base = JSON.parse(JSON.stringify(firstUserKit.kit)); scope = firstUserKit.scope; }
-    else base = clone(DEFAULT_KIT);
+    const firstUserKit = Object.values(kits).find(
+      (k) => k && k.kit && (k.source === "personal" || k.source === "injected"),
+    );
+    if (firstUserKit) {
+      base = JSON.parse(JSON.stringify(firstUserKit.kit));
+      scope = firstUserKit.scope;
+    } else base = clone(DEFAULT_KIT);
   } else {
     const found = findKitFile(name);
     if (!found) {
       const avail = availableKitNames();
-      throw new Error(`Brand kit "${name}" no existe. Disponibles: ${avail.length ? avail.join(", ") : "(ninguno)"}. Usá save_brand_kit para crear uno.`);
+      throw new Error(
+        `Brand kit "${name}" no existe. Disponibles: ${avail.length ? avail.join(", ") : "(ninguno)"}. Usá save_brand_kit para crear uno.`,
+      );
     }
     base = JSON.parse(fs.readFileSync(found.file, "utf8"));
     scope = found.scope;

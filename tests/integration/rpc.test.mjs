@@ -1,10 +1,10 @@
-import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
-import { ROOT, INIT, call, contentText, rpc } from "../helpers/rpc.mjs";
+import path from "node:path";
+import { describe, test } from "node:test";
+import { call, contentText, INIT, ROOT, rpc } from "../helpers/rpc.mjs";
 
 describe("MCP JSON-RPC integration", () => {
   test("initialize + tools/list returns 22 tools", async () => {
@@ -68,9 +68,16 @@ describe("MCP JSON-RPC integration", () => {
     const log = path.join(home, "calls.jsonl");
     try {
       const c = call(5, "load_carousel", { company: "none", name: "none" });
-      await rpc([INIT, c], [1, 5], { timeoutMs: 30000, env: { CAROUSEL_GENERATOR_HOME: home, CAROUSEL_TOOL_LOG: log } });
+      await rpc([INIT, c], [1, 5], {
+        timeoutMs: 30000,
+        env: { CAROUSEL_GENERATOR_HOME: home, CAROUSEL_TOOL_LOG: log },
+      });
       assert.ok(fs.existsSync(log), "tool log written");
-      const lines = fs.readFileSync(log, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+      const lines = fs
+        .readFileSync(log, "utf8")
+        .trim()
+        .split("\n")
+        .map((l) => JSON.parse(l));
       const entry = lines.find((l) => l.name === "load_carousel");
       assert.ok(entry, "entry for load_carousel");
       assert.equal(entry.ok, false);
@@ -86,8 +93,15 @@ describe("MCP JSON-RPC integration", () => {
     const log = path.join(home, "calls.jsonl");
     try {
       const c = call(6, "list_brand_kits", {});
-      await rpc([INIT, c], [1, 6], { timeoutMs: 30000, env: { CAROUSEL_GENERATOR_HOME: home, CAROUSEL_TOOL_LOG: log } });
-      const lines = fs.readFileSync(log, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+      await rpc([INIT, c], [1, 6], {
+        timeoutMs: 30000,
+        env: { CAROUSEL_GENERATOR_HOME: home, CAROUSEL_TOOL_LOG: log },
+      });
+      const lines = fs
+        .readFileSync(log, "utf8")
+        .trim()
+        .split("\n")
+        .map((l) => JSON.parse(l));
       assert.ok(lines.some((l) => l.name === "list_brand_kits" && l.ok === true));
     } finally {
       fs.rmSync(home, { recursive: true, force: true });

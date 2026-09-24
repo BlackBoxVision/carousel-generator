@@ -1,6 +1,6 @@
+import { handoffRender } from "../lib/handoff.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarousel } from "../lib/render.mjs";
-import { handoffRender } from "../lib/handoff.mjs";
 import { slug } from "../lib/text.mjs";
 import saveCarousel from "./save_carousel.mjs";
 
@@ -21,7 +21,8 @@ export default {
       slug: { type: "string", description: "Alias de name." },
       payload: {
         type: ["object", "string"],
-        description: "Alternativa a args top-level: string JSON o objeto {action:'upsert', company, name, carousel}. Si es string, se parsea. Preferí company+name+carousel directos si el cliente trunca objetos anidados.",
+        description:
+          "Alternativa a args top-level: string JSON o objeto {action:'upsert', company, name, carousel}. Si es string, se parsea. Preferí company+name+carousel directos si el cliente trunca objetos anidados.",
       },
       carousel: { type: "object", description: "carousel.json v2 completo (preferido con company/name top-level)." },
       open: { type: "boolean", description: "Abrir el HTML regenerado (default false)." },
@@ -31,7 +32,11 @@ export default {
     const a = args || {};
     let payload = a.payload;
     if (typeof payload === "string") {
-      try { payload = JSON.parse(payload); } catch (e) { throw new Error("No se pudo parsear `payload` como JSON: " + e.message); }
+      try {
+        payload = JSON.parse(payload);
+      } catch (e) {
+        throw new Error("No se pudo parsear `payload` como JSON: " + e.message);
+      }
     }
     if (payload && typeof payload === "object" && !Array.isArray(payload)) {
       if (payload.carousel && typeof payload.carousel === "object") {
@@ -45,11 +50,17 @@ export default {
       }
     }
     if (!a.carousel || typeof a.carousel !== "object") {
-      throw new Error("Falta el estado del editor. Pegá el JSON del botón Push al MCP en `payload`, o pasá `carousel` (v2) con company/name.");
+      throw new Error(
+        "Falta el estado del editor. Pegá el JSON del botón Push al MCP en `payload`, o pasá `carousel` (v2) con company/name.",
+      );
     }
     const resultRaw = await saveCarousel.handler(a);
     let result;
-    try { result = JSON.parse(resultRaw); } catch { result = { saved: resultRaw }; }
+    try {
+      result = JSON.parse(resultRaw);
+    } catch {
+      result = { saved: resultRaw };
+    }
     const company = slug(a.company || result.company || "");
     const name = slug(a.name || a.slug || result.slug || "");
     let html = null;
@@ -63,13 +74,15 @@ export default {
     } catch (e) {
       process.stderr.write(`[import-editor] render skip: ${e.message}\n`);
     }
-    const handoff = html ? handoffRender(html, result.saved || null, runtime || { company, slug: name, slides: [], meta: {} }, {
-      nextSteps: [
-        "Estado del editor importado a carousel.json.",
-        "Las fotos base64 (si las hubo) quedaron en assets/.",
-        "Podés seguir refinando con edit_slide / render_preview / social_copy.",
-      ],
-    }) : { nextSteps: ["Estado importado; no se pudo re-renderizar el HTML en este paso."] };
+    const handoff = html
+      ? handoffRender(html, result.saved || null, runtime || { company, slug: name, slides: [], meta: {} }, {
+          nextSteps: [
+            "Estado del editor importado a carousel.json.",
+            "Las fotos base64 (si las hubo) quedaron en assets/.",
+            "Podés seguir refinando con edit_slide / render_preview / social_copy.",
+          ],
+        })
+      : { nextSteps: ["Estado importado; no se pudo re-renderizar el HTML en este paso."] };
     return JSON.stringify({ imported: true, ...result, ...handoff }, null, 2);
   },
 };

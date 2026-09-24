@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { stripMd, slugTag } from "./text.mjs";
 import { extractFigures } from "./narrative.mjs";
+import { slugTag, stripMd } from "./text.mjs";
 
 export function slidePlainText(s) {
   const texts = { kicker: "", title: "", highlight: "", body: "", items: [] };
@@ -36,7 +36,11 @@ export function readSourceMd(dir) {
         const kv = line.match(/^(\w+):\s*(.*)$/);
         if (!kv) continue;
         let v = kv[2].trim();
-        if (v.startsWith('"') && v.endsWith('"')) { try { v = JSON.parse(v); } catch {} }
+        if (v.startsWith('"') && v.endsWith('"')) {
+          try {
+            v = JSON.parse(v);
+          } catch {}
+        }
         fm[kv[1]] = v;
       }
     }
@@ -44,13 +48,19 @@ export function readSourceMd(dir) {
     let cur = null;
     for (const line of raw.split("\n")) {
       const h = line.match(/^##\s+(.+)/);
-      if (h) { cur = h[1].trim(); sections[cur] = []; continue; }
+      if (h) {
+        cur = h[1].trim();
+        sections[cur] = [];
+        continue;
+      }
       if (cur && line.trim() && !line.startsWith("---") && !line.startsWith("- Extraído")) {
         sections[cur].push(line.trim());
       }
     }
     return { file, frontmatter: fm, sections };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 export function buildHashtags(terms, category, kitName, max) {
   const out = [];
@@ -81,13 +91,19 @@ export function hookVariants(title, highlight, kicker, tone) {
   const byTone = {
     directo: [`Directo al grano: ${t}.`, h ? `${h}. Punto.` : `${t}. Punto.`],
     inspirador: [`Imaginate ${t.toLowerCase()} — mirá cómo se hace.`, `Cambio real empieza con una idea: ${t}.`],
-    informativo: [`${t}: datos, contexto y qué sigue.`, h ? `El dato que cambia todo: ${h}.` : `Todo lo que hay que saber de ${t}.`],
-    provocador: [`¿Y si te digo que ${t.toLowerCase()} no es lo que pensás?`, h ? `Esto incomoda: ${h}.` : `La verdad incómoda sobre ${t}.`],
+    informativo: [
+      `${t}: datos, contexto y qué sigue.`,
+      h ? `El dato que cambia todo: ${h}.` : `Todo lo que hay que saber de ${t}.`,
+    ],
+    provocador: [
+      `¿Y si te digo que ${t.toLowerCase()} no es lo que pensás?`,
+      h ? `Esto incomoda: ${h}.` : `La verdad incómoda sobre ${t}.`,
+    ],
     cercano: [`Te cuento algo que vimos con ${t}…`, `Pasa seguido con ${t}. Mirá esto.`],
   };
   return [...base, ...(byTone[tone] || byTone.informativo)].filter(Boolean).slice(0, 5);
 }
-export function buildCaption(platform, { title, dek, hooks, audience, cta, tone, figures, category, slideCount }) {
+export function buildCaption(platform, { title, dek, hooks, audience, cta, figures, slideCount }) {
   const t = stripMd(title) || "Carrusel";
   const d = stripMd(dek);
   const figLine = figures.length ? `Dato clave: ${figures[0]}.` : "";

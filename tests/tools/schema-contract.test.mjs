@@ -1,5 +1,5 @@
-import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { describe, test } from "node:test";
 import { tools } from "../../mcp/registry.mjs";
 
 /**
@@ -16,13 +16,13 @@ function collectPropReads(src, rootRe) {
 }
 
 function schemaHas(schema, prop) {
-  return !!(schema && schema.properties && Object.prototype.hasOwnProperty.call(schema.properties, prop));
+  return !!(schema && schema.properties && Object.hasOwn(schema.properties, prop));
 }
 
 function payloadHas(schema, prop) {
   const p = schema && schema.properties && schema.properties.payload;
   if (!p || !p.properties) return true; // no payload bag → nothing to check
-  if (Object.prototype.hasOwnProperty.call(p.properties, prop)) return true;
+  if (Object.hasOwn(p.properties, prop)) return true;
   // freeform payload without properties → open
   if (!p.properties || Object.keys(p.properties).length === 0) return true;
   return false;
@@ -34,11 +34,7 @@ describe("schema-contract: handler property reads match inputSchema", () => {
       const src = tool.handler.toString();
       const reads = collectPropReads(src, /\b(?:a|args)\.([A-Za-z_][\w]*)/g);
       const missing = [...reads].filter((p) => !schemaHas(tool.inputSchema, p));
-      assert.deepEqual(
-        missing,
-        [],
-        `${tool.name}: handler reads not in inputSchema.properties: ${missing.join(", ")}`
-      );
+      assert.deepEqual(missing, [], `${tool.name}: handler reads not in inputSchema.properties: ${missing.join(", ")}`);
     });
 
     test(`${tool.name}: payload.* reads declared in schema.payload`, () => {
@@ -48,7 +44,7 @@ describe("schema-contract: handler property reads match inputSchema", () => {
       assert.deepEqual(
         missing,
         [],
-        `${tool.name}: handler reads not in inputSchema.properties.payload.properties: ${missing.join(", ")}`
+        `${tool.name}: handler reads not in inputSchema.properties.payload.properties: ${missing.join(", ")}`,
       );
     });
   }

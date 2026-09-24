@@ -1,25 +1,25 @@
-import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { tmpHome } from "../helpers/tmp-home.mjs";
-import generate from "../../mcp/tools/generate_carousel.mjs";
-import saveCarousel from "../../mcp/tools/save_carousel.mjs";
-import loadCarousel from "../../mcp/tools/load_carousel.mjs";
-import listCarousels from "../../mcp/tools/list_carousels.mjs";
+import { after, before, describe, test } from "node:test";
+import deleteBrandKit from "../../mcp/tools/delete_brand_kit.mjs";
 import deleteCarousel from "../../mcp/tools/delete_carousel.mjs";
 import duplicateCarousel from "../../mcp/tools/duplicate_carousel.mjs";
-import exportPdf from "../../mcp/tools/export_pdf.mjs";
-import deleteBrandKit from "../../mcp/tools/delete_brand_kit.mjs";
 import editSlide from "../../mcp/tools/edit_slide.mjs";
-import setSlideBg from "../../mcp/tools/set_slide_bg.mjs";
-import setCarouselMeta from "../../mcp/tools/set_carousel_meta.mjs";
-import validateCarousel from "../../mcp/tools/validate_carousel.mjs";
+import exportPdf from "../../mcp/tools/export_pdf.mjs";
+import generate from "../../mcp/tools/generate_carousel.mjs";
+import listKits from "../../mcp/tools/list_brand_kits.mjs";
+import listCarousels from "../../mcp/tools/list_carousels.mjs";
+import loadKit from "../../mcp/tools/load_brand_kit.mjs";
+import loadCarousel from "../../mcp/tools/load_carousel.mjs";
 import reviewSlide from "../../mcp/tools/review_slide_images.mjs";
 import saveKit from "../../mcp/tools/save_brand_kit.mjs";
-import listKits from "../../mcp/tools/list_brand_kits.mjs";
-import loadKit from "../../mcp/tools/load_brand_kit.mjs";
+import saveCarousel from "../../mcp/tools/save_carousel.mjs";
+import setCarouselMeta from "../../mcp/tools/set_carousel_meta.mjs";
+import setSlideBg from "../../mcp/tools/set_slide_bg.mjs";
 import socialCopy from "../../mcp/tools/social_copy.mjs";
+import validateCarousel from "../../mcp/tools/validate_carousel.mjs";
+import { tmpHome } from "../helpers/tmp-home.mjs";
 
 const COMPANY = "testco";
 let home;
@@ -38,7 +38,13 @@ after(() => {
 });
 
 const slides = () => [
-  { template: "cover", titleWhite: "PORTADA", titleOrange: "TEST", paragraphs: ["Bajada de prueba con 42%."], open: false },
+  {
+    template: "cover",
+    titleWhite: "PORTADA",
+    titleOrange: "TEST",
+    paragraphs: ["Bajada de prueba con 42%."],
+    open: false,
+  },
   { template: "fact", titleWhite: "DATO", titleOrange: "10%", paragraphs: ["Creció 10% en el periodo."] },
   { template: "cta", titleWhite: "FIN", titleOrange: "OK", ctaBox: { title: "Listo", text: "Todo bien." } },
 ];
@@ -46,8 +52,12 @@ const slides = () => [
 describe("generate/save/load/list/delete carousel", () => {
   test("generate_carousel persists and returns paths", async () => {
     const out = await generate.handler({
-      title: "Nota Test", company: COMPANY, carouselName: "nota-test",
-      slides: slides(), open: false, persist: true,
+      title: "Nota Test",
+      company: COMPANY,
+      carouselName: "nota-test",
+      slides: slides(),
+      open: false,
+      persist: true,
       outputDir: path.join(home.home, "out"),
     });
     assert.ok(out.includes("nota-test"));
@@ -80,15 +90,20 @@ describe("generate/save/load/list/delete carousel", () => {
 
   test("save_carousel updates title via v2 payload", async () => {
     const out = await saveCarousel.handler({
-      company: COMPANY, name: "nota-test",
+      company: COMPANY,
+      name: "nota-test",
       carousel: {
-        version: 2, company: COMPANY, slug: "nota-test",
+        version: 2,
+        company: COMPANY,
+        slug: "nota-test",
         meta: { title: "Nota Test Updated", format: "feed" },
         slides: [{ template: "cover", titleWhite: "NUEVO", titleOrange: "TITULO" }],
       },
       open: false,
     });
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "nota-test", "carousel.json"), "utf8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "nota-test", "carousel.json"), "utf8"),
+    );
     assert.equal(stored.meta.title, "Nota Test Updated");
     assert.equal(stored.slides.length, 1);
     assert.ok(typeof out === "string");
@@ -96,9 +111,12 @@ describe("generate/save/load/list/delete carousel", () => {
 
   test("save_carousel creates new carousel when company has no kit (kit fallback)", () => {
     const out = saveCarousel.handler({
-      company: "no-kit-co", name: "fresh-import",
+      company: "no-kit-co",
+      name: "fresh-import",
       carousel: {
-        version: 2, company: "no-kit-co", slug: "fresh-import",
+        version: 2,
+        company: "no-kit-co",
+        slug: "fresh-import",
         meta: { title: "Fresh", format: "feed" },
         slides: [{ template: "cover", titleWhite: "NEW", titleOrange: "OK" }],
       },
@@ -132,36 +150,62 @@ describe("generate/save/load/list/delete carousel", () => {
 describe("edit_slide", () => {
   before(async () => {
     await generate.handler({
-      title: "Edit Test", company: COMPANY, carouselName: "edit-test",
-      slides: slides(), open: false, persist: true,
+      title: "Edit Test",
+      company: COMPANY,
+      carouselName: "edit-test",
+      slides: slides(),
+      open: false,
+      persist: true,
       outputDir: path.join(home.home, "out"),
     });
   });
 
   test("update_text changes a block by blockType", async () => {
-    const out = JSON.parse(await editSlide.handler({
-      company: COMPANY, name: "edit-test", slide: 1, action: "update_text",
-      payload: { blockType: "text", text: "PORTADA EDITADA" },
-      open: false,
-    }));
+    const out = JSON.parse(
+      await editSlide.handler({
+        company: COMPANY,
+        name: "edit-test",
+        slide: 1,
+        action: "update_text",
+        payload: { blockType: "text", text: "PORTADA EDITADA" },
+        open: false,
+      }),
+    );
     assert.equal(out.action, "update_text");
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     const texts = [];
-    const walk = (ns) => { for (const b of ns || []) { if (b.text) texts.push(b.text); if (b.children) walk(b.children); } };
+    const walk = (ns) => {
+      for (const b of ns || []) {
+        if (b.text) texts.push(b.text);
+        if (b.children) walk(b.children);
+      }
+    };
     walk(stored.slides[0].elements);
     assert.ok(texts.includes("PORTADA EDITADA"));
   });
 
   test("move reorders slides", async () => {
-    await editSlide.handler({ company: COMPONENT_SAFE(), name: "edit-test", action: "move", payload: { to: 3 }, open: false });
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    await editSlide.handler({
+      company: COMPONENT_SAFE(),
+      name: "edit-test",
+      action: "move",
+      payload: { to: 3 },
+      open: false,
+    });
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     assert.equal(stored.slides.length, 3);
     assert.equal(stored.slides[2].template, "cover");
   });
 
   test("duplicate and delete slides", async () => {
     await editSlide.handler({ company: COMPANY, name: "edit-test", action: "duplicate", slide: 1, open: false });
-    let stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    let stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     assert.equal(stored.slides.length, 4);
     await editSlide.handler({ company: COMPANY, name: "edit-test", action: "delete", slide: 2, open: false });
     stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
@@ -170,35 +214,60 @@ describe("edit_slide", () => {
 
   test("rejects invalid action and missing payload.text", async () => {
     await assert.rejects(() => editSlide.handler({ company: COMPANY, name: "edit-test", action: "nope" }), /action/);
-    await assert.rejects(() => editSlide.handler({
-      company: COMPANY, name: "edit-test", action: "update_text", payload: { blockType: "text" },
-    }), /payload\.text/);
+    await assert.rejects(
+      () =>
+        editSlide.handler({
+          company: COMPANY,
+          name: "edit-test",
+          action: "update_text",
+          payload: { blockType: "text" },
+        }),
+      /payload\.text/,
+    );
   });
 
   test("add inserts a new blank slide with template", async () => {
-    const before = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const before = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     const n0 = before.slides.length;
-    const out = JSON.parse(await editSlide.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", action: "add",
-      payload: { template: "fact" }, open: false,
-    }));
+    const out = JSON.parse(
+      await editSlide.handler({
+        company: COMPONENT_SAFE(),
+        name: "edit-test",
+        action: "add",
+        payload: { template: "fact" },
+        open: false,
+      }),
+    );
     assert.equal(out.action, "add");
     assert.equal(out.slides, n0 + 1);
     assert.equal(out.template, "fact");
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     assert.equal(stored.slides.length, n0 + 1);
     assert.equal(stored.slides[stored.slides.length - 1].template, "fact");
   });
 
   test("add rejects unknown template", async () => {
-    await assert.rejects(() => editSlide.handler({
-      company: COMPANY, name: "edit-test", action: "add", payload: { template: "nope" },
-    }), /template/);
+    await assert.rejects(
+      () =>
+        editSlide.handler({
+          company: COMPANY,
+          name: "edit-test",
+          action: "add",
+          payload: { template: "nope" },
+        }),
+      /template/,
+    );
   });
 
   test("split divides a list slide after first 3 items", async () => {
     await generate.handler({
-      title: "Split Source", company: COMPANY, carouselName: "split-test",
+      title: "Split Source",
+      company: COMPANY,
+      carouselName: "split-test",
       slides: [
         {
           template: "list",
@@ -213,16 +282,25 @@ describe("edit_slide", () => {
           ],
         },
       ],
-      open: false, persist: true,
+      open: false,
+      persist: true,
       outputDir: path.join(home.home, "out"),
     });
     // generate auto-partitions 5 items into 3+2 → 2 slides already
-    let stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "split-test", "carousel.json"), "utf8"));
+    let stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "split-test", "carousel.json"), "utf8"),
+    );
     assert.equal(stored.slides.length, 2);
     // explicit split on first list slide (3 items → 2+1)
-    const out = JSON.parse(await editSlide.handler({
-      company: COMPANY, name: "split-test", slide: 1, action: "split", open: false,
-    }));
+    const out = JSON.parse(
+      await editSlide.handler({
+        company: COMPANY,
+        name: "split-test",
+        slide: 1,
+        action: "split",
+        open: false,
+      }),
+    );
     assert.equal(out.action, "split");
     assert.equal(out.slides, 3);
     assert.equal(out.kept, 2);
@@ -232,13 +310,20 @@ describe("edit_slide", () => {
   });
 
   test("set_layout applies align and copyPos onto elements", async () => {
-    const out = JSON.parse(await editSlide.handler({
-      company: COMPANY, name: "edit-test", slide: 1, action: "set_layout",
-      payload: { align: { title: "center" }, copyPos: { anchor: "top", offset: 2 } },
-      open: false,
-    }));
+    const out = JSON.parse(
+      await editSlide.handler({
+        company: COMPANY,
+        name: "edit-test",
+        slide: 1,
+        action: "set_layout",
+        payload: { align: { title: "center" }, copyPos: { anchor: "top", offset: 2 } },
+        open: false,
+      }),
+    );
     assert.equal(out.action, "set_layout");
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     const stack = (stored.slides[0].elements || []).find((el) => el.type === "stack");
     assert.ok(stack, "stack exists");
     assert.equal(stack.style.anchor, "top");
@@ -257,28 +342,51 @@ describe("edit_slide", () => {
   });
 
   test("set_layout rejects empty payload", async () => {
-    await assert.rejects(() => editSlide.handler({
-      company: COMPANY, name: "edit-test", slide: 1, action: "set_layout", payload: {},
-    }), /align, copyPos/);
+    await assert.rejects(
+      () =>
+        editSlide.handler({
+          company: COMPANY,
+          name: "edit-test",
+          slide: 1,
+          action: "set_layout",
+          payload: {},
+        }),
+      /align, copyPos/,
+    );
   });
 
   test("add_block / set_block / delete_block roundtrip", async () => {
-    const add = JSON.parse(await editSlide.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "add_block",
-      payload: { type: "body", text: "Nuevo párrafo de prueba" },
-      open: false,
-    }));
+    const add = JSON.parse(
+      await editSlide.handler({
+        company: COMPONENT_SAFE(),
+        name: "edit-test",
+        slide: 1,
+        action: "add_block",
+        payload: { type: "body", text: "Nuevo párrafo de prueba" },
+        open: false,
+      }),
+    );
     assert.equal(add.action, "add_block");
     assert.ok(add.blockId);
 
     await editSlide.handler({
-      company: COMPANY, name: "edit-test", slide: 1, action: "set_block",
+      company: COMPANY,
+      name: "edit-test",
+      slide: 1,
+      action: "set_block",
       payload: { blockId: add.blockId, text: "Párrafo editado", style: { align: "right" } },
       open: false,
     });
-    const stored1 = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored1 = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     const found = [];
-    const walk = (ns) => { for (const b of ns || []) { found.push(b); if (b.children) walk(b.children); } };
+    const walk = (ns) => {
+      for (const b of ns || []) {
+        found.push(b);
+        if (b.children) walk(b.children);
+      }
+    };
     walk(stored1.slides[0].elements);
     const body = found.find((b) => b.id === add.blockId);
     assert.ok(body, "block exists after set");
@@ -286,87 +394,147 @@ describe("edit_slide", () => {
     assert.equal(body.style.align, "right");
 
     await editSlide.handler({
-      company: COMPANY, name: "edit-test", slide: 1, action: "delete_block",
+      company: COMPANY,
+      name: "edit-test",
+      slide: 1,
+      action: "delete_block",
       payload: { blockId: add.blockId },
       open: false,
     });
-    const stored2 = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored2 = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     const after = [];
-    const walk2 = (ns) => { for (const b of ns || []) { after.push(b); if (b.children) walk2(b.children); } };
+    const walk2 = (ns) => {
+      for (const b of ns || []) {
+        after.push(b);
+        if (b.children) walk2(b.children);
+      }
+    };
     walk2(stored2.slides[0].elements);
     assert.ok(!after.some((b) => b.id === add.blockId), "block deleted");
   });
 
   test("delete_block protects brand root without blockId", async () => {
-    await assert.rejects(() => editSlide.handler({
-      company: COMPANY, name: "edit-test", slide: 1, action: "delete_block",
-      payload: { blockType: "brand" },
-    }), /root block/);
+    await assert.rejects(
+      () =>
+        editSlide.handler({
+          company: COMPANY,
+          name: "edit-test",
+          slide: 1,
+          action: "delete_block",
+          payload: { blockType: "brand" },
+        }),
+      /root block/,
+    );
   });
 
   test("add_item / delete_item", async () => {
-    const add = JSON.parse(await editSlide.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", slide: 2, action: "add_item",
-      payload: { emoji: "🚀", title: "Nuevo ítem", desc: "desc" },
-      open: false,
-    }));
+    const add = JSON.parse(
+      await editSlide.handler({
+        company: COMPONENT_SAFE(),
+        name: "edit-test",
+        slide: 2,
+        action: "add_item",
+        payload: { emoji: "🚀", title: "Nuevo ítem", desc: "desc" },
+        open: false,
+      }),
+    );
     assert.equal(add.action, "add_item");
     assert.ok(add.itemId);
     await editSlide.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", slide: 2, action: "delete_item",
+      company: COMPONENT_SAFE(),
+      name: "edit-test",
+      slide: 2,
+      action: "delete_item",
       payload: { title: "Nuevo ítem" },
       open: false,
     });
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     const titles = [];
-    const walk = (ns) => { for (const b of ns || []) { if (b.type === "item") titles.push(b.title); if (b.children) walk(b.children); } };
+    const walk = (ns) => {
+      for (const b of ns || []) {
+        if (b.type === "item") titles.push(b.title);
+        if (b.children) walk(b.children);
+      }
+    };
     walk(stored.slides[1].elements);
     assert.ok(!titles.includes("Nuevo ítem"));
   });
 
   test("add_pill / update_pill / delete_pill", async () => {
-    const add = JSON.parse(await editSlide.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "add_pill",
-      payload: { text: "Buenos Aires", top: 40, side: "right", offset: 10 },
-      open: false,
-    }));
+    const add = JSON.parse(
+      await editSlide.handler({
+        company: COMPONENT_SAFE(),
+        name: "edit-test",
+        slide: 1,
+        action: "add_pill",
+        payload: { text: "Buenos Aires", top: 40, side: "right", offset: 10 },
+        open: false,
+      }),
+    );
     assert.equal(add.action, "add_pill");
     await editSlide.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "update_pill",
+      company: COMPONENT_SAFE(),
+      name: "edit-test",
+      slide: 1,
+      action: "update_pill",
       payload: { index: 0, text: "Córdoba", top: 50 },
       open: false,
     });
     await editSlide.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "delete_pill",
+      company: COMPONENT_SAFE(),
+      name: "edit-test",
+      slide: 1,
+      action: "delete_pill",
       payload: { index: 0 },
       open: false,
     });
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     const pills = (stored.slides[0].elements || []).filter((el) => el.type === "pill");
     assert.equal(pills.length, 0);
   });
 
   test("move_block reorders within stack", async () => {
-    const add = JSON.parse(await editSlide.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "add_block",
-      payload: { type: "slogan", text: "SLOGAN NUEVO", at: 1 },
-      open: false,
-    }));
+    const add = JSON.parse(
+      await editSlide.handler({
+        company: COMPONENT_SAFE(),
+        name: "edit-test",
+        slide: 1,
+        action: "add_block",
+        payload: { type: "slogan", text: "SLOGAN NUEVO", at: 1 },
+        open: false,
+      }),
+    );
     await editSlide.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "move_block",
+      company: COMPONENT_SAFE(),
+      name: "edit-test",
+      slide: 1,
+      action: "move_block",
       payload: { blockId: add.blockId, to: 99 },
       open: false,
     });
-    const out = JSON.parse(await editSlide.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "delete_block",
-      payload: { blockId: add.blockId },
-      open: false,
-    }));
+    const out = JSON.parse(
+      await editSlide.handler({
+        company: COMPONENT_SAFE(),
+        name: "edit-test",
+        slide: 1,
+        action: "delete_block",
+        payload: { blockId: add.blockId },
+        open: false,
+      }),
+    );
     assert.equal(out.action, "delete_block");
   });
 });
 
-function COMPONENT_SAFE() { return COMPANY; }
+function COMPONENT_SAFE() {
+  return COMPANY;
+}
 
 describe("review_slide_images", () => {
   test("returns slides with photoNeeds for photo-less slides", async () => {
@@ -402,9 +570,13 @@ describe("brand kits", () => {
 
 describe("social_copy", () => {
   test("generates captions, hooks and altTexts for persisted carousel", async () => {
-    const out = JSON.parse(await socialCopy.handler({
-      company: COMPANY, name: "edit-test", tone: "directo",
-    }));
+    const out = JSON.parse(
+      await socialCopy.handler({
+        company: COMPANY,
+        name: "edit-test",
+        tone: "directo",
+      }),
+    );
     assert.ok(out.captions.instagram);
     assert.ok(out.captions.linkedin);
     assert.ok(out.hooks.length > 0);
@@ -416,55 +588,98 @@ describe("social_copy", () => {
 describe("set_slide_bg", () => {
   test("applies gradient from kit", async () => {
     const out = await setSlideBg.handler({
-      company: COMPANY, name: "edit-test", slide: 1, mode: "gradient", gradient: "navy",
+      company: COMPANY,
+      name: "edit-test",
+      slide: 1,
+      mode: "gradient",
+      gradient: "navy",
       open: false,
     });
     assert.ok(out.includes("gradient"));
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     assert.equal(stored.slides[0].bg.type, "gradient");
     assert.equal(stored.slides[0].bg.value, "navy");
   });
 
   test("applies custom css", async () => {
     await setSlideBg.handler({
-      company: COMPONENT_SAFE(), name: "edit-test", slide: 2, mode: "css",
-      css: "linear-gradient(135deg,#111,#333)", open: false,
+      company: COMPONENT_SAFE(),
+      name: "edit-test",
+      slide: 2,
+      mode: "css",
+      css: "linear-gradient(135deg,#111,#333)",
+      open: false,
     });
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     assert.equal(stored.slides[1].bg.type, "css");
     assert.ok(stored.slides[1].bg.css.includes("linear-gradient"));
   });
 
   test("remove resets to first kit gradient", async () => {
     await setSlideBg.handler({
-      company: COMPANY, name: "edit-test", slide: 1, mode: "remove", open: false,
+      company: COMPANY,
+      name: "edit-test",
+      slide: 1,
+      mode: "remove",
+      open: false,
     });
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     assert.equal(stored.slides[0].bg.type, "gradient");
   });
 
   test("rejects unknown gradient and missing mode fields", () => {
-    assert.throws(() => setSlideBg.handler({
-      company: COMPANY, name: "edit-test", mode: "gradient", gradient: "nope",
-    }), /Gradiente/);
-    assert.throws(() => setSlideBg.handler({
-      company: COMPANY, name: "edit-test", mode: "gradient",
-    }), /Falta `gradient`/);
-    assert.throws(() => setSlideBg.handler({
-      company: COMPANY, name: "edit-test", mode: "css",
-    }), /Falta `css`/);
+    assert.throws(
+      () =>
+        setSlideBg.handler({
+          company: COMPANY,
+          name: "edit-test",
+          mode: "gradient",
+          gradient: "nope",
+        }),
+      /Gradiente/,
+    );
+    assert.throws(
+      () =>
+        setSlideBg.handler({
+          company: COMPANY,
+          name: "edit-test",
+          mode: "gradient",
+        }),
+      /Falta `gradient`/,
+    );
+    assert.throws(
+      () =>
+        setSlideBg.handler({
+          company: COMPANY,
+          name: "edit-test",
+          mode: "css",
+        }),
+      /Falta `css`/,
+    );
   });
 });
 
 describe("set_carousel_meta", () => {
   test("updates title, format, category and showCount", async () => {
     const out = await setCarouselMeta.handler({
-      company: COMPANY, name: "edit-test",
-      title: "Meta Test", format: "square", category: "demo", showCount: false,
+      company: COMPANY,
+      name: "edit-test",
+      title: "Meta Test",
+      format: "square",
+      category: "demo",
+      showCount: false,
       open: false,
     });
     assert.ok(out.includes("square"));
-    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"),
+    );
     assert.equal(stored.meta.title, "Meta Test");
     assert.equal(stored.meta.format, "square");
     assert.equal(stored.meta.canvas.w, 1080);
@@ -475,9 +690,15 @@ describe("set_carousel_meta", () => {
 
   test("rejects when no field provided and invalid format", () => {
     assert.throws(() => setCarouselMeta.handler({ company: COMPANY, name: "edit-test" }), /title \| format/);
-    assert.throws(() => setCarouselMeta.handler({
-      company: COMPANY, name: "edit-test", format: "hd",
-    }), /feed, square, story/);
+    assert.throws(
+      () =>
+        setCarouselMeta.handler({
+          company: COMPANY,
+          name: "edit-test",
+          format: "hd",
+        }),
+      /feed, square, story/,
+    );
   });
 });
 
@@ -494,13 +715,15 @@ describe("validate_carousel", () => {
   });
 
   test("accepts loose slides for dry-run without company", async () => {
-    const out = JSON.parse(await validateCarousel.handler({
-      slides: [
-        { template: "cover", titleWhite: "HOLA", titleOrange: "MUNDO" },
-        { template: "cta", titleWhite: "FIN", titleOrange: "OK" },
-      ],
-      title: "Dry Run",
-    }));
+    const out = JSON.parse(
+      await validateCarousel.handler({
+        slides: [
+          { template: "cover", titleWhite: "HOLA", titleOrange: "MUNDO" },
+          { template: "cta", titleWhite: "FIN", titleOrange: "OK" },
+        ],
+        title: "Dry Run",
+      }),
+    );
     assert.equal(out.slides, 2);
     assert.equal(out.title, "Dry Run");
     assert.ok(Array.isArray(out.narrativeAudit.flags));
@@ -515,12 +738,19 @@ describe("validate_carousel", () => {
 describe("duplicate_carousel", () => {
   test("copies carousel to new slug and leaves original intact", async () => {
     await generate.handler({
-      title: "Dup Source", company: COMPANY, carouselName: "dup-src",
-      slides: slides(), open: false, persist: true,
+      title: "Dup Source",
+      company: COMPANY,
+      carouselName: "dup-src",
+      slides: slides(),
+      open: false,
+      persist: true,
       outputDir: path.join(home.home, "out"),
     });
     const out = await duplicateCarousel.handler({
-      company: COMPANY, name: "dup-src", toName: "dup-copy", open: false,
+      company: COMPANY,
+      name: "dup-src",
+      toName: "dup-copy",
+      open: false,
     });
     assert.ok(out.includes("dup-copy"));
     assert.ok(fs.existsSync(path.join(home.carouselDir, COMPANY, "dup-copy", "carousel.json")));
@@ -536,12 +766,9 @@ describe("duplicate_carousel", () => {
   test("rejects same origin/dest and missing source", () => {
     assert.throws(
       () => duplicateCarousel.handler({ company: COMPANY, name: "dup-src", toName: "dup-src" }),
-      /distinto del origen/
+      /distinto del origen/,
     );
-    assert.throws(
-      () => duplicateCarousel.handler({ company: COMPANY, name: "no-existe" }),
-      /no existe/
-    );
+    assert.throws(() => duplicateCarousel.handler({ company: COMPANY, name: "no-existe" }), /no existe/);
   });
 });
 
@@ -564,8 +791,12 @@ describe("delete_brand_kit", () => {
 describe("export_pdf", () => {
   test("exports HTML (+ PDF if Chrome) or reports no-chrome without throwing", async () => {
     await generate.handler({
-      title: "PDF Source", company: COMPANY, carouselName: "pdf-src",
-      slides: slides(), open: false, persist: true,
+      title: "PDF Source",
+      company: COMPANY,
+      carouselName: "pdf-src",
+      slides: slides(),
+      open: false,
+      persist: true,
       outputDir: path.join(home.home, "out"),
     });
     const out = JSON.parse(await exportPdf.handler({ company: COMPANY, name: "pdf-src", format: "feed" }));
@@ -582,9 +813,6 @@ describe("export_pdf", () => {
 
   test("rejects missing args and bad slide indices", () => {
     assert.throws(() => exportPdf.handler({}), /Faltan `company` y `name`/);
-    assert.throws(
-      () => exportPdf.handler({ company: COMPANY, name: "pdf-src", slides: [99] }),
-      /fuera de rango/
-    );
+    assert.throws(() => exportPdf.handler({ company: COMPANY, name: "pdf-src", slides: [99] }), /fuera de rango/);
   });
 });

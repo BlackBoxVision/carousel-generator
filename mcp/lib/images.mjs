@@ -1,32 +1,44 @@
-import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { CONVERTIBLE_EXTS, IMG_EXTS } from "./const.mjs";
-import { expandHome } from "./text.mjs";
 import { brandDir } from "./paths.mjs";
+import { expandHome } from "./text.mjs";
 
 export function convertToJpeg(file) {
   const ext = path.extname(file).toLowerCase();
   if (!CONVERTIBLE_EXTS.has(ext)) return file;
   if (process.platform !== "darwin") {
-    throw new Error(`No se pudo convertir "${ext}" a jpg: la conversión requiere sips (solo disponible en macOS). Convertí el archivo manualmente y pasá el .jpg.`);
+    throw new Error(
+      `No se pudo convertir "${ext}" a jpg: la conversión requiere sips (solo disponible en macOS). Convertí el archivo manualmente y pasá el .jpg.`,
+    );
   }
   const out = file.replace(new RegExp(ext.replace(".", "\\.") + "$", "i"), ".jpg");
   try {
     const r = spawnSync("sips", ["-s", "format", "jpeg", file, "--out", out], { encoding: "utf8" });
     if (r.status === 0 && fs.existsSync(out)) return out;
   } catch {}
-  throw new Error(`No se pudo convertir "${ext}" a jpg (se requiere sips en macOS). Convertí el archivo manualmente y pasá el .jpg.`);
+  throw new Error(
+    `No se pudo convertir "${ext}" a jpg (se requiere sips en macOS). Convertí el archivo manualmente y pasá el .jpg.`,
+  );
 }
 export function imageSize(file) {
   let buf;
-  try { buf = fs.readFileSync(file); } catch { return null; }
-  if (buf.length > 24 && buf.toString("ascii", 1, 4) === "PNG") return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+  try {
+    buf = fs.readFileSync(file);
+  } catch {
+    return null;
+  }
+  if (buf.length > 24 && buf.toString("ascii", 1, 4) === "PNG")
+    return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
   if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
     let off = 2;
     while (off + 9 < buf.length) {
-      if (buf[off] !== 0xff) { off++; continue; }
+      if (buf[off] !== 0xff) {
+        off++;
+        continue;
+      }
       const marker = buf[off + 1];
       if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
         return { w: buf.readUInt16BE(off + 7), h: buf.readUInt16BE(off + 5) };
@@ -38,14 +50,19 @@ export function imageSize(file) {
 }
 export function imageDimensions(file) {
   const b = fs.readFileSync(file);
-  if (b.length > 24 && b.readUInt32BE(0) === 0x89504e47) return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) };
+  if (b.length > 24 && b.readUInt32BE(0) === 0x89504e47)
+    return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) };
   if (b.length < 4 || b[0] !== 0xff || b[1] !== 0xd8) return { width: null, height: null };
   let p = 2;
   while (p + 9 < b.length) {
-    if (b[p] !== 0xff) { p++; continue; }
+    if (b[p] !== 0xff) {
+      p++;
+      continue;
+    }
     const marker = b[p + 1];
     const length = b.readUInt16BE(p + 2);
-    if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker)) return { width: b.readUInt16BE(p + 7), height: b.readUInt16BE(p + 5) };
+    if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker))
+      return { width: b.readUInt16BE(p + 7), height: b.readUInt16BE(p + 5) };
     p += 2 + length;
   }
   return { width: null, height: null };
@@ -72,7 +89,10 @@ export function loadImageDataURL(ref, scope) {
     if (scoped && fs.existsSync(scoped)) p = scoped;
     else p = path.join(brandDir(), p);
   }
-  if (!fs.existsSync(p)) throw new Error(`Logo no encontrado: ${p}. Rutas relativas se buscan en la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/) y luego en ~/.carousel-generator/brand/.`);
+  if (!fs.existsSync(p))
+    throw new Error(
+      `Logo no encontrado: ${p}. Rutas relativas se buscan en la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/) y luego en ~/.carousel-generator/brand/.`,
+    );
   const ext = path.extname(p).toLowerCase();
   const mime = IMG_EXTS[ext];
   if (!mime) throw new Error(`Formato de logo no soportado: "${ext}". Usá PNG, JPG, WEBP, GIF o SVG.`);
@@ -82,7 +102,10 @@ export async function downloadPhotoToTmp(url) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 15000);
   try {
-    const res = await globalThis.fetch(url, { signal: ctl.signal, headers: { "User-Agent": "carousel-generator/2.2 (+carousel-from-url)" } });
+    const res = await globalThis.fetch(url, {
+      signal: ctl.signal,
+      headers: { "User-Agent": "carousel-generator/2.2 (+carousel-from-url)" },
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const ct = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
     if (!ct.startsWith("image/")) throw new Error(`no es imagen (${ct})`);
@@ -95,5 +118,7 @@ export async function downloadPhotoToTmp(url) {
     const file = path.join(dir, `photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
     fs.writeFileSync(file, buf);
     return file;
-  } finally { clearTimeout(t); }
+  } finally {
+    clearTimeout(t);
+  }
 }

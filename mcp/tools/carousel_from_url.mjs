@@ -1,11 +1,17 @@
+import {
+  detectCategory,
+  extractArticle,
+  pickPhotoCandidates,
+  splitTitleForCover,
+  writeSourceMd,
+} from "../lib/article.mjs";
 import { DATA_FIG_RE, LIST_EMOJIS, NARRATIVE_REVIEW_PROTOCOL, PHOTO_REVIEW_PROTOCOL } from "../lib/const.mjs";
-import { detectCategory, extractArticle, pickPhotoCandidates, splitTitleForCover, writeSourceMd } from "../lib/article.mjs";
+import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { fetchBrandHTML } from "../lib/html.mjs";
 import { downloadPhotoToTmp } from "../lib/images.mjs";
 import { formatStyleWarnings, lintSlideTexts, narrativeAudit } from "../lib/narrative.mjs";
 import { persistCarousel } from "../lib/persist.mjs";
 import { renderCarousel, runtimeDataFromArgs } from "../lib/render.mjs";
-import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { slug } from "../lib/text.mjs";
 
 export default {
@@ -22,14 +28,23 @@ export default {
     properties: {
       url: { type: "string", description: "URL http(s) de la nota/artículo." },
       company: { type: "string", description: "Slug de empresa. Default: og:site_name o hostname." },
-      kitName: { type: "string", description: "Brand kit a usar (ver list_brand_kits). Si se omite, usa el primer kit personal o Default." },
+      kitName: {
+        type: "string",
+        description: "Brand kit a usar (ver list_brand_kits). Si se omite, usa el primer kit personal o Default.",
+      },
       carouselName: { type: "string", description: "Slug persistido del carrusel. Default: slug del título." },
       format: { type: "string", enum: ["feed", "square", "story"], description: "Formato (default feed 4:5)." },
-      category: { type: "string", description: "Categoría de la nota para highlightColors (default: detectada del artículo)." },
+      category: {
+        type: "string",
+        description: "Categoría de la nota para highlightColors (default: detectada del artículo).",
+      },
       persist: { type: "boolean", description: "Guardar carousel.json (default true)." },
       outputDir: { type: "string", description: "Directorio del HTML. Default ~/Downloads." },
       fileName: { type: "string", description: "Nombre base del HTML." },
-      open: { type: "boolean", description: "Abrir el HTML (default true para load/generate/from_url; default false para tools iterativas)." },
+      open: {
+        type: "boolean",
+        description: "Abrir el HTML (default true para load/generate/from_url; default false para tools iterativas).",
+      },
     },
     required: ["url"],
   },
@@ -46,7 +61,13 @@ export default {
     const figParas = art.paras.filter((p) => DATA_FIG_RE.test(p));
     const otherParas = art.paras.filter((p) => !figParas.includes(p));
     const slides = [
-      { template: "cover", eyebrow: art.site.toUpperCase(), titleWhite: cover.white, titleOrange: cover.orange, paragraphs: [art.dek].filter(Boolean) },
+      {
+        template: "cover",
+        eyebrow: art.site.toUpperCase(),
+        titleWhite: cover.white,
+        titleOrange: cover.orange,
+        paragraphs: [art.dek].filter(Boolean),
+      },
     ];
     figParas.slice(0, 2).forEach((p, i) => {
       const fig = (p.match(DATA_FIG_RE) || [])[0] || "";
@@ -65,12 +86,22 @@ export default {
         eyebrow: "CLAVES DE LA NOTA",
         titleWhite: "LOS PUNTOS",
         titleOrange: "A SEGUIR",
-        items: art.items.slice(0, 9).map((t, i) => ({ emoji: LIST_EMOJIS[i % LIST_EMOJIS.length], title: t.length > 70 ? t.slice(0, 67).trimEnd() + "…" : t, desc: "" })),
+        items: art.items.slice(0, 9).map((t, i) => ({
+          emoji: LIST_EMOJIS[i % LIST_EMOJIS.length],
+          title: t.length > 70 ? t.slice(0, 67).trimEnd() + "…" : t,
+          desc: "",
+        })),
       });
     }
     if (otherParas.length) {
       const p = otherParas[0];
-      slides.push({ template: "fact", eyebrow: "PARA TENER EN CUENTA", titleWhite: p.split(/\s+/).slice(0, 3).join(" ").toUpperCase(), titleOrange: "EL CONTEXTO", paragraphs: [p.length > 220 ? p.slice(0, 217).trimEnd() + "…" : p] });
+      slides.push({
+        template: "fact",
+        eyebrow: "PARA TENER EN CUENTA",
+        titleWhite: p.split(/\s+/).slice(0, 3).join(" ").toUpperCase(),
+        titleOrange: "EL CONTEXTO",
+        paragraphs: [p.length > 220 ? p.slice(0, 217).trimEnd() + "…" : p],
+      });
     }
     slides.push({
       template: "cta",
@@ -89,10 +120,16 @@ export default {
     for (let i = 0; i < slides.length; i++) if (["cover", "fact", "list"].includes(slides[i].template)) slots.push(i);
     let ci = 0;
     for (const si of slots) {
-      let file = null, src = null;
+      let file = null,
+        src = null;
       while (ci < candidates.length && !file) {
-        try { file = await downloadPhotoToTmp(candidates[ci]); src = candidates[ci]; }
-        catch (e) { process.stderr.write(`[carousel-from-url] foto descartada ${candidates[ci]}: ${(e && e.message) || e}\n`); ci++; }
+        try {
+          file = await downloadPhotoToTmp(candidates[ci]);
+          src = candidates[ci];
+        } catch (e) {
+          process.stderr.write(`[carousel-from-url] foto descartada ${candidates[ci]}: ${(e && e.message) || e}\n`);
+          ci++;
+        }
       }
       if (file) {
         slides[si].background = `file:${file}`;
@@ -101,13 +138,24 @@ export default {
         assigned.push({ slide: si + 1, source: src });
         ci++;
       } else {
-        photoNeeds.push({ slide: si + 1, template: slides[si].template, query: `${art.title} ${slides[si].eyebrow}`.trim() });
+        photoNeeds.push({
+          slide: si + 1,
+          template: slides[si].template,
+          query: `${art.title} ${slides[si].eyebrow}`.trim(),
+        });
       }
     }
     if (!photoNeeds.length && !assigned.length) {
       photoNeeds.push({ slide: 1, template: "cover", query: art.title });
     }
-    const runtime = runtimeDataFromArgs({ ...a, title: art.title, company, carouselName, slides, category: a.category || detected && detected.category });
+    const runtime = runtimeDataFromArgs({
+      ...a,
+      title: art.title,
+      company,
+      carouselName,
+      slides,
+      category: a.category || (detected && detected.category),
+    });
     runtime.company = company;
     runtime.slug = carouselName;
     let persisted = null;
@@ -145,12 +193,17 @@ export default {
       lines.push("", "photoNeeds (slides sin foto coherente):");
       for (const n of photoNeeds) lines.push(`  - slide ${n.slide} (${n.template}) → query sugerida: "${n.query}"`);
     }
-    lines.push("", "IMPORTANTE — Verificá cada foto asignada con visión (descargá/miniaturizá y confirmá que coincide con el mensaje de la slide).", PHOTO_REVIEW_PROTOCOL);
+    lines.push(
+      "",
+      "IMPORTANTE — Verificá cada foto asignada con visión (descargá/miniaturizá y confirmá que coincide con el mensaje de la slide).",
+      PHOTO_REVIEW_PROTOCOL,
+    );
     const audit = narrativeAudit(runtime.slides, art.title);
     lines.push("", `narrativeAudit (hilo/coherencia): ok=${audit.ok}`);
     if (audit.flags.length) {
       lines.push("  flags:");
-      for (const f of audit.flags) lines.push(`  - [${f.severity}${f.confidence ? "/" + f.confidence : ""}] ${f.rule}: ${f.detail}`);
+      for (const f of audit.flags)
+        lines.push(`  - [${f.severity}${f.confidence ? "/" + f.confidence : ""}] ${f.rule}: ${f.detail}`);
     } else {
       lines.push("  (sin flags — revisá igual que cada slide conecte con la anterior)");
     }
@@ -159,9 +212,13 @@ export default {
     const handoff = handoffRender(file, persisted ? persisted.file : null, runtime, {
       nextSteps: [
         a.open === false ? "HTML generado sin abrir (open:false)." : "Se abrió en el navegador.",
-        ...(sourceMd && sourceMd.wrote ? [`source.md guardado: ${sourceMd.file} — usalo como fuente en social_copy.`] : ["source.md no se escribió (podía existir ya)."]),
+        ...(sourceMd && sourceMd.wrote
+          ? [`source.md guardado: ${sourceMd.file} — usalo como fuente en social_copy.`]
+          : ["source.md no se escribió (podía existir ya)."]),
         "Seguí el PHOTO REVIEW PROTOCOL y el NARRATIVE_REVIEW_PROTOCOL antes de entregar.",
-        ...(photoNeeds.length ? [`Hay ${photoNeeds.length} slides sin foto coherente: resuelvelas con set_slide_photo / stock.`] : []),
+        ...(photoNeeds.length
+          ? [`Hay ${photoNeeds.length} slides sin foto coherente: resuelvelas con set_slide_photo / stock.`]
+          : []),
       ],
     });
     return appendHandoff(lines.join("\n"), handoff);

@@ -1,5 +1,5 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { blockId, findBlockInSlide, normalizeBlock, partitionListSlides, walkBlocks } from "../../mcp/lib/blocks.mjs";
 
 test("blockId is deterministic", () => {
@@ -23,20 +23,41 @@ test("normalizeBlock maps children recursively", () => {
 });
 
 test("walkBlocks visits nested nodes and can stop with true", () => {
-  const nodes = [{ type: "stack", children: [{ type: "kicker", text: "A" }, { type: "text", text: "B" }] }];
+  const nodes = [
+    {
+      type: "stack",
+      children: [
+        { type: "kicker", text: "A" },
+        { type: "text", text: "B" },
+      ],
+    },
+  ];
   const seen = [];
-  walkBlocks(nodes, (b) => { seen.push(b.type); return false; });
+  walkBlocks(nodes, (b) => {
+    seen.push(b.type);
+    return false;
+  });
   assert.deepEqual(seen, ["stack", "kicker", "text"]);
   const first = [];
-  walkBlocks(nodes, (b) => { first.push(b.type); return b.type === "kicker"; });
+  walkBlocks(nodes, (b) => {
+    first.push(b.type);
+    return b.type === "kicker";
+  });
   assert.deepEqual(first, ["stack", "kicker"]);
 });
 
 test("findBlockInSlide finds by blockId or first of blockType", () => {
-  const slide = { elements: [{ type: "stack", children: [
-    { id: "kicker-1", type: "kicker", text: "KICK" },
-    { id: "text-1", type: "text", text: "TITLE" },
-  ] }] };
+  const slide = {
+    elements: [
+      {
+        type: "stack",
+        children: [
+          { id: "kicker-1", type: "kicker", text: "KICK" },
+          { id: "text-1", type: "text", text: "TITLE" },
+        ],
+      },
+    ],
+  };
   assert.equal(findBlockInSlide(slide, "text-1", "").text, "TITLE");
   assert.equal(findBlockInSlide(slide, "", "kicker").text, "KICK");
   assert.equal(findBlockInSlide(slide, "nope", "missing"), null);
@@ -49,5 +70,8 @@ test("partitionListSlides splits lists into chunks of MAX_LIST_ITEMS (3)", () =>
   const listSlides = out.filter((s) => s.template === "list");
   assert.equal(listSlides.length, 3);
   for (const s of listSlides) assert.ok(s.items.length <= 3);
-  assert.equal(listSlides.reduce((n, s) => n + s.items.length, 0), 7);
+  assert.equal(
+    listSlides.reduce((n, s) => n + s.items.length, 0),
+    7,
+  );
 });

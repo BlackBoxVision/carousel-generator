@@ -1,12 +1,12 @@
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
-import { MARKER, canvasForFormat } from "../lib/const.mjs";
+import { canvasForFormat, MARKER } from "../lib/const.mjs";
+import { loadAppTemplate } from "../lib/handoff.mjs";
 import { brandKitsPayload } from "../lib/kits.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
-import { loadAppTemplate } from "../lib/handoff.mjs";
-import { expandHome, slug } from "../lib/text.mjs";
 import { chromeScreenshot, fileUrl, findChromeBin, normalizePreviewFormat } from "../lib/preview.mjs";
+import { expandHome, slug } from "../lib/text.mjs";
 
 export default {
   name: "render_preview",
@@ -25,14 +25,18 @@ export default {
       slug: { type: "string", description: "Alias de name." },
       format: {
         type: "string",
-        description: "Formato: feed|4:5 (1080x1350), square|1:1 (1080x1080), story|9:16 (1080x1920). Default: el formato del carrusel.",
+        description:
+          "Formato: feed|4:5 (1080x1350), square|1:1 (1080x1080), story|9:16 (1080x1920). Default: el formato del carrusel.",
       },
       slides: {
         type: "array",
         items: { type: "number" },
         description: "Índices 1-based a renderizar. Omite para TODAS las slides.",
       },
-      outputDir: { type: "string", description: "Directorio de salida. Default: carpeta del carrusel /previews/{format}/." },
+      outputDir: {
+        type: "string",
+        description: "Directorio de salida. Default: carpeta del carrusel /previews/{format}/.",
+      },
       open: { type: "boolean", description: "Abrir el primer PNG (default false)." },
     },
     required: ["company", "name"],
@@ -63,38 +67,46 @@ export default {
       indices = Array.from({ length: total }, (_, i) => i + 1);
     }
     const chrome = findChromeBin();
-    const outDir = a.outputDir
-      ? expandHome(a.outputDir)
-      : path.join(record.dir, "previews", format);
+    const outDir = a.outputDir ? expandHome(a.outputDir) : path.join(record.dir, "previews", format);
     fs.mkdirSync(outDir, { recursive: true });
     const htmlFile = path.join(outDir, `${name}-preview.html`);
-    const brands = brandKitsPayload((runtime.kitSource && runtime.kitSource.slug) || (runtime.kit && runtime.kit.name) || "");
+    const brands = brandKitsPayload(
+      (runtime.kitSource && runtime.kitSource.slug) || (runtime.kit && runtime.kit.name) || "",
+    );
     const payload =
-      "<script>window.BRAND_KITS=" + JSON.stringify(brands).replace(/</g, "\\u003c") + ";</script>" +
-      "<script>window.CAROUSEL_DATA=" + JSON.stringify(runtime).replace(/</g, "\\u003c") + ";</script>";
+      "<script>window.BRAND_KITS=" +
+      JSON.stringify(brands).replace(/</g, "\\u003c") +
+      ";</script>" +
+      "<script>window.CAROUSEL_DATA=" +
+      JSON.stringify(runtime).replace(/</g, "\\u003c") +
+      ";</script>";
     const template = loadAppTemplate();
     fs.writeFileSync(htmlFile, template.replace(MARKER, payload), "utf8");
     const pngs = [];
     const errors = [];
     if (!chrome) {
-      return JSON.stringify({
-        preview: {
-          ok: false,
-          reason: "no-chrome",
-          note: "No se encontró Chrome/Chromium headless. Abrí el HTML de preview y exportá PNGs desde el editor.",
-          format,
-          width: canvas.w,
-          height: canvas.h,
-          htmlPath: htmlFile,
-          dir: outDir,
-          slides: indices,
-          pngs: [],
+      return JSON.stringify(
+        {
+          preview: {
+            ok: false,
+            reason: "no-chrome",
+            note: "No se encontró Chrome/Chromium headless. Abrí el HTML de preview y exportá PNGs desde el editor.",
+            format,
+            width: canvas.w,
+            height: canvas.h,
+            htmlPath: htmlFile,
+            dir: outDir,
+            slides: indices,
+            pngs: [],
+          },
+          nextSteps: [
+            "Instalá Google Chrome o pasá la ruta con CHROME_PATH.",
+            "Abrí el HTML de preview con ?preview=1&slide=N&format=" + format + " y exportá a mano.",
+          ],
         },
-        nextSteps: [
-          "Instalá Google Chrome o pasá la ruta con CHROME_PATH.",
-          "Abrí el HTML de preview con ?preview=1&slide=N&format=" + format + " y exportá a mano.",
-        ],
-      }, null, 2);
+        null,
+        2,
+      );
     }
     for (const n of indices) {
       const pngPath = path.join(outDir, `slide-${String(n).padStart(2, "0")}.png`);
@@ -102,39 +114,48 @@ export default {
       try {
         chromeScreenshot(chrome, url, pngPath, canvas.w, canvas.h);
         let bytes = 0;
-        try { bytes = fs.statSync(pngPath).size; } catch {}
+        try {
+          bytes = fs.statSync(pngPath).size;
+        } catch {}
         pngs.push({ slide: n, path: pngPath, bytes, width: canvas.w, height: canvas.h });
       } catch (e) {
-        errors.push({ slide: n, error: String(e && e.message || e) });
+        errors.push({ slide: n, error: String((e && e.message) || e) });
       }
     }
     if (a.open === true && pngs[0]) {
       try {
         if (process.platform === "darwin") spawn("open", [pngs[0].path], { stdio: "ignore", detached: true }).unref();
-        else if (process.platform === "linux") spawn("xdg-open", [pngs[0].path], { stdio: "ignore", detached: true }).unref();
+        else if (process.platform === "linux")
+          spawn("xdg-open", [pngs[0].path], { stdio: "ignore", detached: true }).unref();
       } catch {}
     }
-    return JSON.stringify({
-      preview: {
-        ok: pngs.length > 0 && !errors.length,
-        format,
-        width: canvas.w,
-        height: canvas.h,
-        dir: outDir,
-        htmlPath: htmlFile,
-        chrome,
-        pngs,
-        errors,
-        count: pngs.length,
-        requested: indices.length,
+    return JSON.stringify(
+      {
+        preview: {
+          ok: pngs.length > 0 && !errors.length,
+          format,
+          width: canvas.w,
+          height: canvas.h,
+          dir: outDir,
+          htmlPath: htmlFile,
+          chrome,
+          pngs,
+          errors,
+          count: pngs.length,
+          requested: indices.length,
+        },
+        nextSteps: [
+          pngs.length
+            ? `Leé/verificá los ${pngs.length} PNG(s) con visión (copy, fotos, layout).`
+            : "No se generó ningún PNG — revisá errors.",
+          errors.length
+            ? "Hay slides con error de render: revisá errors."
+            : "Si el copy o fotos cambiaron, volvé a correr render_preview.",
+          "Formatos aceptados: 4:5|feed, 1:1|square, 9:16|story.",
+        ],
       },
-      nextSteps: [
-        pngs.length
-          ? `Leé/verificá los ${pngs.length} PNG(s) con visión (copy, fotos, layout).`
-          : "No se generó ningún PNG — revisá errors.",
-        errors.length ? "Hay slides con error de render: revisá errors." : "Si el copy o fotos cambiaron, volvé a correr render_preview.",
-        "Formatos aceptados: 4:5|feed, 1:1|square, 9:16|story.",
-      ],
-    }, null, 2);
+      null,
+      2,
+    );
   },
 };

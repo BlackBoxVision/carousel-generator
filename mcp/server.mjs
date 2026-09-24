@@ -34,7 +34,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return { content: [{ type: "text", text }] };
   } catch (e) {
     const message = "ERROR: " + (e && e.message ? e.message : String(e));
-    toolLog({ name, ok: false, durationMs: Date.now() - started, at: new Date().toISOString(), error: message.slice(0, 500) });
+    toolLog({
+      name,
+      ok: false,
+      durationMs: Date.now() - started,
+      at: new Date().toISOString(),
+      error: message.slice(0, 500),
+    });
     return { isError: true, content: [{ type: "text", text: message }] };
   }
 });

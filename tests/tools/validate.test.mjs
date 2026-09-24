@@ -1,7 +1,7 @@
-import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { tools, callTool, validateArgs, getTool } from "../../mcp/registry.mjs";
+import { describe, test } from "node:test";
 import { compileValidators, makeValidator } from "../../mcp/lib/validate.mjs";
+import { callTool, getTool, tools, validateArgs } from "../../mcp/registry.mjs";
 
 describe("ajv validators compile for all 22 tools", () => {
   test("compileValidators builds a validator per tool without throwing", () => {
@@ -23,24 +23,15 @@ describe("required fields", () => {
   });
 
   test("edit_slide without action rejects", () => {
-    assert.throws(
-      () => validateArgs("edit_slide", { company: "c", name: "n" }),
-      /Falta action \(requerido\)/
-    );
+    assert.throws(() => validateArgs("edit_slide", { company: "c", name: "n" }), /Falta action \(requerido\)/);
   });
 
   test("set_slide_photo without source rejects", () => {
-    assert.throws(
-      () => validateArgs("set_slide_photo", { company: "c", name: "n" }),
-      /Falta source \(requerido\)/
-    );
+    assert.throws(() => validateArgs("set_slide_photo", { company: "c", name: "n" }), /Falta source \(requerido\)/);
   });
 
   test("save_brand_kit without kit rejects", () => {
-    assert.throws(
-      () => validateArgs("save_brand_kit", { name: "k" }),
-      /Falta kit \(requerido\)/
-    );
+    assert.throws(() => validateArgs("save_brand_kit", { name: "k" }), /Falta kit \(requerido\)/);
   });
 });
 
@@ -48,22 +39,19 @@ describe("types", () => {
   test("render_preview slides must be array", () => {
     assert.throws(
       () => validateArgs("render_preview", { company: "c", name: "n", slides: "not-array" }),
-      /`slides` debe ser array/
+      /`slides` debe ser array/,
     );
   });
 
   test("social_copy maxHashtags must be number when present", () => {
     assert.throws(
       () => validateArgs("social_copy", { company: "c", name: "n", maxHashtags: "ten" }),
-      /`maxHashtags` debe ser number/
+      /`maxHashtags` debe ser number/,
     );
   });
 
   test("generate_carousel open must be boolean", () => {
-    assert.throws(
-      () => validateArgs("generate_carousel", { title: "t", open: "yes" }),
-      /`open` debe ser boolean/
-    );
+    assert.throws(() => validateArgs("generate_carousel", { title: "t", open: "yes" }), /`open` debe ser boolean/);
   });
 });
 
@@ -71,72 +59,68 @@ describe("enums", () => {
   test("generate_carousel format enum", () => {
     assert.throws(
       () => validateArgs("generate_carousel", { title: "t", format: "hd" }),
-      /`format` debe ser uno de: feed, square, story/
+      /`format` debe ser uno de: feed, square, story/,
     );
   });
 
   test("edit_slide action enum", () => {
     assert.throws(
       () => validateArgs("edit_slide", { company: "c", name: "n", action: "nope" }),
-      /`action` debe ser uno de: update_text, move, duplicate, delete, add, split, set_layout/
+      /`action` debe ser uno de: update_text, move, duplicate, delete, add, split, set_layout/,
     );
   });
 
   test("edit_slide accepts new parity actions", () => {
-    for (const action of ["split", "set_layout", "add_block", "delete_block", "move_block", "set_block", "add_item", "delete_item", "add_pill", "update_pill", "delete_pill"]) {
-      assert.equal(
-        validateArgs("edit_slide", { company: "c", name: "n", action }),
-        true,
-        action
-      );
+    for (const action of [
+      "split",
+      "set_layout",
+      "add_block",
+      "delete_block",
+      "move_block",
+      "set_block",
+      "add_item",
+      "delete_item",
+      "add_pill",
+      "update_pill",
+      "delete_pill",
+    ]) {
+      assert.equal(validateArgs("edit_slide", { company: "c", name: "n", action }), true, action);
     }
   });
 
   test("edit_slide top-level field alias validates as enum", () => {
     assert.throws(
       () => validateArgs("edit_slide", { company: "c", name: "n", action: "update_text", field: "nope" }),
-      /`field` debe ser uno de/
+      /`field` debe ser uno de/,
     );
-    assert.equal(
-      validateArgs("edit_slide", { company: "c", name: "n", action: "update_text", field: "desc" }),
-      true
-    );
+    assert.equal(validateArgs("edit_slide", { company: "c", name: "n", action: "update_text", field: "desc" }), true);
   });
 
   test("set_slide_bg mode enum", () => {
     assert.throws(
       () => validateArgs("set_slide_bg", { company: "c", name: "n", mode: "photo" }),
-      /`mode` debe ser uno de: gradient, css, remove/
+      /`mode` debe ser uno de: gradient, css, remove/,
     );
   });
 
   test("set_carousel_meta format enum", () => {
     assert.throws(
       () => validateArgs("set_carousel_meta", { company: "c", name: "n", format: "hd" }),
-      /`format` debe ser uno de: feed, square, story/
+      /`format` debe ser uno de: feed, square, story/,
     );
   });
 
   test("set_slide_bg without mode rejects", () => {
-    assert.throws(
-      () => validateArgs("set_slide_bg", { company: "c", name: "n" }),
-      /Falta mode \(requerido\)/
-    );
+    assert.throws(() => validateArgs("set_slide_bg", { company: "c", name: "n" }), /Falta mode \(requerido\)/);
   });
 
   test("export_pdf rejects unknown format alias after normalize is not enum-locked", () => {
     // format is free string at schema level (aliases like 4:5); bad values fall back in handler
-    assert.equal(
-      validateArgs("export_pdf", { company: "c", name: "n", format: "4:5" }),
-      true
-    );
+    assert.equal(validateArgs("export_pdf", { company: "c", name: "n", format: "4:5" }), true);
   });
 
   test("delete_brand_kit without name rejects", () => {
-    assert.throws(
-      () => validateArgs("delete_brand_kit", {}),
-      /Falta name \(requerido\)/
-    );
+    assert.throws(() => validateArgs("delete_brand_kit", {}), /Falta name \(requerido\)/);
   });
 });
 
@@ -144,15 +128,12 @@ describe("strict additionalProperties", () => {
   test("unknown top-level key rejects on generate_carousel", () => {
     assert.throws(
       () => validateArgs("generate_carousel", { title: "t", totallyUnknown: 1 }),
-      /Propiedad no permitida: totallyUnknown/
+      /Propiedad no permitida: totallyUnknown/,
     );
   });
 
   test("unknown top-level key rejects on list_carousels", () => {
-    assert.throws(
-      () => validateArgs("list_carousels", { foo: 1 }),
-      /Propiedad no permitida: foo/
-    );
+    assert.throws(() => validateArgs("list_carousels", { foo: 1 }), /Propiedad no permitida: foo/);
   });
 
   test("unknown nested key inside a slide rejects", () => {
@@ -162,7 +143,7 @@ describe("strict additionalProperties", () => {
           title: "t",
           slides: [{ template: "cover", notASlideProp: true }],
         }),
-      /Propiedad no permitida: notASlideProp/
+      /Propiedad no permitida: notASlideProp/,
     );
   });
 
@@ -175,7 +156,7 @@ describe("strict additionalProperties", () => {
           action: "update_text",
           payload: { text: "x", bogus: 1 },
         }),
-      /Propiedad no permitida: bogus/
+      /Propiedad no permitida: bogus/,
     );
   });
 });
@@ -189,7 +170,7 @@ describe("bare freeform objects stay open", () => {
         carousel: { version: 2, anyKey: "ok", nestedToo: { deep: true } },
         open: false,
       }),
-      true
+      true,
     );
   });
 
@@ -199,7 +180,7 @@ describe("bare freeform objects stay open", () => {
         name: "k",
         kit: { name: "Brand", whatever: 123, colors: { primary: "#fff" } },
       }),
-      true
+      true,
     );
   });
 
@@ -209,7 +190,7 @@ describe("bare freeform objects stay open", () => {
         carousel: { version: 2, slug: "x", extraField: true },
         open: false,
       }),
-      true
+      true,
     );
   });
 });
@@ -221,14 +202,12 @@ describe("valid real-world args pass", () => {
         title: "Smoke Tools",
         company: "smoketest",
         carouselName: "smoke-tools",
-        slides: [
-          { template: "cover", titleWhite: "SMOKE", titleOrange: "TEST", paragraphs: ["x"] },
-        ],
+        slides: [{ template: "cover", titleWhite: "SMOKE", titleOrange: "TEST", paragraphs: ["x"] }],
         open: false,
         persist: true,
         outputDir: "/tmp",
       }),
-      true
+      true,
     );
   });
 
@@ -240,7 +219,7 @@ describe("valid real-world args pass", () => {
         carousel: { version: 2, meta: { title: "T" }, slides: [] },
         open: false,
       }),
-      true
+      true,
     );
   });
 
@@ -255,10 +234,7 @@ describe("valid real-world args pass", () => {
   });
 
   test("callTool rejects invalid args with validation message (not handler crash)", async () => {
-    await assert.rejects(
-      () => callTool("load_carousel", {}),
-      /Falta company \(requerido\)/
-    );
+    await assert.rejects(() => callTool("load_carousel", {}), /Falta company \(requerido\)/);
   });
 });
 

@@ -145,6 +145,6 @@ child.on("exit", (code, signal) => {
 child.on("error", (e) => {
   clearTimeout(timer);
   console.error("[agent-e2e] failed to spawn opencode:", e.message);
-  fs.writeFileSync(path.join(artifacts, "agent-spawn-error.txt"), String(e && e.stack || e));
+  fs.writeFileSync(path.join(artifacts, "agent-spawn-error.txt"), String((e && e.stack) || e));
   process.exit(0);
 });

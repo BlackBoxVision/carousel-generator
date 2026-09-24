@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
+import { buildKitFromInference, downloadLogoDataURL, inferKitFromHTML } from "../lib/brand.mjs";
 import { DEFAULT_KIT } from "../lib/const.mjs";
+import { fetchBrandHTML } from "../lib/html.mjs";
+import { findKitFile } from "../lib/kits.mjs";
 import { brandDir } from "../lib/paths.mjs";
 import { deepMerge, slug } from "../lib/text.mjs";
-import { fetchBrandHTML } from "../lib/html.mjs";
-import { buildKitFromInference, downloadLogoDataURL, inferKitFromHTML } from "../lib/brand.mjs";
-import { findKitFile } from "../lib/kits.mjs";
 
 export default {
   name: "brand_kit_from_url",
@@ -21,7 +21,11 @@ export default {
     properties: {
       url: { type: "string", description: "URL http(s) del sitio (se analiza solo la homepage)." },
       name: { type: "string", description: "Slug/nombre del kit. Default: og:site_name, <title> o hostname." },
-      save: { type: "boolean", description: "Guardar en ~/.carousel-generator/brand/{empresa}/kit.json (default true). Con false solo devuelve el JSON inferido sin guardar." },
+      save: {
+        type: "boolean",
+        description:
+          "Guardar en ~/.carousel-generator/brand/{empresa}/kit.json (default true). Con false solo devuelve el JSON inferido sin guardar.",
+      },
     },
     required: ["url"],
   },
@@ -30,7 +34,11 @@ export default {
     const raw = String(a.url || "").trim();
     if (!raw) throw new Error("Falta `url`.");
     let u;
-    try { u = new URL(raw); } catch { throw new Error(`URL inválida: "${raw}". Incluí el esquema https://`); }
+    try {
+      u = new URL(raw);
+    } catch {
+      throw new Error(`URL inválida: "${raw}". Incluí el esquema https://`);
+    }
     if (!/^https?:$/.test(u.protocol)) throw new Error("Solo se aceptan URLs http(s).");
     const html = await fetchBrandHTML(u.href);
     const inf = inferKitFromHTML(html, u.href);
@@ -64,4 +72,6 @@ export default {
   },
 };
 
-function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function clone(o) {
+  return JSON.parse(JSON.stringify(o));
+}

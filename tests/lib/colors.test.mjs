@@ -1,5 +1,5 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { hexLum, hexMix, hexNorm, hexRgb, isGray, rgbHex } from "../../mcp/lib/colors.mjs";
 
 test("hexNorm normalizes 3-digit and adds #", () => {

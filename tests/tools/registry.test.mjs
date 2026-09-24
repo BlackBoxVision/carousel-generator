@@ -1,6 +1,6 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tools, getTool, listToolsForRpc, callTool } from "../../mcp/registry.mjs";
+import { test } from "node:test";
+import { callTool, getTool, listToolsForRpc, tools } from "../../mcp/registry.mjs";
 
 const EXPECTED = [
   "generate_carousel",

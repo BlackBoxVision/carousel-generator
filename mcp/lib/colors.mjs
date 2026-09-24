@@ -9,11 +9,15 @@ export function hexRgb(h) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 export function rgbHex(r, g, b) {
-  const c = (x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0");
+  const c = (x) =>
+    Math.max(0, Math.min(255, Math.round(x)))
+      .toString(16)
+      .padStart(2, "0");
   return "#" + c(r) + c(g) + c(b);
 }
 export function hexMix(h1, h2, t) {
-  const a = hexRgb(h1), b = hexRgb(h2);
+  const a = hexRgb(h1),
+    b = hexRgb(h2);
   return rgbHex(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
 }
 export function hexLum(h) {

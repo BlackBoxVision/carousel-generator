@@ -1,8 +1,17 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { APP_PATH, SERVER_INFO, SERVER_INSTRUCTIONS, TEMPLATES, MAX_LIST_ITEMS, PHOTO_REVIEW_PROTOCOL, NARRATIVE_REVIEW_PROTOCOL, canvasForFormat } from "../../mcp/lib/const.mjs";
+import { test } from "node:test";
+import {
+  APP_PATH,
+  canvasForFormat,
+  MAX_LIST_ITEMS,
+  NARRATIVE_REVIEW_PROTOCOL,
+  PHOTO_REVIEW_PROTOCOL,
+  SERVER_INFO,
+  SERVER_INSTRUCTIONS,
+  TEMPLATES,
+} from "../../mcp/lib/const.mjs";
 
 test("SERVER_INFO matches package version", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(APP_PATH, "..", "..", "package.json"), "utf8"));

@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { hydrateCarousel, persistCarousel, readCarousel } from "../lib/persist.mjs";
-import { carouselPath } from "../lib/paths.mjs";
-import { renderCarousel } from "../lib/render.mjs";
 import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
+import { carouselPath } from "../lib/paths.mjs";
+import { hydrateCarousel, persistCarousel, readCarousel } from "../lib/persist.mjs";
+import { renderCarousel } from "../lib/render.mjs";
 import { clone, slug } from "../lib/text.mjs";
 
 export default {
@@ -31,29 +31,33 @@ export default {
   },
   handler(args) {
     const a = args || {};
-    const fromCompany = a.company !== undefined && a.company !== null && String(a.company).trim()
-      ? slug(String(a.company).trim())
-      : "";
-    const rawFrom = a.name !== undefined && a.name !== null && String(a.name).trim()
-      ? String(a.name).trim()
-      : a.slug !== undefined && a.slug !== null && String(a.slug).trim()
-        ? String(a.slug).trim()
-        : "";
+    const fromCompany =
+      a.company !== undefined && a.company !== null && String(a.company).trim() ? slug(String(a.company).trim()) : "";
+    const rawFrom =
+      a.name !== undefined && a.name !== null && String(a.name).trim()
+        ? String(a.name).trim()
+        : a.slug !== undefined && a.slug !== null && String(a.slug).trim()
+          ? String(a.slug).trim()
+          : "";
     const fromName = rawFrom ? slug(rawFrom) : "";
     if (!fromCompany || !fromName) throw new Error("Faltan `company` y `name`/`slug`.");
     const record = readCarousel(fromCompany, fromName);
     const stored = clone(record.stored);
-    const toCompany = a.toCompany !== undefined && a.toCompany !== null && String(a.toCompany).trim()
-      ? slug(String(a.toCompany).trim())
-      : fromCompany;
-    const toName = a.toName !== undefined && a.toName !== null && String(a.toName).trim()
-      ? slug(String(a.toName).trim())
-      : `${fromName}-copy`;
+    const toCompany =
+      a.toCompany !== undefined && a.toCompany !== null && String(a.toCompany).trim()
+        ? slug(String(a.toCompany).trim())
+        : fromCompany;
+    const toName =
+      a.toName !== undefined && a.toName !== null && String(a.toName).trim()
+        ? slug(String(a.toName).trim())
+        : `${fromName}-copy`;
     if (!toCompany || !toName) throw new Error("Faltan `toCompany` o `toName` válidos.");
     const destDir = carouselPath(toCompany, toName);
     const destJson = path.join(destDir, "carousel.json");
     if (fs.existsSync(destJson) && (toCompany !== fromCompany || toName !== fromName)) {
-      throw new Error(`El destino "${toCompany}/${toName}" ya existe. Usá otro toName o borrá el existente con delete_carousel.`);
+      throw new Error(
+        `El destino "${toCompany}/${toName}" ya existe. Usá otro toName o borrá el existente con delete_carousel.`,
+      );
     }
     if (toCompany === fromCompany && toName === fromName) {
       throw new Error("`toName` debe ser distinto del origen (o cambiá toCompany).");
@@ -66,9 +70,10 @@ export default {
     stored.createdAt = new Date().toISOString();
     stored.updatedAt = stored.createdAt;
     // Re-id slides so ids stay unique across carousels
-    (stored.slides || []).forEach((s, i) => { s.id = s.id || `slide-${i + 1}`; });
+    (stored.slides || []).forEach((s, i) => {
+      s.id = s.id || `slide-${i + 1}`;
+    });
     // Copy photo assets from origin assets/ to dest assets/
-    const srcAssets = path.join(record.dir, "assets");
     const destAssets = path.join(destDir, "assets");
     fs.mkdirSync(destAssets, { recursive: true });
     const remapped = [];
@@ -89,7 +94,12 @@ export default {
     const runtime = hydrateCarousel(saved.data, saved.dir);
     runtime.company = toCompany;
     runtime.slug = toName;
-    const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true });
+    const html = renderCarousel(runtime, {
+      outputDir: a.outputDir,
+      fileName: a.fileName,
+      open: a.open === true,
+      stable: true,
+    });
     const handoff = handoffRender(html, saved.file, runtime, {
       nextSteps: [
         `Duplicado creado en ${toCompany}/${toName} (${(saved.data.slides || []).length} slides).`,
@@ -99,7 +109,7 @@ export default {
     });
     return appendHandoff(
       `Carrusel duplicado: ${fromCompany}/${fromName} → ${toCompany}/${toName}\nJSON: ${saved.file}\nAssets copiados: ${remapped.length}\nSlides: ${(saved.data.slides || []).length}\nPreview: ${html}`,
-      handoff
+      handoff,
     );
   },
 };

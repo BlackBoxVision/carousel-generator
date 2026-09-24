@@ -15,7 +15,9 @@ export function tmpHome(prefix = "carousel-test-") {
     brandDir: path.join(home, "brand"),
     carouselDir: path.join(home, "carousels"),
     cleanup() {
-      try { fs.rmSync(home, { recursive: true, force: true }); } catch {}
+      try {
+        fs.rmSync(home, { recursive: true, force: true });
+      } catch {}
     },
   };
 }

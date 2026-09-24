@@ -15,7 +15,10 @@ export default {
   handler(args) {
     const name = slug((args && args.name) || "");
     const found = findKitFile(name);
-    if (!found) throw new Error(`Kit "${name}" no existe. Usá list_brand_kits. Disponibles: ${availableKitNames().join(", ") || "(ninguno)"}.`);
+    if (!found)
+      throw new Error(
+        `Kit "${name}" no existe. Usá list_brand_kits. Disponibles: ${availableKitNames().join(", ") || "(ninguno)"}.`,
+      );
     return fs.readFileSync(found.file, "utf8");
   },
 };

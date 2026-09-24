@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { extractFigures } from "../lib/narrative.mjs";
 import { readCarousel } from "../lib/persist.mjs";
-import { slug } from "../lib/text.mjs";
 import { altTextFor, buildCaption, buildHashtags, hookVariants, readSourceMd, slidePlainText } from "../lib/social.mjs";
+import { slug } from "../lib/text.mjs";
 
 export default {
   name: "social_copy",
@@ -55,20 +55,26 @@ export default {
     const tone = a.tone || "informativo";
     const audience = a.audience || "";
     const language = a.language || "es-AR";
-    const platforms = (Array.isArray(a.platforms) && a.platforms.length
-      ? a.platforms
-      : ["instagram", "linkedin"]
-    ).map((p) => String(p).toLowerCase()).filter((p) => ["instagram", "linkedin", "x", "facebook", "tiktok"].includes(p));
+    const platforms = (Array.isArray(a.platforms) && a.platforms.length ? a.platforms : ["instagram", "linkedin"])
+      .map((p) => String(p).toLowerCase())
+      .filter((p) => ["instagram", "linkedin", "x", "facebook", "tiktok"].includes(p));
     if (!platforms.length) throw new Error("`platforms` vacío o inválido.");
     const slides = stored.slides || [];
     if (!slides.length) throw new Error("El carrusel no tiene slides.");
     const slideTexts = slides.map((s) => slidePlainText(s));
     const cover = slideTexts[0] || {};
-    const allText = slideTexts.map((st) => [st.kicker, st.title, st.highlight, st.body, ...(st.items || [])].filter(Boolean).join(" ")).join(" ");
+    const allText = slideTexts
+      .map((st) => [st.kicker, st.title, st.highlight, st.body, ...(st.items || [])].filter(Boolean).join(" "))
+      .join(" ");
     const figures = [...extractFigures(allText)];
     const terms = [
-      cover.title, cover.highlight, cover.kicker, title,
-      ...(source && source.sections["Puntos"] ? source.sections["Puntos"].slice(0, 3).map((x) => x.replace(/^-\s*/, "")) : []),
+      cover.title,
+      cover.highlight,
+      cover.kicker,
+      title,
+      ...(source && source.sections["Puntos"]
+        ? source.sections["Puntos"].slice(0, 3).map((x) => x.replace(/^-\s*/, ""))
+        : []),
     ].filter(Boolean);
     const hooks = hookVariants(title, cover.highlight || figures[0], cover.kicker, tone);
     const hashtagBudget = { instagram: 8, linkedin: 5, x: 2, facebook: 6, tiktok: 8 };
@@ -77,11 +83,19 @@ export default {
     const hashtags = {};
     for (const p of platforms) {
       captions[p] = buildCaption(p, {
-        title, dek: dek || meta.description || "", hooks, audience,
-        cta: a.cta || "", tone, figures, category, slideCount: slides.length,
+        title,
+        dek: dek || meta.description || "",
+        hooks,
+        audience,
+        cta: a.cta || "",
+        tone,
+        figures,
+        category,
+        slideCount: slides.length,
       });
       if (includeHashtags) {
-        const max = Number.isFinite(a.maxHashtags) && a.maxHashtags > 0 ? Math.min(a.maxHashtags, 30) : hashtagBudget[p];
+        const max =
+          Number.isFinite(a.maxHashtags) && a.maxHashtags > 0 ? Math.min(a.maxHashtags, 30) : hashtagBudget[p];
         hashtags[p] = buildHashtags(terms, category, kitName, max);
         if (hashtags[p].length && p !== "x") {
           captions[p] = captions[p] + "\n\n" + hashtags[p].join(" ");
@@ -99,8 +113,15 @@ export default {
       chars: altTextFor(slides[i] || {}, st, i).length,
     }));
     const result = {
-      company, slug: name, title, language, tone, audience: audience || null,
-      source: source ? { path: source.file, used: true } : { used: false, note: "Sin source.md — copy basado solo en slides/meta." },
+      company,
+      slug: name,
+      title,
+      language,
+      tone,
+      audience: audience || null,
+      source: source
+        ? { path: source.file, used: true }
+        : { used: false, note: "Sin source.md — copy basado solo en slides/meta." },
       hooks,
       captions,
       hashtags,
