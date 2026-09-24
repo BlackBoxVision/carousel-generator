@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { APP_PATH, SERVER_INFO, TEMPLATES, MAX_LIST_ITEMS, PHOTO_REVIEW_PROTOCOL, NARRATIVE_REVIEW_PROTOCOL, canvasForFormat } from "../../mcp/lib/const.mjs";
+import { APP_PATH, SERVER_INFO, SERVER_INSTRUCTIONS, TEMPLATES, MAX_LIST_ITEMS, PHOTO_REVIEW_PROTOCOL, NARRATIVE_REVIEW_PROTOCOL, canvasForFormat } from "../../mcp/lib/const.mjs";
 
 test("SERVER_INFO matches package version", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(APP_PATH, "..", "..", "package.json"), "utf8"));
@@ -19,6 +19,15 @@ test("protocols are non-empty multi-line strings", () => {
   assert.ok(PHOTO_REVIEW_PROTOCOL.split("\n").length >= 3);
   assert.ok(NARRATIVE_REVIEW_PROTOCOL.split("\n").length >= 3);
   assert.match(PHOTO_REVIEW_PROTOCOL, /visión|vision|verify|re-audit/i);
+});
+
+test("SERVER_INSTRUCTIONS is English and mentions tools + protocols", () => {
+  assert.ok(SERVER_INSTRUCTIONS.split("\n").length >= 5);
+  assert.match(SERVER_INSTRUCTIONS, /Do NOT read mcp\/tools/);
+  assert.match(SERVER_INSTRUCTIONS, /PHOTO REVIEW PROTOCOL/);
+  assert.match(SERVER_INSTRUCTIONS, /NARRATIVE REVIEW PROTOCOL/);
+  // Spanish runtime errors stay Spanish; instructions themselves are English
+  assert.doesNotMatch(SERVER_INSTRUCTIONS, /protocolea|eliminá el carrusel/i);
 });
 
 test("canvasForFormat maps feed/square/story", () => {

@@ -144,7 +144,7 @@ The server exposes twenty-two tools. You can ask the AI to use them in plain lan
 | `load_carousel` | Reopen an existing carousel with its photos and logo resolved. |
 | `save_carousel` | Create or update the persistent nested JSON and copy assets into its asset folder. |
 | `duplicate_carousel` | Copy a saved carousel to another company/slug (A/B variants); original untouched. |
-| `edit_slide` | Edit slides without touching raw JSON: update text, move/reorder, duplicate, delete, or add a new blank slide (`add` + template). |
+| `edit_slide` | Edit slides without touching raw JSON: `update_text`, `move`, `duplicate`, `delete`, `add`, `split` (list slides), `set_layout` (align/copyPos/scrim/bgPos), block CRUD (`add_block`/`delete_block`/`move_block`/`set_block`), items (`add_item`/`delete_item`), pills (`add_pill`/`update_pill`/`delete_pill`). |
 | `set_slide_bg` | Change a slide's non-photo background: kit gradient, custom CSS, or reset to the kit's default gradient. |
 | `set_carousel_meta` | Update carousel meta only: title, format (feed/square/story + canvas), category, showCount. |
 | `validate_carousel` | Dry-run quality audit (narrativeAudit + styleWarnings) without writing or re-rendering. |
@@ -229,7 +229,9 @@ it combines structured signals with an explicit agent checklist:
 2. **Common thread** — confirm every slide talks about the same subject/topic as the note; no filler slides disconnected from the cover or title.
 3. **Arc** — full arc present: cover (hook) → development → cta (end). Order is linear, never going backwards.
 4. **Cohesion** — each slide connects to the previous one (logical bridge or sequence), no random topic jumps.
-5. **Fix** — if something fails: rewrite or reorder with `edit_slide` (`update_text` | `move`) and re-audit before delivering.
+5. **Fix** — if something fails: rewrite or reorder with `edit_slide` (`update_text` | `move` | `split` | `set_layout`) and re-audit before delivering.
+
+**Tool naming in clients:** OpenCode, Claude Code and other clients that namespace MCP servers will show these tools with a prefix (for example `carousel_edit_slide`). Flat clients (Claude Desktop, Cursor, Codex) use the bare names in this table (`edit_slide`). The arguments are identical either way.
 
 Alongside the protocol, the tools return a machine-readable **`narrativeAudit`**
 `{ ok, flags }` with objective starting points:
@@ -243,7 +245,7 @@ Typical flow:
 flowchart LR
     A[carousel_from_url] --> B[narrativeAudit + protocol]
     B --> C{coherent story?}
-    C -->|no| D[edit_slide<br/>update_text / move]
+    C -->|no| D[edit_slide<br/>update_text / move / split]
     D --> B
     C -->|yes| E[review_slide_images photos]
     E --> F[deliver]

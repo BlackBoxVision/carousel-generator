@@ -195,6 +195,175 @@ describe("edit_slide", () => {
       company: COMPANY, name: "edit-test", action: "add", payload: { template: "nope" },
     }), /template/);
   });
+
+  test("split divides a list slide after first 3 items", async () => {
+    await generate.handler({
+      title: "Split Source", company: COMPANY, carouselName: "split-test",
+      slides: [
+        {
+          template: "list",
+          titleWhite: "LISTA",
+          titleOrange: "ITEMS",
+          items: [
+            { emoji: "1", title: "Uno", desc: "a" },
+            { emoji: "2", title: "Dos", desc: "b" },
+            { emoji: "3", title: "Tres", desc: "c" },
+            { emoji: "4", title: "Cuatro", desc: "d" },
+            { emoji: "5", title: "Cinco", desc: "e" },
+          ],
+        },
+      ],
+      open: false, persist: true,
+      outputDir: path.join(home.home, "out"),
+    });
+    // generate auto-partitions 5 items into 3+2 → 2 slides already
+    let stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "split-test", "carousel.json"), "utf8"));
+    assert.equal(stored.slides.length, 2);
+    // explicit split on first list slide (3 items → 2+1)
+    const out = JSON.parse(await editSlide.handler({
+      company: COMPANY, name: "split-test", slide: 1, action: "split", open: false,
+    }));
+    assert.equal(out.action, "split");
+    assert.equal(out.slides, 3);
+    assert.equal(out.kept, 2);
+    assert.equal(out.moved, 1);
+    stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "split-test", "carousel.json"), "utf8"));
+    assert.equal(stored.slides.length, 3);
+  });
+
+  test("set_layout applies align and copyPos onto elements", async () => {
+    const out = JSON.parse(await editSlide.handler({
+      company: COMPANY, name: "edit-test", slide: 1, action: "set_layout",
+      payload: { align: { title: "center" }, copyPos: { anchor: "top", offset: 2 } },
+      open: false,
+    }));
+    assert.equal(out.action, "set_layout");
+    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const stack = (stored.slides[0].elements || []).find((el) => el.type === "stack");
+    assert.ok(stack, "stack exists");
+    assert.equal(stack.style.anchor, "top");
+    assert.equal(stack.style.offsetPct, 2);
+    const walk = (ns) => {
+      for (const b of ns || []) {
+        if (b.type === "text" && b.style && b.style.align) return b.style.align;
+        if (b.children) {
+          const hit = walk(b.children);
+          if (hit) return hit;
+        }
+      }
+      return null;
+    };
+    assert.equal(walk(stored.slides[0].elements), "center");
+  });
+
+  test("set_layout rejects empty payload", async () => {
+    await assert.rejects(() => editSlide.handler({
+      company: COMPANY, name: "edit-test", slide: 1, action: "set_layout", payload: {},
+    }), /align, copyPos/);
+  });
+
+  test("add_block / set_block / delete_block roundtrip", async () => {
+    const add = JSON.parse(await editSlide.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "add_block",
+      payload: { type: "body", text: "Nuevo párrafo de prueba" },
+      open: false,
+    }));
+    assert.equal(add.action, "add_block");
+    assert.ok(add.blockId);
+
+    await editSlide.handler({
+      company: COMPANY, name: "edit-test", slide: 1, action: "set_block",
+      payload: { blockId: add.blockId, text: "Párrafo editado", style: { align: "right" } },
+      open: false,
+    });
+    const stored1 = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const found = [];
+    const walk = (ns) => { for (const b of ns || []) { found.push(b); if (b.children) walk(b.children); } };
+    walk(stored1.slides[0].elements);
+    const body = found.find((b) => b.id === add.blockId);
+    assert.ok(body, "block exists after set");
+    assert.equal(body.text, "Párrafo editado");
+    assert.equal(body.style.align, "right");
+
+    await editSlide.handler({
+      company: COMPANY, name: "edit-test", slide: 1, action: "delete_block",
+      payload: { blockId: add.blockId },
+      open: false,
+    });
+    const stored2 = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const after = [];
+    const walk2 = (ns) => { for (const b of ns || []) { after.push(b); if (b.children) walk2(b.children); } };
+    walk2(stored2.slides[0].elements);
+    assert.ok(!after.some((b) => b.id === add.blockId), "block deleted");
+  });
+
+  test("delete_block protects brand root without blockId", async () => {
+    await assert.rejects(() => editSlide.handler({
+      company: COMPANY, name: "edit-test", slide: 1, action: "delete_block",
+      payload: { blockType: "brand" },
+    }), /root block/);
+  });
+
+  test("add_item / delete_item", async () => {
+    const add = JSON.parse(await editSlide.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", slide: 2, action: "add_item",
+      payload: { emoji: "🚀", title: "Nuevo ítem", desc: "desc" },
+      open: false,
+    }));
+    assert.equal(add.action, "add_item");
+    assert.ok(add.itemId);
+    await editSlide.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", slide: 2, action: "delete_item",
+      payload: { title: "Nuevo ítem" },
+      open: false,
+    });
+    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const titles = [];
+    const walk = (ns) => { for (const b of ns || []) { if (b.type === "item") titles.push(b.title); if (b.children) walk(b.children); } };
+    walk(stored.slides[1].elements);
+    assert.ok(!titles.includes("Nuevo ítem"));
+  });
+
+  test("add_pill / update_pill / delete_pill", async () => {
+    const add = JSON.parse(await editSlide.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "add_pill",
+      payload: { text: "Buenos Aires", top: 40, side: "right", offset: 10 },
+      open: false,
+    }));
+    assert.equal(add.action, "add_pill");
+    await editSlide.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "update_pill",
+      payload: { index: 0, text: "Córdoba", top: 50 },
+      open: false,
+    });
+    await editSlide.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "delete_pill",
+      payload: { index: 0 },
+      open: false,
+    });
+    const stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "edit-test", "carousel.json"), "utf8"));
+    const pills = (stored.slides[0].elements || []).filter((el) => el.type === "pill");
+    assert.equal(pills.length, 0);
+  });
+
+  test("move_block reorders within stack", async () => {
+    const add = JSON.parse(await editSlide.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "add_block",
+      payload: { type: "slogan", text: "SLOGAN NUEVO", at: 1 },
+      open: false,
+    }));
+    await editSlide.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "move_block",
+      payload: { blockId: add.blockId, to: 99 },
+      open: false,
+    });
+    const out = JSON.parse(await editSlide.handler({
+      company: COMPONENT_SAFE(), name: "edit-test", slide: 1, action: "delete_block",
+      payload: { blockId: add.blockId },
+      open: false,
+    }));
+    assert.equal(out.action, "delete_block");
+  });
 });
 
 function COMPONENT_SAFE() { return COMPANY; }

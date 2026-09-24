@@ -20,6 +20,7 @@ export default {
       kitName: { type: "string", description: "Brand kit a usar (ver list_brand_kits). Si se omite, usa el primer kit personal o Default." },
       carouselName: { type: "string", description: "Slug persistido del carrusel. Default: slug del título." },
       format: { type: "string", enum: ["feed", "square", "story"], description: "Formato (default feed 4:5)." },
+      category: { type: "string", description: "Categoría de la nota para highlightColors (default: detectada del artículo)." },
       persist: { type: "boolean", description: "Guardar carousel.json (default true)." },
       outputDir: { type: "string", description: "Directorio del HTML. Default ~/Downloads." },
       fileName: { type: "string", description: "Nombre base del HTML." },

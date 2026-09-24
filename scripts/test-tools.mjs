@@ -105,6 +105,15 @@ async function main() {
   const genText = contentText(phase1.get(3));
   assert(/Smoke Tools|smoke-tools|smoke/.test(genText), "generate_carousel returns path");
 
+  // edit_slide parity actions (same tool, happy paths for set_layout / blocks)
+  const edLayout = { jsonrpc: "2.0", id: 20, method: "tools/call", params: { name: "edit_slide", arguments: { company: TMP_COMPANY, name: "smoke-tools", slide: 1, action: "set_layout", payload: { align: { title: "center" }, copyPos: { anchor: "bottom", offset: 1 } }, open: false } } };
+  const edBlock = { jsonrpc: "2.0", id: 22, method: "tools/call", params: { name: "edit_slide", arguments: { company: TMP_COMPANY, name: "smoke-tools", slide: 1, action: "add_block", payload: { type: "body", text: "Párrafo smoke parity" }, open: false } } };
+  const phaseEd = await rpc([init, edLayout, edBlock], [20, 22]);
+  const layOut = JSON.parse(contentText(phaseEd.get(20)));
+  assert(layOut.action === "set_layout", "edit_slide set_layout");
+  const blockOut = JSON.parse(contentText(phaseEd.get(22)));
+  assert(blockOut.action === "add_block" && blockOut.blockId, "edit_slide add_block");
+
   const render = { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "render_preview", arguments: { company: TMP_COMPANY, name: "smoke-tools", format: "4:5" } } };
   const social = { jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "social_copy", arguments: { company: TMP_COMPANY, name: "smoke-tools", tone: "directo", save: true } } };
   const phase2 = await rpc([init, render, social], [4, 5]);

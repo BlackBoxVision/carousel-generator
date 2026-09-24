@@ -64,6 +64,9 @@ Checklist obligatorio (las 22, todas deben terminar ok:true):
 7. load_carousel company=agent-e2e name=e2e-main open=false
 8. save_carousel actualizando meta.title a "Café Norte E2E v2" (carousel v2 mínimo con 1 cover)
 9. edit_slide update_text en e2e slide 1 blockType=text text="PORTADA E2E"
+9b. edit_slide set_layout company=agent-e2e name=e2e-main slide=1 payload={align:{title:center},copyPos:{anchor:bottom,offset:0}} open=false
+9c. edit_slide split company=agent-e2e name=e2e-main slide=2 open=false (si la slide tiene >3 items; si no, edit_slide add_block con type=body)
+9d. edit_slide add_block company=agent-e2e name=e2e-main slide=1 payload={type:body,text:"Bloque parity E2E"} open=false
 10. review_slide_images company=agent-e2e name=e2e-main
 11. set_slide_photo company=agent-e2e name=e2e-main slide=1 source=${fixtureUrl}/static/beans.jpg
 12. render_preview company=agent-e2e name=e2e-main format=4:5 (genera PNGs; si no hay Chrome, reportá el JSON igual)

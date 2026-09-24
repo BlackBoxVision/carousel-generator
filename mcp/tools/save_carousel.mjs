@@ -20,6 +20,7 @@ export default {
       carousel: { type: "object", description: "Objeto carousel.json v2 completo, incluyendo meta, kit y slides." },
       slides: { type: "array", description: "Slides nested o legacy para crear/actualizar el carrusel." },
       meta: { type: "object", description: "Meta parcial: title, format, showCount." },
+      format: { type: "string", enum: ["feed", "square", "story"], description: "Alias top-level de meta.format (feed|square|story)." },
       kit: { type: "object", description: "Snapshot de brand kit opcional." },
       open: { type: "boolean", description: "Abrir el HTML regenerado (default true para load/generate; default false para tools iterativas)." },
     },

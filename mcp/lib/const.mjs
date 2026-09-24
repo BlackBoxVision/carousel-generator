@@ -12,6 +12,23 @@ export const CONVERTIBLE_EXTS = new Set([".avif", ".heic", ".heif"]);
 export const MAX_LIST_ITEMS = 3;
 export const SERVER_INFO = { name: "carousel-generator", version: "2.4.0" };
 
+export const SERVER_INSTRUCTIONS = [
+  "Carousel Generator MCP: create, edit, export and publish Instagram/LinkedIn carousels.",
+  "",
+  "How to work with this server:",
+  "- Call these tools for ALL carousel work (names may appear with a client prefix such as carousel_*).",
+  "- Do NOT read mcp/tools/*.mjs or edit carousel.json / kit files on disk to discover arguments.",
+  "  Every argument is defined in each tool's inputSchema; follow it exactly.",
+  "- Prefer structured tools (edit_slide, set_slide_photo, set_slide_bg, set_carousel_meta,",
+  "  set_slide_* actions) over raw save_carousel JSON whenever a dedicated tool exists.",
+  "- Before delivering: run the PHOTO REVIEW PROTOCOL when photos are involved and the",
+  "  NARRATIVE REVIEW PROTOCOL for generated or URL-imported content. Fix every styleWarnings entry.",
+  "- delete_carousel and delete_brand_kit are two-step: without confirm:true they only preview.",
+  "  Ask the user before the second call with confirm:true.",
+  "- Use validate_carousel as a dry-run audit before handoff; use render_preview / export_pdf",
+  "  for PNG/PDF output; use social_copy for captions and alt text.",
+].join("\n");
+
 export const DEFAULT_KIT = {
   name: "Default",
   colors: { primary: "#0ea5e9", secondary: "#0f172a", tertiary: "#ffffff", slideBg: "#1e293b" },
@@ -30,26 +47,31 @@ export function canvasForFormat(format) {
 }
 
 export const PHOTO_REVIEW_PROTOCOL = [
-  "PHOTO REVIEW PROTOCOL (ejecutalo antes de entregar el carrusel al usuario):",
-  "1. VERIFY — para cada slide con foto: abrí/miniaturizá la imagen y verificá VISUALMENTE que coincida con el mensaje de la slide (kicker/título/body).",
-  "2. REPLACE — si una foto no tiene sentido (infografía, logo, fuera de tema):",
-  "   a. usá la query sugerida en photoNeeds (o refinála),",
-  "   b. buscá fotos de stock con websearch (licencia libre: Unsplash/Pexels),",
-  "   c. descargá la candidata y VERIFICALA VISUALMENTE antes de aplicarla,",
-  "   d. aplicala con set_slide_photo(company, slug, slide, source).",
-  "3. RE-AUDIT — volvé a correr review_slide_images y confirmá que cada slide tiene una foto coherente.",
-  "Nunca entregues un carrusel con fotos sin verificar.",
+  "PHOTO REVIEW PROTOCOL (run this before delivering the carousel):",
+  "1. VERIFY — for each slide with a photo: open/preview the image and verify VISUALLY that it",
+  "   matches the slide message (kicker/title/body).",
+  "2. REPLACE — if a photo does not make sense (infographic, logo, off-topic):",
+  "   a. use the suggested query in photoNeeds (or refine it),",
+  "   b. search stock photos with websearch (free license: Unsplash/Pexels),",
+  "   c. download the candidate and VERIFY IT VISUALLY before applying,",
+  "   d. apply it with set_slide_photo(company, slug, slide, source).",
+  "3. RE-AUDIT — run review_slide_images again and confirm every slide has a coherent photo.",
+  "Never deliver a carousel with unverified photos.",
 ].join("\n");
 
 export const NARRATIVE_REVIEW_PROTOCOL = [
-  "NARRATIVE REVIEW PROTOCOL (ejecutalo antes de entregar el carrusel — sobre todo si se generó desde una URL):",
-  "1. READ — leé el kicker, título, highlight y body de TODAS las slides en orden (1..N).",
-  "2. COMMON THREAD — confirmá que todas hablan del mismo sujeto/tema de la nota; no debe haber slides de relleno sin conexión con la portada ni con el título.",
-  "3. ARC — verificá arco completo: portada (gancho) → desarrollo → cierre (cta al final). El orden debe ser lineal, sin ir para atrás.",
-  "4. COHESIÓN — cada slide debe conectar con la anterior (puente lógico o secuencia), sin saltos random de tema.",
-  "5. FIX — si algo falla: corregí copy o reordená con edit_slide (action update_text | move) y volvé a auditar antes de entregar.",
-  "Mirá narrativeAudit.flags como puntos de partida (los flags sólidos son casi seguros; orphanSlides es advisory de baja confianza).",
-  "Nunca entregues un carrusel con slides sin sentido ni sin hilo común.",
+  "NARRATIVE REVIEW PROTOCOL (run this before delivering the carousel — especially if it was",
+  "generated from a URL):",
+  "1. READ — read the kicker, title, highlight and body of EVERY slide in order (1..N).",
+  "2. COMMON THREAD — confirm every slide talks about the same subject/topic as the note;",
+  "   there must be no filler slides disconnected from the cover or title.",
+  "3. ARC — full arc present: cover (hook) → development → cta (end). Order is linear, never backwards.",
+  "4. COHESION — each slide connects to the previous one (logical bridge or sequence), no random topic jumps.",
+  "5. FIX — if something fails: rewrite copy or reorder with edit_slide",
+  "   (action update_text | move) and re-audit before delivering.",
+  "Use narrativeAudit.flags as starting points (solid flags are almost certain; orphan-slide is",
+  "low-confidence advisory).",
+  "Never deliver a carousel with slides that lack a common thread.",
 ].join("\n");
 
 export const STYLE_CLICHES = ["en un mundo", "cabe destacar", "es importante destacar", "es importante señalar", "no cabe duda", "al siguiente nivel", "punto de inflexión"];

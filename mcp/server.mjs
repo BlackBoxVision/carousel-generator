@@ -2,7 +2,7 @@ import { appendFileSync } from "node:fs";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { SERVER_INFO } from "./lib/const.mjs";
+import { SERVER_INFO, SERVER_INSTRUCTIONS } from "./lib/const.mjs";
 import { callTool, listToolsForRpc } from "./registry.mjs";
 
 function toolLog(entry) {
@@ -17,6 +17,7 @@ function toolLog(entry) {
 
 const server = new Server(SERVER_INFO, {
   capabilities: { tools: {} },
+  instructions: SERVER_INSTRUCTIONS,
 });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({

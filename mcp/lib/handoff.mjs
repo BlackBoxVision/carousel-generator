@@ -20,9 +20,9 @@ export function handoffRender(file, jsonPath, data, extra = {}) {
     render: { htmlPath: file, jsonPath: jsonPath || null, company, slug: slugName, slides, format },
     open: process.platform === "darwin" ? `open ${JSON.stringify(file)}` : file,
     nextSteps: extra.nextSteps || [
-      "Abrí el HTML para revisar el resultado en el editor.",
-      "Si hay fotos nuevas: verificá visualmente cada una y re-auditá con review_slide_images.",
-      "Si el copy cambió: revisá narrativeAudit / NARRATIVE_REVIEW_PROTOCOL antes de entregar.",
+      "Open the HTML to review the result in the editor.",
+      "If there are new photos: verify each one visually and re-audit with review_slide_images.",
+      "If copy changed: run validate_carousel / NARRATIVE_REVIEW_PROTOCOL before delivering.",
     ],
   };
 }

@@ -1,47 +1,138 @@
 import fs from "node:fs";
-import { findBlockInSlide, normSlideArg } from "../lib/blocks.mjs";
-import { TEMPLATES } from "../lib/const.mjs";
+import {
+  applyAlignToSlide,
+  applyCopyPosToSlide,
+  applyPhotoLayout,
+  createBlockNode,
+  findBlockInSlide,
+  findBlockPath,
+  findItemsBlock,
+  findOrCreateItemsBlock,
+  findStackBlock,
+  listPillElements,
+  normSlideArg,
+  splitListSlide,
+  uniqueBlockId,
+} from "../lib/blocks.mjs";
+import { BLOCK_TYPES, TEMPLATES } from "../lib/const.mjs";
 import { lintSlideTexts } from "../lib/narrative.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarousel } from "../lib/render.mjs";
-import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
+import { handoffRender } from "../lib/handoff.mjs";
 import { clone, slug } from "../lib/text.mjs";
+
+const ACTIONS = [
+  "update_text",
+  "move",
+  "duplicate",
+  "delete",
+  "add",
+  "split",
+  "set_layout",
+  "add_block",
+  "delete_block",
+  "move_block",
+  "set_block",
+  "add_item",
+  "delete_item",
+  "add_pill",
+  "update_pill",
+  "delete_pill",
+];
+
+const PAYLOAD_PROPS = {
+  blockId: { type: "string", description: "Precise block id (update_text / block ops)." },
+  blockType: { type: "string", description: "First matching block type: kicker | text | highlight | body | slogan | foot | item | items | pill | box (update_text / block ops)." },
+  text: { type: "string", description: "New text (update_text / add_block / pills)." },
+  field: { type: "string", enum: ["title", "desc", "emoji"], description: "Item field to overwrite (update_text on item): title | desc | emoji." },
+  title: { type: "string", description: "Item title (update_text shortcut or add_item)." },
+  desc: { type: "string", description: "Item description (update_text shortcut or add_item)." },
+  emoji: { type: "string", description: "Item emoji (update_text shortcut or add_item)." },
+  to: { type: "number", description: "Destination position 1-based (move / move_block)." },
+  template: { type: "string", enum: ["cover", "fact", "map", "list", "cta"], description: "New slide template (add). Default list." },
+  at: { type: "number", description: "Insertion position 1-based (add / split cut index). Default: end / 3." },
+  type: { type: "string", description: "Block type for add_block (brand | count | stack | kicker | text | highlight | body | items | item | box | pill | slogan | foot)." },
+  style: { type: "object", description: "Partial style patch for set_block (align, sizePct, anchor, offsetPct, background, color, ...)." },
+  align: {
+    type: "object",
+    description: "Slide-level alignment {eyebrow?, title?, body?} each left|center|right (set_layout). Also mirrors onto blocks.",
+    properties: {
+      eyebrow: { type: "string", enum: ["left", "center", "right"] },
+      title: { type: "string", enum: ["left", "center", "right"] },
+      body: { type: "string", enum: ["left", "center", "right"] },
+    },
+  },
+  copyPos: {
+    type: "object",
+    description: "Copy stack position {anchor?: top|center|bottom, offset?: -10..10} (set_layout). Mirrors onto the stack block.",
+    properties: {
+      anchor: { type: "string", enum: ["top", "center", "bottom"] },
+      offset: { type: "number" },
+    },
+  },
+  overlayLight: { type: "boolean", description: "Light overlay / dark text (set_layout)." },
+  scrim: { type: "number", description: "Dark scrim 0-85 on photo slides only (set_layout)." },
+  bgPos: { type: "string", description: "Photo focal point e.g. 'center 30%' on photo slides only (set_layout)." },
+  index: { type: "number", description: "0-based item/pill index (delete_item / delete_pill)." },
+  top: { type: "number", description: "Pill top % (add_pill / update_pill)." },
+  side: { type: "string", enum: ["left", "right"], description: "Pill side (add_pill / update_pill)." },
+  offset: { type: "number", description: "Pill offset % (add_pill / update_pill)." },
+};
 
 export default {
   name: "edit_slide",
-  description:
-    "Edita slides de un carrusel persistido sin manipular el JSON crudo. Acciones: update_text (cambia kicker/título/highlight/body por blockId o blockType), move (reordena), duplicate, delete, add (inserta una slide nueva vacía con template cover|fact|map|list|cta). Persiste carousel.json, re-renderiza el preview y devuelve styleWarnings del bloque afectado. Usalo para refinar copy u orden según el NARRATIVE_REVIEW_PROTOCOL.",
+  description: [
+    "Structured slide editor for a persisted carousel. Never edit carousel.json on disk yourself.",
+    "WHAT: mutate one slide or its blocks, then persist + re-render preview.",
+    "WHEN: refine copy, reorder, split long lists, change layout/alignment, add/remove blocks, items or pills,",
+    "  after generate_carousel / carousel_from_url / load_carousel, or while applying NARRATIVE_REVIEW_PROTOCOL.",
+    "SISTERS: set_slide_photo (photo bg), set_slide_bg (gradient/css), set_carousel_meta (title/format),",
+    "  validate_carousel (audit), render_preview (PNGs), save_carousel (bulk JSON upsert).",
+    "ACTIONS: update_text (block by blockId/blockType; item field title|desc|emoji), move, duplicate, delete, add,",
+    "  split (split list slide after first 3 items), set_layout (align / copyPos / overlayLight / scrim / bgPos),",
+    "  add_block, delete_block (protect brand/count/stack roots), move_block, set_block (text/style),",
+    "  add_item, delete_item, add_pill, update_pill, delete_pill.",
+    "ANTI: do NOT pass carousel/kit JSON (that is save_carousel); do NOT invent actions outside the enum;",
+    "  prefer blockId when two blocks share a type; run validate_carousel after large rewrites.",
+  ].join("\n"),
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa." },
-      name: { type: "string", description: "Slug del carrusel (alias: slug)." },
-      slug: { type: "string", description: "Alias de name." },
-      slide: { type: "number", description: "Número de slide a editar (1-based). No requerido para add." },
-      slideIndex: { type: "number", description: "Alias de slide." },
-      action: { type: "string", enum: ["update_text", "move", "duplicate", "delete", "add"], description: "Acción a realizar." },
+      company: { type: "string", description: "Company slug." },
+      name: { type: "string", description: "Carousel slug (alias: slug)." },
+      slug: { type: "string", description: "Alias of name." },
+      slide: { type: "number", description: "1-based slide number. Not required for add." },
+      slideIndex: { type: "number", description: "Alias of slide." },
+      action: { type: "string", enum: ACTIONS, description: "Action to perform." },
       payload: {
         type: "object",
-        description: "Parámetros de la acción. update_text: {blockId?, blockType?, text, field?} (field solo para items: title|desc|emoji). move: {to}. duplicate/delete: {}. add: {template?, at?} (template cover|fact|map|list|cta; at = posición 1-based, default al final).",
-        properties: {
-          blockId: { type: "string", description: "ID preciso del bloque (update_text)." },
-          blockType: { type: "string", description: "Tipo del primer bloque a ubicar: kicker | text | highlight | body | slogan | foot | item (update_text)." },
-          text: { type: "string", description: "Nuevo texto (update_text)." },
-          field: { type: "string", description: "Campo a sobreescribir si el bloque es item: title | desc | emoji." },
-          to: { type: "number", description: "Posición destino 1-based (move)." },
-          template: { type: "string", enum: ["cover", "fact", "map", "list", "cta"], description: "Plantilla de la slide nueva (add). Default list." },
-          at: { type: "number", description: "Posición de inserción 1-based (add). Default: al final." },
-        },
+        description: "Action parameters. See each key description. Top-level aliases (blockId, field, ...) are merged over payload.",
+        properties: PAYLOAD_PROPS,
       },
-      blockId: { type: "string", description: "Alias top-level de payload.blockId." },
-      blockType: { type: "string", description: "Alias top-level de payload.blockType." },
-      text: { type: "string", description: "Alias top-level de payload.text." },
-      to: { type: "number", description: "Alias top-level de payload.to." },
-      template: { type: "string", enum: ["cover", "fact", "map", "list", "cta"], description: "Alias top-level de payload.template (add)." },
-      at: { type: "number", description: "Alias top-level de payload.at (add)." },
-      outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
-      fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
-      open: { type: "boolean", description: "Abrir el HTML (default true para load/generate/from_url; default false para tools iterativas)." },
+      blockId: { type: "string", description: "Top-level alias of payload.blockId." },
+      blockType: { type: "string", description: "Top-level alias of payload.blockType." },
+      text: { type: "string", description: "Top-level alias of payload.text." },
+      field: { type: "string", enum: ["title", "desc", "emoji"], description: "Top-level alias of payload.field." },
+      title: { type: "string", description: "Top-level alias of payload.title." },
+      desc: { type: "string", description: "Top-level alias of payload.desc." },
+      emoji: { type: "string", description: "Top-level alias of payload.emoji." },
+      type: { type: "string", description: "Top-level alias of payload.type (add_block)." },
+      style: { type: "object", description: "Top-level alias of payload.style (set_block)." },
+      align: PAYLOAD_PROPS.align,
+      copyPos: PAYLOAD_PROPS.copyPos,
+      overlayLight: { type: "boolean", description: "Top-level alias of payload.overlayLight." },
+      scrim: { type: "number", description: "Top-level alias of payload.scrim." },
+      bgPos: { type: "string", description: "Top-level alias of payload.bgPos." },
+      index: { type: "number", description: "Top-level alias of payload.index." },
+      to: { type: "number", description: "Top-level alias of payload.to." },
+      template: { type: "string", enum: ["cover", "fact", "map", "list", "cta"], description: "Top-level alias of payload.template (add)." },
+      at: { type: "number", description: "Top-level alias of payload.at (add / split)." },
+      top: { type: "number", description: "Top-level alias of payload.top (pills)." },
+      side: { type: "string", enum: ["left", "right"], description: "Top-level alias of payload.side (pills)." },
+      offset: { type: "number", description: "Top-level alias of payload.offset (pills / set_layout copyPos is nested)." },
+      outputDir: { type: "string", description: "Re-render HTML directory. Default ~/Downloads." },
+      fileName: { type: "string", description: "Re-render HTML basename." },
+      open: { type: "boolean", description: "Open HTML (default false for iterative tools)." },
     },
     required: ["company", "name", "action"],
   },
@@ -51,54 +142,73 @@ export default {
     const name = slug(a.name || a.slug || "");
     if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
     const action = String(a.action || "").trim();
-    const ACTIONS = ["update_text", "move", "duplicate", "delete", "add"];
     if (!ACTIONS.includes(action)) throw new Error(`Falta o es inválida \`action\`. Valores: ${ACTIONS.join(" | ")}.`);
     const record = readCarousel(company, name);
     const stored = record.stored;
     const slides = stored.slides || [];
     const payload = (a.payload && typeof a.payload === "object") ? a.payload : {};
+    const pick = (key) => (payload[key] !== undefined ? payload[key] : a[key]);
     const idx = Math.max(0, (+a.slide || +a.slideIndex || 1) - 1);
-    if (action !== "add" && idx >= slides.length) throw new Error(`Slide ${idx + 1} inexistente (${slides.length} slides).`);
-    const original = action !== "add" ? clone(slides[idx]) : null;
+    const needsSlide = !["add"].includes(action);
+    if (needsSlide && idx >= slides.length) throw new Error(`Slide ${idx + 1} inexistente (${slides.length} slides).`);
+    const original = needsSlide ? clone(slides[idx]) : null;
+    const summaryExtra = {};
 
     if (action === "update_text") {
-      const blockId = payload.blockId || a.blockId || "";
-      const blockType = payload.blockType || a.blockType || "";
-      const text = payload.text !== undefined ? payload.text : a.text;
+      const blockId = pick("blockId") || "";
+      const blockType = pick("blockType") || "";
+      const text = pick("text");
       if (text === undefined || text === null) throw new Error("Falta `payload.text` para update_text.");
       if (!blockId && !blockType) throw new Error("Falta `payload.blockId` o `payload.blockType` para ubicar el bloque (ej: kicker | text | highlight | body, o un blockId preciso como box-title).");
       const block = findBlockInSlide(slides[idx], blockId, blockType);
       if (!block) throw new Error(`Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`);
-      const field = payload.field || a.field || (block.type === "item" && payload.title === undefined && payload.desc === undefined && payload.emoji === undefined ? "title" : "text");
+      let field = pick("field");
+      if (!field) {
+        if (block.type === "item") {
+          if (pick("title") !== undefined) field = "title";
+          else if (pick("desc") !== undefined) field = "desc";
+          else if (pick("emoji") !== undefined) field = "emoji";
+          else field = "title";
+        } else field = "text";
+      }
       if (block.type === "item" && ["title", "desc", "emoji"].includes(field)) {
-        block[field] = String(text);
+        const direct = pick(field);
+        block[field] = String(direct !== undefined ? direct : text);
       } else if (block.text !== undefined || ["kicker", "text", "highlight", "body", "slogan", "foot", "pill"].includes(block.type)) {
         block.text = String(text);
       } else {
         throw new Error(`El bloque tipo "${block.type}" no tiene campo de texto editable con update_text. Usá field: title|desc|emoji si es un item.`);
       }
+      summaryExtra.block = blockId || blockType;
+      summaryExtra.field = field;
     } else if (action === "move") {
-      const to = payload.to !== undefined ? +payload.to : +a.to;
+      const to = +pick("to");
       if (!Number.isFinite(to) || to < 1 || to > slides.length) {
-        throw new Error(`\`payload.to\` debe ser la posición destino entre 1 y ${slides.length} (1-based). Recibiste: ${payload.to !== undefined ? payload.to : a.to}.`);
+        throw new Error(`\`payload.to\` debe ser la posición destino entre 1 y ${slides.length} (1-based). Recibiste: ${pick("to")}.`);
       }
       const moved = slides.splice(idx, 1)[0];
       slides.splice(to - 1, 0, moved);
+      summaryExtra.from = idx + 1;
+      summaryExtra.to = to;
     } else if (action === "duplicate") {
       const copy = clone(slides[idx]);
       let newId = `${slides[idx].id || "slide-" + (idx + 1)}-copy`;
       while (slides.some((s) => s.id === newId)) newId += "-" + Math.random().toString(36).slice(2, 5);
       copy.id = newId;
       slides.splice(idx + 1, 0, copy);
+      summaryExtra.newSlideAt = idx + 2;
+      summaryExtra.newId = newId;
     } else if (action === "delete") {
       if (slides.length <= 1) throw new Error("No se puede eliminar la única slide del carrusel.");
       slides.splice(idx, 1);
+      summaryExtra.deleted = original.id || `slide ${idx + 1}`;
+      summaryExtra.remaining = slides.length;
     } else if (action === "add") {
-      const template = payload.template || a.template || "list";
+      const template = pick("template") || "list";
       if (!TEMPLATES.includes(template)) {
         throw new Error(`\`payload.template\` debe ser uno de: ${TEMPLATES.join(", ")}. Recibiste: ${template}.`);
       }
-      const atRaw = payload.at !== undefined ? payload.at : a.at;
+      const atRaw = pick("at");
       let at = Number.isFinite(+atRaw) && +atRaw >= 1 ? Math.floor(+atRaw) : slides.length + 1;
       if (at > slides.length + 1) at = slides.length + 1;
       const created = normSlideArg({ template });
@@ -106,6 +216,209 @@ export default {
       while (slides.some((s) => s.id === newId)) newId += "-" + Math.random().toString(36).slice(2, 5);
       created.id = newId;
       slides.splice(at - 1, 0, created);
+      summaryExtra.addedAt = at;
+      summaryExtra.newId = newId;
+      summaryExtra.template = template;
+    } else if (action === "split") {
+      const atRaw = pick("at");
+      const result = splitListSlide(slides[idx], atRaw !== undefined ? +atRaw : 3);
+      if (result.error) throw new Error(result.error);
+      slides.splice(idx + 1, 0, result.newSlide);
+      summaryExtra.kept = result.kept;
+      summaryExtra.moved = result.moved;
+      summaryExtra.newSlideAt = idx + 2;
+      summaryExtra.newId = result.newSlide.id;
+    } else if (action === "set_layout") {
+      const slide = slides[idx];
+      let ok = false;
+      if (pick("align") !== undefined) ok = applyAlignToSlide(slide, pick("align")) || ok;
+      if (pick("copyPos") !== undefined) ok = applyCopyPosToSlide(slide, pick("copyPos")) || ok;
+      if (pick("overlayLight") !== undefined || pick("scrim") !== undefined || pick("bgPos") !== undefined) {
+        ok = applyPhotoLayout(slide, {
+          overlayLight: pick("overlayLight"),
+          scrim: pick("scrim"),
+          bgPos: pick("bgPos"),
+        }) || ok;
+      }
+      if (!ok) throw new Error("Falta payload con al menos uno de: align, copyPos, overlayLight, scrim (foto), bgPos (foto).");
+      summaryExtra.layout = {
+        ...(slide.align ? { align: slide.align } : {}),
+        ...(slide.copyPos ? { copyPos: slide.copyPos } : {}),
+        ...(slide.overlayLight !== undefined ? { overlayLight: slide.overlayLight } : {}),
+        ...(slide.scrim !== undefined ? { scrim: slide.scrim } : {}),
+        ...(slide.bgPos !== undefined ? { bgPos: slide.bgPos } : {}),
+      };
+    } else if (action === "add_block") {
+      const slide = slides[idx];
+      const type = pick("type") || pick("blockType") || "body";
+      if (!BLOCK_TYPES.includes(type)) throw new Error(`\`payload.type\` debe ser uno de: ${BLOCK_TYPES.join(", ")}. Recibiste: ${type}.`);
+      const node = createBlockNode(type, pick("text"), pick("style"));
+      node.id = uniqueBlockId(slide, type);
+      let stack = findStackBlock(slide);
+      if (!stack && ["kicker", "text", "highlight", "body", "slogan", "foot", "items", "box", "item"].includes(type)) {
+        stack = normalizeStack(slide);
+      }
+      if (type === "pill") {
+        slide.elements = slide.elements || [];
+        slide.elements.push(node);
+      } else if (type === "brand" || type === "count") {
+        slide.elements = slide.elements || [];
+        slide.elements.unshift(node);
+      } else if (stack) {
+        stack.children = stack.children || [];
+        const atRaw = pick("at");
+        const at = Number.isFinite(+atRaw) && +atRaw >= 1 ? Math.min(+atRaw, stack.children.length + 1) : stack.children.length + 1;
+        stack.children.splice(at - 1, 0, node);
+      } else {
+        slide.elements = slide.elements || [];
+        slide.elements.push(node);
+      }
+      summaryExtra.blockId = node.id;
+      summaryExtra.type = type;
+    } else if (action === "delete_block") {
+      const slide = slides[idx];
+      const blockId = pick("blockId") || "";
+      const blockType = pick("blockType") || "";
+      if (!blockId && !blockType) throw new Error("Falta `payload.blockId` o `payload.blockType` para delete_block.");
+      const path = findBlockPath(slide, blockId, blockType);
+      if (!path) throw new Error(`Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`);
+      if (!blockId && PROTECT_ROOTS.has(path.block.type)) {
+        throw new Error(`No se puede eliminar un root block tipo "${path.block.type}" sin blockId preciso. Usá blockId.`);
+      }
+      path.list.splice(path.index, 1);
+      summaryExtra.deletedBlock = path.block.id;
+      summaryExtra.type = path.block.type;
+    } else if (action === "move_block") {
+      const slide = slides[idx];
+      const blockId = pick("blockId") || "";
+      const blockType = pick("blockType") || "";
+      const to = +pick("to");
+      if (!Number.isFinite(to) || to < 1) throw new Error("`payload.to` debe ser posición 1-based dentro del padre.");
+      if (!blockId && !blockType) throw new Error("Falta `payload.blockId` o `payload.blockType` para move_block.");
+      const path = findBlockPath(slide, blockId, blockType);
+      if (!path) throw new Error(`Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`);
+      const [node] = path.list.splice(path.index, 1);
+      const dest = Math.max(0, Math.min(path.list.length, to - 1));
+      path.list.splice(dest, 0, node);
+      summaryExtra.movedBlock = node.id;
+      summaryExtra.to = dest + 1;
+    } else if (action === "set_block") {
+      const slide = slides[idx];
+      const blockId = pick("blockId") || "";
+      const blockType = pick("blockType") || "";
+      if (!blockId && !blockType) throw new Error("Falta `payload.blockId` o `payload.blockType` para set_block.");
+      const block = findBlockInSlide(slide, blockId, blockType);
+      if (!block) throw new Error(`Bloque no encontrado en slide ${idx + 1} (blockId="${blockId || "-"}", blockType="${blockType || "-"}").`);
+      const text = pick("text");
+      if (text !== undefined && text !== null) {
+        if (block.type === "item") {
+          const field = pick("field") || "title";
+          if (!["title", "desc", "emoji"].includes(field)) throw new Error("`payload.field` debe ser title|desc|emoji para items.");
+          const direct = pick(field);
+          block[field] = String(direct !== undefined ? direct : text);
+        } else if (block.text !== undefined || ["kicker", "text", "highlight", "body", "slogan", "foot", "pill"].includes(block.type)) {
+          block.text = String(text);
+        } else {
+          throw new Error(`El bloque tipo "${block.type}" no tiene campo text.`);
+        }
+      }
+      const style = pick("style");
+      if (style && typeof style === "object") {
+        block.style = block.style && typeof block.style === "object" ? block.style : {};
+        Object.assign(block.style, style);
+      }
+      if (text === undefined && (!style || typeof style !== "object")) {
+        throw new Error("set_block requiere `payload.text` y/o `payload.style`.");
+      }
+      summaryExtra.blockId = block.id;
+      summaryExtra.type = block.type;
+    } else if (action === "add_item") {
+      const slide = slides[idx];
+      const ib = findOrCreateItemsBlock(slide);
+      const item = {
+        id: uniqueBlockId(slide, "item"),
+        type: "item",
+        emoji: String(pick("emoji") || "✨"),
+        title: String(pick("title") || pick("text") || ""),
+        desc: String(pick("desc") || ""),
+        style: (ib.style && ib.style.align) ? { align: ib.style.align } : {},
+      };
+      ib.children = ib.children || [];
+      const atRaw = pick("at");
+      const at = Number.isFinite(+atRaw) && +atRaw >= 1 ? Math.min(+atRaw, ib.children.length + 1) : ib.children.length + 1;
+      ib.children.splice(at - 1, 0, item);
+      if (Array.isArray(slide.items)) slide.items = ib.children.map((c) => ({ emoji: c.emoji, title: c.title, desc: c.desc }));
+      summaryExtra.itemId = item.id;
+      summaryExtra.items = ib.children.length;
+    } else if (action === "delete_item") {
+      const slide = slides[idx];
+      const ib = findItemsBlock(slide);
+      if (!ib || !ib.children || !ib.children.length) throw new Error(`Slide ${idx + 1} no tiene items.`);
+      let i = pick("index");
+      if (i === undefined) {
+        const title = pick("title") || pick("text");
+        if (title) i = ib.children.findIndex((c) => c.title === String(title));
+        else i = -1;
+      } else i = +i;
+      if (!Number.isFinite(i) || i < 0 || i >= ib.children.length) {
+        throw new Error(`\`payload.index\` fuera de rango (0..${ib.children.length - 1}) o title no encontrado.`);
+      }
+      const [removed] = ib.children.splice(i, 1);
+      if (Array.isArray(slide.items)) slide.items = ib.children.map((c) => ({ emoji: c.emoji, title: c.title, desc: c.desc }));
+      summaryExtra.deletedItem = removed.id;
+      summaryExtra.items = ib.children.length;
+    } else if (action === "add_pill") {
+      const slide = slides[idx];
+      const text = pick("text");
+      if (text === undefined || text === null || text === "") throw new Error("Falta `payload.text` para add_pill.");
+      const node = createBlockNode("pill", text);
+      node.id = uniqueBlockId(slide, "pill");
+      node.pos = {
+        topPct: pick("top") !== undefined ? +pick("top") : 30,
+        side: pick("side") === "right" ? "right" : "left",
+        offsetPct: pick("offset") !== undefined ? +pick("offset") : 8,
+      };
+      slide.elements = slide.elements || [];
+      slide.elements.push(node);
+      if (Array.isArray(slide.pills)) {
+        slide.pills.push({ text: String(text), top: node.pos.topPct, side: node.pos.side, offset: node.pos.offsetPct });
+      }
+      summaryExtra.pillId = node.id;
+      summaryExtra.pills = listPillElements(slide).length;
+    } else if (action === "update_pill") {
+      const slide = slides[idx];
+      const pills = listPillElements(slide);
+      if (!pills.length) throw new Error(`Slide ${idx + 1} no tiene pills.`);
+      let i = pick("index");
+      if (i === undefined) {
+        const text = pick("text");
+        i = text !== undefined ? pills.findIndex((p) => p.text === String(text)) : 0;
+      } else i = +i;
+      if (!Number.isFinite(i) || i < 0 || i >= pills.length) throw new Error(`\`payload.index\` fuera de rango (0..${pills.length - 1}).`);
+      const pill = pills[i];
+      if (pick("text") !== undefined) pill.text = String(pick("text"));
+      pill.pos = pill.pos && typeof pill.pos === "object" ? pill.pos : { topPct: 30, side: "left", offsetPct: 8 };
+      if (pick("top") !== undefined) pill.pos.topPct = +pick("top");
+      if (pick("side") !== undefined) pill.pos.side = pick("side") === "right" ? "right" : "left";
+      if (pick("offset") !== undefined) pill.pos.offsetPct = +pick("offset");
+      if (Array.isArray(slide.pills) && slide.pills[i]) {
+        slide.pills[i] = { text: pill.text, top: pill.pos.topPct, side: pill.pos.side, offset: pill.pos.offsetPct };
+      }
+      summaryExtra.pillId = pill.id;
+    } else if (action === "delete_pill") {
+      const slide = slides[idx];
+      const pills = listPillElements(slide);
+      if (!pills.length) throw new Error(`Slide ${idx + 1} no tiene pills.`);
+      let i = pick("index");
+      if (i === undefined) {
+        const text = pick("text");
+        i = text !== undefined ? pills.findIndex((p) => p.text === String(text)) : 0;
+      } else i = +i;
+      if (!Number.isFinite(i) || i < 0 || i >= pills.length) throw new Error(`\`payload.index\` fuera de rango (0..${pills.length - 1}).`);
+      const globalIdx = (slide.elements || []).indexOf(pills[i]);
+      if (globalIdx >= 0) slide.elements.splice(globalIdx, 1);
+      if (Array.isArray(slide.pills)) slide.pills.splice(i, 1);
+      summaryExtra.pills = listPillElements(slide).length;
     }
 
     stored.slides = slides;
@@ -116,27 +429,24 @@ export default {
     runtime.slug = name;
     const html = renderCarousel(runtime, { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true });
     const affectedIdx =
-      action === "move" ? +payload.to - 1 :
+      action === "move" ? (summaryExtra.to || 1) - 1 :
       action === "duplicate" ? idx + 1 :
       action === "delete" ? Math.min(idx, slides.length - 1) :
-      action === "add" ? Math.max(0, (payload.at !== undefined ? +payload.at : +a.at || slides.length) - 1) :
+      action === "add" ? Math.max(0, (summaryExtra.addedAt || slides.length) - 1) :
+      action === "split" ? idx + 1 :
       idx;
     const styleWarnings = lintSlideTexts([slides[affectedIdx]]).map((w) => ({ ...w, slide: affectedIdx + 1 }));
     const handoff = handoffRender(html, record.file, runtime, {
       nextSteps: [
-        "Cambio persistido en carousel.json.",
-        "Si editaste copy: re-visá narrativeAudit / cohesión entre slides.",
-        ...(styleWarnings.length ? ["Corregí los styleWarnings del bloque afectado."] : []),
+        "Change persisted to carousel.json.",
+        "If copy changed: re-check narrativeAudit / cohesion across slides (NARRATIVE_REVIEW_PROTOCOL).",
+        ...(styleWarnings.length ? ["Fix the styleWarnings on the affected block."] : []),
       ],
     });
     const summary = {
       action,
-      appliedTo: action === "add" ? `slide ${affectedIdx + 1}` : `slide ${idx + 1}`,
-      ...(action === "move" ? { from: idx + 1, to: +payload.to } : {}),
-      ...(action === "duplicate" ? { newSlideAt: idx + 2, newId: slides[idx + 1].id } : {}),
-      ...(action === "delete" ? { deleted: original.id || `slide ${idx + 1}`, remaining: slides.length } : {}),
-      ...(action === "add" ? { addedAt: affectedIdx + 1, newId: slides[affectedIdx] && slides[affectedIdx].id, template: slides[affectedIdx] && slides[affectedIdx].template } : {}),
-      ...(action === "update_text" ? { block: payload.blockId || payload.blockType || a.blockType || a.blockId } : {}),
+      appliedTo: `slide ${action === "add" ? affectedIdx + 1 : idx + 1}`,
+      ...summaryExtra,
       slides: slides.length,
       ...handoff,
       styleWarnings,
@@ -144,3 +454,17 @@ export default {
     return JSON.stringify(summary, null, 2);
   },
 };
+
+const PROTECT_ROOTS = new Set(["brand", "count", "stack"]);
+
+function normalizeStack(slide) {
+  const stack = createBlockNode("stack", undefined, { anchor: "bottom", offsetPct: 0, widthPct: 87.6, maxHeightPct: 62 });
+  stack.id = uniqueBlockId(slide, "stack");
+  stack.children = [];
+  slide.elements = slide.elements || [];
+  const brandIdx = slide.elements.findIndex((el) => el.type === "brand");
+  const countIdx = slide.elements.findIndex((el) => el.type === "count");
+  const insertAt = Math.max(brandIdx, countIdx) + 1;
+  slide.elements.splice(insertAt, 0, stack);
+  return stack;
+}

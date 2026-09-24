@@ -58,10 +58,13 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 
 ## Protocolos que el agente debe respetar al entregar
 
+Los protocolos y el `SERVER_INSTRUCTIONS` del MCP están en **inglés** (model adherence). Los errores de runtime/ajv siguen en español.
+
 - **Fotos** (`PHOTO REVIEW PROTOCOL`): verificar visualmente cada foto, reemplazar las que no conectan con stock, re-auditar con `review_slide_images`.
-- **Narrativa** (`NARRATIVE REVIEW PROTOCOL`): leer todas las slides en orden, confirmar hilo común y arco (portada → desarrollo → cta), corregir con `edit_slide` si `narrativeAudit.flags` marca problemas sólidos.
+- **Narrativa** (`NARRATIVE REVIEW PROTOCOL`): leer todas las slides en orden, confirmar hilo común y arco (portada → desarrollo → cta), corregir con `edit_slide` (update_text | move | split | set_layout) si `narrativeAudit.flags` marca problemas sólidos.
 - **PNGs**: si el usuario pide PNGs ("en 4:5 todos los PNGs"), usar `render_preview` y verificar rutas con visión si hace falta.
 - **Publicación**: `social_copy` para captions/hashtags/altText; revisar altText ≤125 y no repetir copy literal.
+- **edit_slide acciones**: `update_text | move | duplicate | delete | add | split | set_layout | add_block | delete_block | move_block | set_block | add_item | delete_item | add_pill | update_pill | delete_pill`. El schema es la fuente de verdad; no leer el handler para descubrir args.
 
 ## Commits
 

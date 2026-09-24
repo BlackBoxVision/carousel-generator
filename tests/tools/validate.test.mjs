@@ -78,7 +78,28 @@ describe("enums", () => {
   test("edit_slide action enum", () => {
     assert.throws(
       () => validateArgs("edit_slide", { company: "c", name: "n", action: "nope" }),
-      /`action` debe ser uno de: update_text, move, duplicate, delete, add/
+      /`action` debe ser uno de: update_text, move, duplicate, delete, add, split, set_layout/
+    );
+  });
+
+  test("edit_slide accepts new parity actions", () => {
+    for (const action of ["split", "set_layout", "add_block", "delete_block", "move_block", "set_block", "add_item", "delete_item", "add_pill", "update_pill", "delete_pill"]) {
+      assert.equal(
+        validateArgs("edit_slide", { company: "c", name: "n", action }),
+        true,
+        action
+      );
+    }
+  });
+
+  test("edit_slide top-level field alias validates as enum", () => {
+    assert.throws(
+      () => validateArgs("edit_slide", { company: "c", name: "n", action: "update_text", field: "nope" }),
+      /`field` debe ser uno de/
+    );
+    assert.equal(
+      validateArgs("edit_slide", { company: "c", name: "n", action: "update_text", field: "desc" }),
+      true
     );
   });
 
