@@ -46,10 +46,13 @@ export default {
   },
   handler(args) {
     const a = args || {};
-    const company = slug(a.company || "");
-    const name = slug(a.name || a.slug || "");
-    if (!company) throw new Error("Falta `company` (requerido).");
-    if (!name) throw new Error("Falta `name`/`slug` (requerido).");
+    // Chequeo sobre el valor crudo: slug("") cae al fallback "carrusel" y escondía el error.
+    const rawCompany = String(a.company ?? "").trim();
+    const rawName = String(a.name ?? a.slug ?? "").trim();
+    if (!rawCompany) throw new Error("Falta `company` (requerido).");
+    if (!rawName) throw new Error("Falta `name`/`slug` (requerido).");
+    const company = slug(rawCompany);
+    const name = slug(rawName);
     const record = readCarousel(company, name);
     const stored = record.stored;
     const meta = stored.meta || {};
