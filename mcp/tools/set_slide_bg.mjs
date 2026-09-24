@@ -1,7 +1,7 @@
-import fs from "node:fs";
+import { writeJsonAtomic } from "../lib/fsutil.mjs";
 import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
-import { renderCarousel } from "../lib/render.mjs";
+import { renderCarouselSafe } from "../lib/render.mjs";
 import { slug } from "../lib/text.mjs";
 
 export default {
@@ -19,8 +19,8 @@ export default {
       company: { type: "string", description: "Slug de empresa." },
       name: { type: "string", description: "Slug del carrusel (alias: slug)." },
       slug: { type: "string", description: "Alias de name." },
-      slide: { type: "number", description: "Número de slide (1-based)." },
-      slideIndex: { type: "number", description: "Alias de slide." },
+      slide: { type: "integer", minimum: 1, description: "Número de slide (1-based)." },
+      slideIndex: { type: "integer", minimum: 1, description: "Alias de slide." },
       mode: {
         type: "string",
         enum: ["gradient", "css", "remove"],
@@ -40,13 +40,14 @@ export default {
       fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
       open: { type: "boolean", description: "Abrir el HTML (default false para tools iterativas)." },
     },
-    required: ["company", "name", "mode"],
+    required: ["company", "mode"],
   },
   handler(args) {
     const a = args || {};
     const company = slug(a.company || "");
     const name = slug(a.name || a.slug || "");
-    if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+    if (!company) throw new Error("Falta `company` (requerido).");
+    if (!name) throw new Error("Falta `name`/`slug` (requerido).");
     const mode = String(a.mode || "").trim();
     if (!["gradient", "css", "remove"].includes(mode)) {
       throw new Error("Falta o es inválida `mode`. Valores: gradient | css | remove.");
@@ -54,6 +55,12 @@ export default {
     const record = readCarousel(company, name);
     const stored = record.stored;
     const slides = stored.slides || [];
+    const rawSlide = a.slide ?? a.slideIndex;
+    if (rawSlide !== undefined && rawSlide !== null) {
+      const n = Number(rawSlide);
+      if (!Number.isInteger(n) || n < 1) throw new Error("`slide` debe ser un entero >= 1 (1-based).");
+      if (n > slides.length) throw new Error(`Slide ${n} inexistente (${slides.length} slides).`);
+    }
     const idx = Math.max(0, (+a.slide || +a.slideIndex || 1) - 1);
     if (idx >= slides.length) throw new Error(`Slide ${idx + 1} inexistente (${slides.length} slides).`);
     const slide = slides[idx];
@@ -72,7 +79,8 @@ export default {
         throw new Error(
           `Gradiente "${gname}" no existe en el kit. Disponibles: ${gradients.map((x) => x.name).join(", ")}.`,
         );
-      slide.bg = { type: "gradient", value: slug(g.name) };
+      // El editor resuelve por nombre EXACTO (g.name === bg.value): guardar el nombre real, no el slug.
+      slide.bg = { type: "gradient", value: g.name };
       overlayLight = a.overlayLight !== undefined ? !!a.overlayLight : !!g.light;
       applied = { mode, gradient: g.name };
     } else if (mode === "css") {
@@ -86,7 +94,7 @@ export default {
       applied = { mode, css };
     } else {
       const fallback = gradients[0];
-      slide.bg = { type: "gradient", value: slug(fallback.name) };
+      slide.bg = { type: "gradient", value: fallback.name };
       overlayLight = a.overlayLight !== undefined ? !!a.overlayLight : !!fallback.light;
       applied = { mode, gradient: fallback.name };
     }
@@ -94,25 +102,29 @@ export default {
     delete slide.bg.bgPos;
     slide.overlayLight = overlayLight;
     stored.updatedAt = new Date().toISOString();
-    fs.writeFileSync(record.file, JSON.stringify(stored, null, 2), "utf8");
+    writeJsonAtomic(record.file, stored);
     const runtime = hydrateCarousel(stored, record.dir);
     runtime.company = company;
     runtime.slug = name;
-    const html = renderCarousel(runtime, {
+    const rendered = renderCarouselSafe(runtime, {
       outputDir: a.outputDir,
       fileName: a.fileName,
       open: a.open === true,
       stable: true,
     });
+    const html = rendered.file;
     const handoff = handoffRender(html, record.file, runtime, {
       nextSteps: [
         "Fondo persistido en carousel.json.",
         "Si el texto no lee bien: ajustá overlayLight o cambiá el gradiente con set_slide_bg.",
         "Para foto: usá set_slide_photo en su lugar.",
+        ...(rendered.warning ? [rendered.warning] : []),
       ],
     });
     return appendHandoff(
-      `Fondo actualizado en slide ${idx + 1} de ${company}/${name}: ${JSON.stringify(applied)}\noverlayLight: ${overlayLight}\nPreview: ${html}`,
+      `Fondo actualizado en slide ${idx + 1} de ${company}/${name}: ${JSON.stringify(applied)}\noverlayLight: ${overlayLight}\nPreview: ${html || "(no re-renderizado)"}${
+        rendered.warning ? `\nWARNING: ${rendered.warning}` : ""
+      }`,
       handoff,
     );
   },

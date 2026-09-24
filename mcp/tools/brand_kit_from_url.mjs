@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { buildKitFromInference, downloadLogoDataURL, inferKitFromHTML } from "../lib/brand.mjs";
 import { DEFAULT_KIT } from "../lib/const.mjs";
+import { writeJsonAtomic } from "../lib/fsutil.mjs";
 import { fetchBrandHTML } from "../lib/html.mjs";
 import { findKitFile } from "../lib/kits.mjs";
 import { brandDir } from "../lib/paths.mjs";
@@ -62,12 +63,19 @@ export default {
       return `Kit inferido (NO guardado, save:false):\n${JSON.stringify(kit, null, 2).slice(0, 4000)}\n\nConfianza — primario: ${inf.conf.primary} (${inf.primarySrc}) · secundario: ${inf.conf.secondary} · fonts: ${inf.conf.fonts} · logo: ${logoConf} (${logoNote}).\nPara guardarlo pasá save:true o usá save_brand_kit con este JSON.`;
     }
     const existing = findKitFile(sl);
-    const base = existing ? JSON.parse(fs.readFileSync(existing.file, "utf8")) : clone(DEFAULT_KIT);
+    let base;
+    if (existing) {
+      try {
+        base = JSON.parse(fs.readFileSync(existing.file, "utf8"));
+      } catch (e) {
+        throw new Error(`kit.json corrupto en "${existing.file}": ${e.message}. Borralo o re-creá el kit.`);
+      }
+    } else base = clone(DEFAULT_KIT);
     const merged = deepMerge(base, kit);
     merged.name = kit.name;
     const dir = path.join(brandDir(), sl);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "kit.json"), JSON.stringify(merged, null, 2), "utf8");
+    writeJsonAtomic(path.join(dir, "kit.json"), merged);
     return `Kit "${sl}" generado desde ${u.href} y guardado en ${path.join(dir, "kit.json")}${existing ? " (mergeado sobre el existente)" : ""}.\n\n- Marca: ${kit.name}\n- Primario: ${kit.colors.primary} [confianza ${inf.conf.primary}: ${inf.primarySrc}]\n- Secundario: ${kit.colors.secondary} [confianza ${inf.conf.secondary}]\n- Fonts: ${kit.fonts.heading} [${inf.conf.fonts}]\n- Logo: ${logoNote} [confianza ${logoConf}]\n- Gradients: ${kit.gradients.map((g) => g.name).join(", ")}\n\nRevisar: contraste del primario sobre blanco, logo (¿es el correcto o un favicon chico?), y tipografía.\nAjuste con feedback: previsualizá con generate_carousel {kitName:"${sl}"} y refiná con save_brand_kit {name:"${sl}", kit:{...solo lo que cambia...}} (ej: {"colors":{"primary":"#ff5a00"}}). Los cambios se ven en vivo en el picker del editor.`;
   },
 };

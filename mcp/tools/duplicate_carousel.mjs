@@ -3,7 +3,7 @@ import path from "node:path";
 import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { carouselPath } from "../lib/paths.mjs";
 import { hydrateCarousel, persistCarousel, readCarousel } from "../lib/persist.mjs";
-import { renderCarousel } from "../lib/render.mjs";
+import { renderCarouselSafe } from "../lib/render.mjs";
 import { clone, slug } from "../lib/text.mjs";
 
 export default {
@@ -12,7 +12,7 @@ export default {
     "Duplicate a persisted carousel to another company and/or slug (A/B variants or working copies).",
     "WHAT: copy meta/kit/slides/referenced assets to the destination, re-idemp assets, re-render the duplicate preview; original untouched.",
     "WHEN: branching a carousel without mutating the source; A/B copy experiments.",
-    "SISTERS: list_carousels (pick source), edit_slide (edit the copy), delete_carousel (cleanup), set_carousel_meta (rename).",
+    "SISTERS: list_carousels (pick source), edit_slide (edit the copy), delete_carousel (cleanup), set_carousel_meta (meta.title only — slug rename is not supported).",
     "ANTI: do NOT mutate the source; destination slug must differ from origin.",
   ].join("\n"),
   inputSchema: {
@@ -27,7 +27,7 @@ export default {
       outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
       fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
     },
-    required: ["company", "name"],
+    required: ["company"],
   },
   handler(args) {
     const a = args || {};
@@ -40,7 +40,8 @@ export default {
           ? String(a.slug).trim()
           : "";
     const fromName = rawFrom ? slug(rawFrom) : "";
-    if (!fromCompany || !fromName) throw new Error("Faltan `company` y `name`/`slug`.");
+    if (!fromCompany) throw new Error("Falta `company` (requerido).");
+    if (!fromName) throw new Error("Falta `name`/`slug` (requerido).");
     const record = readCarousel(fromCompany, fromName);
     const stored = clone(record.stored);
     const toCompany =
@@ -94,21 +95,25 @@ export default {
     const runtime = hydrateCarousel(saved.data, saved.dir);
     runtime.company = toCompany;
     runtime.slug = toName;
-    const html = renderCarousel(runtime, {
+    const rendered = renderCarouselSafe(runtime, {
       outputDir: a.outputDir,
       fileName: a.fileName,
       open: a.open === true,
       stable: true,
     });
+    const html = rendered.file;
     const handoff = handoffRender(html, saved.file, runtime, {
       nextSteps: [
         `Duplicado creado en ${toCompany}/${toName} (${(saved.data.slides || []).length} slides).`,
         "El original no se modificó.",
         "Si es una variante A/B: editá el duplicado con edit_slide / set_carousel_meta / set_slide_bg.",
+        ...(rendered.warning ? [rendered.warning] : []),
       ],
     });
     return appendHandoff(
-      `Carrusel duplicado: ${fromCompany}/${fromName} → ${toCompany}/${toName}\nJSON: ${saved.file}\nAssets copiados: ${remapped.length}\nSlides: ${(saved.data.slides || []).length}\nPreview: ${html}`,
+      `Carrusel duplicado: ${fromCompany}/${fromName} → ${toCompany}/${toName}\nJSON: ${saved.file}\nAssets copiados: ${remapped.length}\nSlides: ${
+        (saved.data.slides || []).length
+      }\nPreview: ${html || "(no re-renderizado)"}${rendered.warning ? `\nWARNING: ${rendered.warning}` : ""}`,
       handoff,
     );
   },

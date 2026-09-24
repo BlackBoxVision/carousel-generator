@@ -55,7 +55,8 @@ export default {
     const a = args || {};
     const company = slug(a.company || "");
     const name = slug(a.name || a.slug || "");
-    if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+    if (!company) throw new Error("Falta `company` (requerido).");
+    if (!name) throw new Error("Falta `name`/`slug` (requerido).");
     const record = readCarousel(company, name);
     const slides = slideMetaForReview(record.stored, record.dir);
     const photoNeeds = slides

@@ -7,7 +7,7 @@ export default {
   name: "list_carousels",
   description: [
     "List persisted carousels grouped by company under ~/.carousel-generator/carousels/.",
-    "WHAT: return company, slug, title, format, slide count, updatedAt and JSON path per carousel.",
+    "WHAT: return company, slug, title, format, slide count, updatedAt and JSON path per carousel; corrupt JSON shows {corrupt:true, error}.",
     "WHEN: discovering what exists before load_carousel / edit_slide; optional company filter.",
     "SISTERS: load_carousel (open one), duplicate_carousel (copy), delete_carousel (remove), list_brand_kits (kits).",
     "ANTI: do NOT read directories yourself; do NOT assume a slug — pick from this list.",
@@ -43,7 +43,15 @@ export default {
             updatedAt: data.updatedAt,
             file,
           });
-        } catch {}
+        } catch (e) {
+          carousels.push({
+            company,
+            slug: name,
+            corrupt: true,
+            error: e && e.message ? e.message : String(e),
+            file,
+          });
+        }
       }
     }
     if (companyFilter && !carousels.length) {

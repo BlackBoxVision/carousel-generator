@@ -30,7 +30,7 @@ export default {
       },
       slides: {
         type: "array",
-        items: { type: "number" },
+        items: { type: "integer", minimum: 1 },
         description: "Índices 1-based a renderizar. Omite para TODAS las slides.",
       },
       outputDir: {
@@ -39,13 +39,14 @@ export default {
       },
       open: { type: "boolean", description: "Abrir el primer PNG (default false)." },
     },
-    required: ["company", "name"],
+    required: ["company"],
   },
   handler(args) {
     const a = args || {};
     const company = slug(a.company || "");
     const name = slug(a.name || a.slug || "");
-    if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+    if (!company) throw new Error("Falta `company` (requerido).");
+    if (!name) throw new Error("Falta `name`/`slug` (requerido).");
     const record = readCarousel(company, name);
     const storedFormat = (record.stored.meta && record.stored.meta.format) || "feed";
     const format = normalizePreviewFormat(a.format, storedFormat);
@@ -81,9 +82,24 @@ export default {
       JSON.stringify(runtime).replace(/</g, "\\u003c") +
       ";</script>";
     const template = loadAppTemplate();
-    fs.writeFileSync(htmlFile, template.replace(MARKER, payload), "utf8");
+    fs.writeFileSync(
+      htmlFile,
+      template.replace(MARKER, () => payload),
+      "utf8",
+    );
     const pngs = [];
     const errors = [];
+    // PNGs huérfanos: si el carrusel achicó, borra slides-NN.png fuera de rango
+    const removedStale = [];
+    for (const f of fs.readdirSync(outDir)) {
+      const m = /^slide-(\d+)\.png$/.exec(f);
+      if (m && Number(m[1]) > total) {
+        try {
+          fs.unlinkSync(path.join(outDir, f));
+          removedStale.push(f);
+        } catch {}
+      }
+    }
     if (!chrome) {
       return JSON.stringify(
         {
@@ -123,10 +139,18 @@ export default {
       }
     }
     if (a.open === true && pngs[0]) {
+      // spawn sin 'error' listener revienta el proceso MCP si no hay open/xdg-open
       try {
-        if (process.platform === "darwin") spawn("open", [pngs[0].path], { stdio: "ignore", detached: true }).unref();
-        else if (process.platform === "linux")
-          spawn("xdg-open", [pngs[0].path], { stdio: "ignore", detached: true }).unref();
+        const opened =
+          process.platform === "darwin"
+            ? spawn("open", [pngs[0].path], { stdio: "ignore", detached: true })
+            : process.platform === "linux"
+              ? spawn("xdg-open", [pngs[0].path], { stdio: "ignore", detached: true })
+              : null;
+        if (opened) {
+          opened.on("error", () => {});
+          opened.unref();
+        }
       } catch {}
     }
     return JSON.stringify(
@@ -143,6 +167,7 @@ export default {
           errors,
           count: pngs.length,
           requested: indices.length,
+          ...(removedStale.length ? { removedStalePngs: removedStale } : {}),
         },
         nextSteps: [
           pngs.length

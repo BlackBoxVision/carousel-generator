@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_KIT } from "../lib/const.mjs";
+import { writeJsonAtomic } from "../lib/fsutil.mjs";
 import { findKitFile, resolveLogo } from "../lib/kits.mjs";
 import { brandDir } from "../lib/paths.mjs";
 import { deepMerge, slug } from "../lib/text.mjs";
@@ -32,13 +33,20 @@ export default {
     if (!name) throw new Error("Falta el nombre del kit.");
     if (!a.kit || typeof a.kit !== "object") throw new Error("Falta el objeto kit.");
     const existing = findKitFile(name);
-    const base = existing ? JSON.parse(fs.readFileSync(existing.file, "utf8")) : clone(DEFAULT_KIT);
+    let base;
+    if (existing) {
+      try {
+        base = JSON.parse(fs.readFileSync(existing.file, "utf8"));
+      } catch (e) {
+        throw new Error(`kit.json corrupto en "${existing.file}": ${e.message}. Borralo o re-creá el kit.`);
+      }
+    } else base = clone(DEFAULT_KIT);
     const kit = resolveLogo(deepMerge(base, a.kit), name);
     kit.name = (a.kit && a.kit.name) || base.name || name;
     const dir = path.join(brandDir(), name);
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, "kit.json");
-    fs.writeFileSync(file, JSON.stringify(kit, null, 2), "utf8");
+    writeJsonAtomic(file, kit);
     return `Kit "${name}" guardado en ${file}${existing ? " (mergeado sobre el existente)" : " (nuevo, basado en Default)"}${kit.logo && kit.logo.img ? " — logo embebido en base64" : ""}`;
   },
 };

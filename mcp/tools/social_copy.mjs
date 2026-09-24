@@ -33,17 +33,23 @@ export default {
       audience: { type: "string", description: "Público objetivo (ej: 'marketing managers B2B')." },
       cta: { type: "string", description: "Call to action final personalizado (si lo hay)." },
       includeHashtags: { type: "boolean", description: "Incluir hashtags (default true)." },
-      maxHashtags: { type: "number", description: "Máximo de hashtags (default: 8 IG, 5 LinkedIn, 2 X)." },
+      maxHashtags: {
+        type: "integer",
+        minimum: 1,
+        maximum: 30,
+        description: "Máximo de hashtags (default: 8 IG, 5 LinkedIn, 2 X).",
+      },
       language: { type: "string", description: "Idioma BCP-47 (default: es-AR)." },
       save: { type: "boolean", description: "Guardar social.md junto al carousel.json (default false)." },
     },
-    required: ["company", "name"],
+    required: ["company"],
   },
   handler(args) {
     const a = args || {};
     const company = slug(a.company || "");
     const name = slug(a.name || a.slug || "");
-    if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+    if (!company) throw new Error("Falta `company` (requerido).");
+    if (!name) throw new Error("Falta `name`/`slug` (requerido).");
     const record = readCarousel(company, name);
     const stored = record.stored;
     const meta = stored.meta || {};

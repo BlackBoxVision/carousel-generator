@@ -3,7 +3,7 @@ import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { brandKitsPayload } from "../lib/kits.mjs";
 import { formatStyleWarnings, lintSlideTexts } from "../lib/narrative.mjs";
 import { persistCarousel } from "../lib/persist.mjs";
-import { renderCarousel, runtimeDataFromArgs } from "../lib/render.mjs";
+import { renderCarouselSafe, runtimeDataFromArgs } from "../lib/render.mjs";
 import { slug } from "../lib/text.mjs";
 
 export default {
@@ -74,6 +74,10 @@ export default {
         items: {
           type: "object",
           properties: {
+            id: {
+              type: "string",
+              description: "Slide id (round-trip desde un carousel persistido). Default: slide-N.",
+            },
             template: {
               type: "string",
               enum: TEMPLATES,
@@ -129,6 +133,11 @@ export default {
               description:
                 "Nombre de un gradient del kit ('navy','dusk','mapa',...), CSS de linear-gradient completo, o 'file:' + ruta local a una foto (ej: 'file:/tmp/foto.jpg', acepta ~) que se embebe como background.",
             },
+            bg: {
+              type: "object",
+              description:
+                "Background persistido (round-trip): {type:'gradient'|'css'|'photo', value|css|asset, scrim?, bgPos?}. Alias de background.",
+            },
             overlayLight: { type: "boolean", description: "Fondo claro con texto oscuro (estilo mapa)." },
             scrim: {
               type: "number",
@@ -169,21 +178,31 @@ export default {
     data.slug = carouselName;
     let persisted = null;
     if (a.persist !== false) persisted = persistCarousel(data, company, carouselName);
-    const file = renderCarousel(data, { ...a, open: a.open !== false, stable: true });
+    const rendered = renderCarouselSafe(data, { ...a, open: a.open !== false, stable: true });
+    const file = rendered.file;
     const kitNames = Object.keys(brandKitsPayload((data.kitSource && data.kitSource.slug) || data.kit.name));
     const styleLines = formatStyleWarnings(lintSlideTexts(data.slides));
     const handoff = handoffRender(file, persisted ? persisted.file : null, data, {
       nextSteps: [
         a.open === false
           ? "HTML generado sin abrir (open:false). Pasá open:true o abrí la ruta a mano."
-          : "Se abrió en el navegador.",
+          : rendered.warning
+            ? "El HTML no se pudo generar — revisá el warning."
+            : "Se abrió en el navegador.",
         `Kits en el picker: ${kitNames.length ? kitNames.join(", ") : "(solo el activo)"}.`,
         "Exportá PNGs/PDF desde el editor.",
+        ...(rendered.warning ? [rendered.warning] : []),
         ...(styleLines.length ? ["Corregí los styleWarnings listados arriba."] : []),
       ],
     });
     return appendHandoff(
-      `Carrusel generado (${data.slides.length} slides, formato ${data.meta.format}, kit "${data.kit.name}"):\n${file}\n\nJSON persistido: ${persisted ? persisted.file : "no (persist:false)"}\nEmpresa: ${company} · Carrusel: ${carouselName}\n\nEl árbol nested de bloques sigue editable y el HTML se puede exportar a PNG/PDF.${styleLines.length ? "\n" + styleLines.join("\n") : ""}`,
+      `Carrusel generado (${data.slides.length} slides, formato ${data.meta.format}, kit "${data.kit.name}"):\n${
+        file || "(HTML no generado)"
+      }${rendered.warning ? `\nWARNING: ${rendered.warning}` : ""}\n\nJSON persistido: ${
+        persisted ? persisted.file : "no (persist:false)"
+      }\nEmpresa: ${company} · Carrusel: ${carouselName}\n\nEl árbol nested de bloques sigue editable y el HTML se puede exportar a PNG/PDF.${
+        styleLines.length ? "\n" + styleLines.join("\n") : ""
+      }`,
       handoff,
     );
   },

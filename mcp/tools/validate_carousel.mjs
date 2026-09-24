@@ -1,7 +1,7 @@
 import { normSlideArg } from "../lib/blocks.mjs";
 import { NARRATIVE_REVIEW_PROTOCOL } from "../lib/const.mjs";
 import { formatStyleWarnings, lintSlideTexts, narrativeAudit } from "../lib/narrative.mjs";
-import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
+import { readCarousel } from "../lib/persist.mjs";
 import { slug } from "../lib/text.mjs";
 
 export default {
@@ -50,7 +50,6 @@ export default {
       const stored = record.stored;
       slides = stored.slides || [];
       if (!title) title = (stored.meta && stored.meta.title) || name;
-      hydrateCarousel(stored, record.dir);
     }
     if (!slides.length) throw new Error("No hay slides para validar.");
     const styleWarnings = lintSlideTexts(slides);

@@ -19,7 +19,8 @@ export function renderCarousel(data, args = {}) {
     "<script>window.CAROUSEL_DATA=" +
     JSON.stringify(data).replace(/</g, "\\u003c") +
     ";</script>";
-  const out = html.replace(MARKER, payload);
+  // replace con función: payload puede contener $& / $` que si no se interpretan
+  const out = html.replace(MARKER, () => payload);
   const dir = expandHome(args.outputDir || "~/Downloads");
   fs.mkdirSync(dir, { recursive: true });
   const stamp = new Date().toTimeString().slice(0, 5).replace(":", "");
@@ -32,14 +33,32 @@ export function renderCarousel(data, args = {}) {
   const file = path.join(dir, antiCache + ".html");
   fs.writeFileSync(file, out, "utf8");
   if (args.open === true) {
+    // spawn sin listener 'error' mata al proceso MCP si open/xdg-open no existe (ej: Linux sin xdg-utils)
     try {
-      const url = "file://" + file.split(path.sep).map(encodeURIComponent).join("/") + "?t=" + Date.now();
-      if (process.platform === "darwin") spawn("open", [file], { stdio: "ignore", detached: true }).unref();
-      else if (process.platform === "linux") spawn("xdg-open", [file], { stdio: "ignore", detached: true }).unref();
-      void url;
+      const opened =
+        process.platform === "darwin"
+          ? spawn("open", [file], { stdio: "ignore", detached: true })
+          : process.platform === "linux"
+            ? spawn("xdg-open", [file], { stdio: "ignore", detached: true })
+            : null;
+      if (opened) {
+        opened.on("error", () => {});
+        opened.unref();
+      }
     } catch {}
   }
   return file;
+}
+/**
+ * Igual que renderCarousel pero nunca lanza: los tools que ya persistieron
+ * deben devolver warning en vez de error (el cambio ya está en disco).
+ */
+export function renderCarouselSafe(data, args = {}) {
+  try {
+    return { file: renderCarousel(data, args), warning: null };
+  } catch (e) {
+    return { file: null, warning: `No se pudo re-renderizar el HTML: ${e && e.message ? e.message : e}` };
+  }
 }
 export function runtimeDataFromArgs(args) {
   const a = args || {};

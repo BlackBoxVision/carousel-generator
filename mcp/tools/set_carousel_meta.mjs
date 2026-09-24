@@ -1,8 +1,8 @@
-import fs from "node:fs";
 import { canvasForFormat } from "../lib/const.mjs";
+import { writeJsonAtomic } from "../lib/fsutil.mjs";
 import { appendHandoff, handoffRender } from "../lib/handoff.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
-import { renderCarousel } from "../lib/render.mjs";
+import { renderCarouselSafe } from "../lib/render.mjs";
 import { slug } from "../lib/text.mjs";
 
 export default {
@@ -32,13 +32,14 @@ export default {
       fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
       open: { type: "boolean", description: "Abrir el HTML (default false para tools iterativas)." },
     },
-    required: ["company", "name"],
+    required: ["company"],
   },
   handler(args) {
     const a = args || {};
     const company = slug(a.company || "");
     const name = slug(a.name || a.slug || "");
-    if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+    if (!company) throw new Error("Falta `company` (requerido).");
+    if (!name) throw new Error("Falta `name`/`slug` (requerido).");
     const hasTitle = a.title !== undefined && a.title !== null && String(a.title).length;
     const hasFormat = a.format !== undefined && a.format !== null && String(a.format).length;
     const hasCategory = a.category !== undefined && a.category !== null;
@@ -73,25 +74,29 @@ export default {
       changed.showCount = stored.meta.showCount;
     }
     stored.updatedAt = new Date().toISOString();
-    fs.writeFileSync(record.file, JSON.stringify(stored, null, 2), "utf8");
+    writeJsonAtomic(record.file, stored);
     const runtime = hydrateCarousel(stored, record.dir);
     runtime.company = company;
     runtime.slug = name;
-    const html = renderCarousel(runtime, {
+    const rendered = renderCarouselSafe(runtime, {
       outputDir: a.outputDir,
       fileName: a.fileName,
       open: a.open === true,
       stable: true,
     });
+    const html = rendered.file;
     const handoff = handoffRender(html, record.file, runtime, {
       nextSteps: [
         "Meta persistido en carousel.json.",
         "Si cambiaste format: re-renderizá con render_preview para ver el nuevo lienzo.",
         "Si cambiaste category: verificá que kit.highlightColors tenga esa clave (si no, mantiene primary).",
+        ...(rendered.warning ? [rendered.warning] : []),
       ],
     });
     return appendHandoff(
-      `Meta actualizado en ${company}/${name}: ${JSON.stringify(changed)}\nfull meta: ${JSON.stringify(stored.meta)}\nPreview: ${html}`,
+      `Meta actualizado en ${company}/${name}: ${JSON.stringify(changed)}\nfull meta: ${JSON.stringify(stored.meta)}\nPreview: ${
+        html || "(no re-renderizado)"
+      }${rendered.warning ? `\nWARNING: ${rendered.warning}` : ""}`,
       handoff,
     );
   },

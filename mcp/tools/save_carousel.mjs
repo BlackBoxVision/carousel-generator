@@ -4,6 +4,7 @@ import { resolveKit } from "../lib/kits.mjs";
 import { lintSlideTexts, narrativeAudit } from "../lib/narrative.mjs";
 import { carouselPath } from "../lib/paths.mjs";
 import { persistCarousel, readCarousel } from "../lib/persist.mjs";
+import { renderCarouselSafe } from "../lib/render.mjs";
 import { deepMerge, slug } from "../lib/text.mjs";
 
 export default {
@@ -30,26 +31,28 @@ export default {
         description: "Alias top-level de meta.format (feed|square|story).",
       },
       kit: { type: "object", description: "Snapshot de brand kit opcional." },
+      outputDir: { type: "string", description: "Directorio del HTML regenerado. Default ~/Downloads." },
+      fileName: { type: "string", description: "Nombre base del HTML regenerado." },
       open: {
         type: "boolean",
         description: "Abrir el HTML regenerado (default true para load/generate; default false para tools iterativas).",
       },
     },
-    required: ["company", "name"],
+    required: ["company"],
   },
   handler(args) {
     const a = args || {};
     const input = a.carousel && typeof a.carousel === "object" ? a.carousel : {};
-    const existing =
-      a.company && (a.name || a.slug)
-        ? (() => {
-            try {
-              return readCarousel(a.company, a.name || a.slug).stored;
-            } catch {
-              return null;
-            }
-          })()
-        : null;
+    let existing = null;
+    if (a.company && (a.name || a.slug)) {
+      try {
+        existing = readCarousel(a.company, a.name || a.slug).stored;
+      } catch (e) {
+        // Solo "no existe" se trata como upsert nuevo; JSON corrupto debe fallar en voz alta.
+        if (e && /no existe/.test(e.message)) existing = null;
+        else throw e;
+      }
+    }
     const company = slug(
       a.company ||
         input.company ||
@@ -112,6 +115,10 @@ export default {
     const saved = persistCarousel(data, company, name, sourceDir);
     const styleWarnings = lintSlideTexts(slides);
     const narrative = narrativeAudit(slides, data.meta.title || name);
+    const rendered = renderCarouselSafe(
+      { ...data, company, slug: name },
+      { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true },
+    );
     return JSON.stringify(
       {
         saved: saved.file,
@@ -120,6 +127,8 @@ export default {
         title: data.meta.title || name,
         slides: slides.length,
         assets: saved.data.assets,
+        ...(rendered.file ? { htmlPath: rendered.file } : {}),
+        ...(rendered.warning ? { warnings: [rendered.warning] } : {}),
         styleWarnings,
         narrativeAudit: narrative,
         protocol: NARRATIVE_REVIEW_PROTOCOL,

@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import {
   applyAlignToSlide,
   applyCopyPosToSlide,
@@ -14,11 +13,12 @@ import {
   splitListSlide,
   uniqueBlockId,
 } from "../lib/blocks.mjs";
-import { BLOCK_TYPES, TEMPLATES } from "../lib/const.mjs";
+import { BLOCK_TYPES, MAX_LIST_ITEMS, TEMPLATES } from "../lib/const.mjs";
+import { pruneAssets, writeJsonAtomic } from "../lib/fsutil.mjs";
 import { handoffRender } from "../lib/handoff.mjs";
 import { lintSlideTexts } from "../lib/narrative.mjs";
 import { hydrateCarousel, readCarousel } from "../lib/persist.mjs";
-import { renderCarousel } from "../lib/render.mjs";
+import { renderCarouselSafe } from "../lib/render.mjs";
 import { clone, slug } from "../lib/text.mjs";
 
 const ACTIONS = [
@@ -56,13 +56,13 @@ const PAYLOAD_PROPS = {
   title: { type: "string", description: "Item title (update_text shortcut or add_item)." },
   desc: { type: "string", description: "Item description (update_text shortcut or add_item)." },
   emoji: { type: "string", description: "Item emoji (update_text shortcut or add_item)." },
-  to: { type: "number", description: "Destination position 1-based (move / move_block)." },
+  to: { type: "integer", description: "Destination position 1-based (move / move_block)." },
   template: {
     type: "string",
     enum: ["cover", "fact", "map", "list", "cta"],
     description: "New slide template (add). Default list.",
   },
-  at: { type: "number", description: "Insertion position 1-based (add / split cut index). Default: end / 3." },
+  at: { type: "integer", description: "Insertion position 1-based (add / split cut index). Default: end / 3." },
   type: {
     type: "string",
     description:
@@ -92,9 +92,9 @@ const PAYLOAD_PROPS = {
     },
   },
   overlayLight: { type: "boolean", description: "Light overlay / dark text (set_layout)." },
-  scrim: { type: "number", description: "Dark scrim 0-85 on photo slides only (set_layout)." },
+  scrim: { type: "number", minimum: 0, maximum: 85, description: "Dark scrim 0-85 on photo slides only (set_layout)." },
   bgPos: { type: "string", description: "Photo focal point e.g. 'center 30%' on photo slides only (set_layout)." },
-  index: { type: "number", description: "0-based item/pill index (delete_item / delete_pill)." },
+  index: { type: "integer", description: "0-based item/pill index (delete_item / delete_pill)." },
   top: { type: "number", description: "Pill top % (add_pill / update_pill)." },
   side: { type: "string", enum: ["left", "right"], description: "Pill side (add_pill / update_pill)." },
   offset: { type: "number", description: "Pill offset % (add_pill / update_pill)." },
@@ -110,7 +110,8 @@ export default {
     "SISTERS: set_slide_photo (photo bg), set_slide_bg (gradient/css), set_carousel_meta (title/format),",
     "  validate_carousel (audit), render_preview (PNGs), save_carousel (bulk JSON upsert).",
     "ACTIONS: update_text (block by blockId/blockType; item field title|desc|emoji), move, duplicate, delete, add,",
-    "  split (split list slide after first 3 items), set_layout (align / copyPos / overlayLight / scrim / bgPos),",
+    "  split (split list slide after first 3 items; pass payload.at to cut elsewhere, required when the slide has <=3 items),",
+    "  set_layout (align / copyPos / overlayLight / scrim / bgPos),",
     "  add_block, delete_block (protect brand/count/stack roots), move_block, set_block (text/style),",
     "  add_item, delete_item, add_pill, update_pill, delete_pill.",
     "ANTI: do NOT pass carousel/kit JSON (that is save_carousel); do NOT invent actions outside the enum;",
@@ -122,8 +123,8 @@ export default {
       company: { type: "string", description: "Company slug." },
       name: { type: "string", description: "Carousel slug (alias: slug)." },
       slug: { type: "string", description: "Alias of name." },
-      slide: { type: "number", description: "1-based slide number. Not required for add." },
-      slideIndex: { type: "number", description: "Alias of slide." },
+      slide: { type: "integer", minimum: 1, description: "1-based slide number. Not required for add." },
+      slideIndex: { type: "integer", minimum: 1, description: "Alias of slide." },
       action: { type: "string", enum: ACTIONS, description: "Action to perform." },
       payload: {
         type: "object",
@@ -143,16 +144,16 @@ export default {
       align: PAYLOAD_PROPS.align,
       copyPos: PAYLOAD_PROPS.copyPos,
       overlayLight: { type: "boolean", description: "Top-level alias of payload.overlayLight." },
-      scrim: { type: "number", description: "Top-level alias of payload.scrim." },
+      scrim: { type: "number", minimum: 0, maximum: 85, description: "Top-level alias of payload.scrim." },
       bgPos: { type: "string", description: "Top-level alias of payload.bgPos." },
-      index: { type: "number", description: "Top-level alias of payload.index." },
-      to: { type: "number", description: "Top-level alias of payload.to." },
+      index: { type: "integer", description: "Top-level alias of payload.index." },
+      to: { type: "integer", description: "Top-level alias of payload.to." },
       template: {
         type: "string",
         enum: ["cover", "fact", "map", "list", "cta"],
         description: "Top-level alias of payload.template (add).",
       },
-      at: { type: "number", description: "Top-level alias of payload.at (add / split)." },
+      at: { type: "integer", description: "Top-level alias of payload.at (add / split)." },
       top: { type: "number", description: "Top-level alias of payload.top (pills)." },
       side: { type: "string", enum: ["left", "right"], description: "Top-level alias of payload.side (pills)." },
       offset: {
@@ -163,23 +164,34 @@ export default {
       fileName: { type: "string", description: "Re-render HTML basename." },
       open: { type: "boolean", description: "Open HTML (default false for iterative tools)." },
     },
-    required: ["company", "name", "action"],
+    required: ["company", "action"],
   },
   async handler(args) {
     const a = args || {};
     const company = slug(a.company || "");
     const name = slug(a.name || a.slug || "");
-    if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+    if (!company) throw new Error("Falta `company` (requerido).");
+    if (!name) throw new Error("Falta `name`/`slug` (requerido).");
     const action = String(a.action || "").trim();
     if (!ACTIONS.includes(action)) throw new Error(`Falta o es inválida \`action\`. Valores: ${ACTIONS.join(" | ")}.`);
     const record = readCarousel(company, name);
     const stored = record.stored;
     const slides = stored.slides || [];
     const payload = a.payload && typeof a.payload === "object" ? a.payload : {};
-    const pick = (key) => (payload[key] !== undefined ? payload[key] : a[key]);
+    // Los alias top-level ganan sobre payload (así lo documenta inputSchema).
+    const pick = (key) => (a[key] !== undefined ? a[key] : payload[key]);
+    const rawSlide = a.slide ?? a.slideIndex;
+    if (rawSlide !== undefined && rawSlide !== null) {
+      const n = Number(rawSlide);
+      if (!Number.isInteger(n) || n < 1) throw new Error("`slide` debe ser un entero >= 1 (1-based).");
+    }
     const idx = Math.max(0, (+a.slide || +a.slideIndex || 1) - 1);
     const needsSlide = !["add"].includes(action);
     if (needsSlide && idx >= slides.length) throw new Error(`Slide ${idx + 1} inexistente (${slides.length} slides).`);
+    // delete es destructivo: exigir slide explícito para no borrar la portada por default.
+    if (action === "delete" && (rawSlide === undefined || rawSlide === null)) {
+      throw new Error("Falta `slide` para action=delete (defaulting a slide 1 borraría la portada).");
+    }
     const original = needsSlide ? clone(slides[idx]) : null;
     const summaryExtra = {};
 
@@ -263,13 +275,17 @@ export default {
       summaryExtra.template = template;
     } else if (action === "split") {
       const atRaw = pick("at");
-      const result = splitListSlide(slides[idx], atRaw !== undefined ? +atRaw : 3);
+      const result = splitListSlide(slides[idx], atRaw !== undefined ? +atRaw : 3, { explicit: atRaw !== undefined });
       if (result.error) throw new Error(result.error);
+      // Dedupe de id: sin esto, partir de nuevo reutiliza "-p2" y duplica ids.
+      let newId = result.newSlide.id;
+      while (slides.some((s) => s.id === newId)) newId += "-" + Math.random().toString(36).slice(2, 5);
+      result.newSlide.id = newId;
       slides.splice(idx + 1, 0, result.newSlide);
       summaryExtra.kept = result.kept;
       summaryExtra.moved = result.moved;
       summaryExtra.newSlideAt = idx + 2;
-      summaryExtra.newId = result.newSlide.id;
+      summaryExtra.newId = newId;
     } else if (action === "set_layout") {
       const slide = slides[idx];
       let ok = false;
@@ -304,6 +320,12 @@ export default {
         stack = normalizeStack(slide);
       }
       if (type === "pill") {
+        // pos por default: un pill sin pos cae al 0/0 y tapa el título.
+        node.pos = {
+          topPct: pick("top") !== undefined ? +pick("top") : 30,
+          side: pick("side") === "right" ? "right" : "left",
+          offsetPct: pick("offset") !== undefined ? +pick("offset") : 8,
+        };
         slide.elements = slide.elements || [];
         slide.elements.push(node);
       } else if (type === "brand" || type === "count") {
@@ -398,6 +420,12 @@ export default {
     } else if (action === "add_item") {
       const slide = slides[idx];
       const ib = findOrCreateItemsBlock(slide);
+      ib.children = ib.children || [];
+      if (ib.children.length >= MAX_LIST_ITEMS) {
+        throw new Error(
+          `La slide ya tiene ${ib.children.length} items (max ${MAX_LIST_ITEMS}): partí la lista con split o agregá en otra slide.`,
+        );
+      }
       const item = {
         id: uniqueBlockId(slide, "item"),
         type: "item",
@@ -406,7 +434,6 @@ export default {
         desc: String(pick("desc") || ""),
         style: ib.style && ib.style.align ? { align: ib.style.align } : {},
       };
-      ib.children = ib.children || [];
       const atRaw = pick("at");
       const at =
         Number.isFinite(+atRaw) && +atRaw >= 1 ? Math.min(+atRaw, ib.children.length + 1) : ib.children.length + 1;
@@ -491,16 +518,18 @@ export default {
 
     stored.slides = slides;
     stored.updatedAt = new Date().toISOString();
-    fs.writeFileSync(record.file, JSON.stringify(stored, null, 2), "utf8");
+    pruneAssets(record.dir, stored.assets);
+    writeJsonAtomic(record.file, stored);
     const runtime = hydrateCarousel(stored, record.dir);
     runtime.company = company;
     runtime.slug = name;
-    const html = renderCarousel(runtime, {
+    const rendered = renderCarouselSafe(runtime, {
       outputDir: a.outputDir,
       fileName: a.fileName,
       open: a.open === true,
       stable: true,
     });
+    const html = rendered.file;
     const affectedIdx =
       action === "move"
         ? (summaryExtra.to || 1) - 1

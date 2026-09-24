@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { BLOCK_TYPES, canvasForFormat, IMG_EXTS } from "./const.mjs";
+import { pruneAssets, writeJsonAtomic } from "./fsutil.mjs";
 import { dataUrlParts, extensionForMime, fileDataURL, imageDimensions } from "./images.mjs";
 import { carouselPath } from "./paths.mjs";
 import { clone, expandHome, slug } from "./text.mjs";
@@ -94,8 +95,10 @@ export function persistCarousel(data, company, name, baseDir) {
     }
   }
   stored.assets = manifest;
-  fs.writeFileSync(path.join(dir, "carousel.json"), JSON.stringify(stored, null, 2), "utf8");
-  return { dir, file: path.join(dir, "carousel.json"), data: stored };
+  const file = path.join(dir, "carousel.json");
+  writeJsonAtomic(file, stored);
+  pruneAssets(dir, manifest);
+  return { dir, file, data: stored };
 }
 export function hydrateCarousel(stored, dir) {
   const data = clone(stored);
@@ -120,5 +123,19 @@ export function readCarousel(company, name) {
   const dir = carouselPath(company, name);
   const file = path.join(dir, "carousel.json");
   if (!fs.existsSync(file)) throw new Error(`Carrusel "${slug(company)}/${slug(name)}" no existe.`);
-  return { dir, file, stored: JSON.parse(fs.readFileSync(file, "utf8")) };
+  const raw = fs.readFileSync(file, "utf8");
+  let stored;
+  try {
+    stored = JSON.parse(raw);
+  } catch (e) {
+    throw new Error(
+      `carousel.json corrupto en "${slug(company)}/${slug(name)}": ${e.message}. Restaurá o re-creá el carrusel (delete_carousel + generate_carousel).`,
+    );
+  }
+  if (!stored || typeof stored !== "object" || !Array.isArray(stored.slides)) {
+    throw new Error(
+      `carousel.json inválido en "${slug(company)}/${slug(name)}": se esperaba un objeto con slides[]. Restaurá o re-creá el carrusel.`,
+    );
+  }
+  return { dir, file, stored };
 }

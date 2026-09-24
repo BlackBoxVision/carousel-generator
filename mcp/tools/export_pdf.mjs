@@ -30,13 +30,13 @@ export default {
       },
       slides: {
         type: "array",
-        items: { type: "number" },
+        items: { type: "integer", minimum: 1 },
         description: "Índices 1-based a incluir. Omite para TODAS las slides.",
       },
       outputDir: { type: "string", description: "Directorio de salida. Default: carpeta del carrusel /exports/." },
       open: { type: "boolean", description: "Abrir el PDF generado (default false)." },
     },
-    required: ["company", "name"],
+    required: ["company"],
   },
   handler(args) {
     const a = args || {};
@@ -49,7 +49,8 @@ export default {
           ? String(a.slug).trim()
           : "";
     const name = rawName ? slug(rawName) : "";
-    if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+    if (!company) throw new Error("Falta `company` (requerido).");
+    if (!name) throw new Error("Falta `name`/`slug` (requerido).");
     const record = readCarousel(company, name);
     const storedFormat = (record.stored.meta && record.stored.meta.format) || "feed";
     const format = normalizePreviewFormat(a.format, storedFormat);
@@ -90,7 +91,11 @@ export default {
       JSON.stringify(runtime).replace(/</g, "\\u003c") +
       ";</script>";
     const template = loadAppTemplate();
-    fs.writeFileSync(htmlFile, template.replace(MARKER, payload), "utf8");
+    fs.writeFileSync(
+      htmlFile,
+      template.replace(MARKER, () => payload),
+      "utf8",
+    );
 
     if (!chrome) {
       return JSON.stringify(

@@ -144,6 +144,9 @@ export function normSlideArg(s) {
     };
   }
   out.elements = Array.isArray(s.elements) ? s.elements.map(normalizeBlock) : legacyElements(out);
+  // __parts sobrevive el round-trip: sin él, split reutiliza ids "-p2" y duplica slides.
+  const parts = Number(s.__parts);
+  if (Number.isFinite(parts) && parts > 1) out.__parts = Math.floor(parts);
   out.__mcp = true;
   return out;
 }
@@ -293,10 +296,15 @@ export function applyPhotoLayout(slide, { scrim, bgPos, overlayLight }) {
   return changed;
 }
 
-export function splitListSlide(slide, atItems = MAX_LIST_ITEMS) {
+export function splitListSlide(slide, atItems = MAX_LIST_ITEMS, { explicit = false } = {}) {
   const itemsBlock = findItemsBlock(slide);
   const items = itemsBlock ? itemsBlock.children || [] : Array.isArray(slide.items) ? slide.items : [];
-  if (items.length < 2) return { error: `Slide has ${items.length} item(s) — nothing to split (need at least 2).` };
+  if (items.length < 2) return { error: `La slide tiene ${items.length} item(s): nada que partir (mínimo 2).` };
+  if (!explicit && items.length <= MAX_LIST_ITEMS) {
+    return {
+      error: `La slide ya tiene ${items.length} item(s) (<= ${MAX_LIST_ITEMS}): con el corte default no queda una slide nueva no vacía. Pasá \`payload.at\` para cortar igual (ej: at=1 o at=2).`,
+    };
+  }
   const cut = Math.max(1, Math.min(items.length - 1, +atItems || MAX_LIST_ITEMS));
   const first = items.slice(0, cut);
   const rest = items.slice(cut);

@@ -14,7 +14,11 @@ export function convertToJpeg(file) {
       `No se pudo convertir "${ext}" a jpg: la conversión requiere sips (solo disponible en macOS). Convertí el archivo manualmente y pasá el .jpg.`,
     );
   }
-  const out = file.replace(new RegExp(ext.replace(".", "\\.") + "$", "i"), ".jpg");
+  // Nunca escribir al lado del archivo de origen: puede ser tu .jpg original.
+  // La conversión va a un tmp limpio que el caller debe borrar.
+  const dir = path.join(os.tmpdir(), "carousel-convert");
+  fs.mkdirSync(dir, { recursive: true });
+  const out = path.join(dir, `photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`);
   try {
     const r = spawnSync("sips", ["-s", "format", "jpeg", file, "--out", out], { encoding: "utf8" });
     if (r.status === 0 && fs.existsSync(out)) return out;

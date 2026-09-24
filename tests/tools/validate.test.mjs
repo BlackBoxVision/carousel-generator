@@ -43,10 +43,39 @@ describe("types", () => {
     );
   });
 
-  test("social_copy maxHashtags must be number when present", () => {
+  test("social_copy maxHashtags must be integer when present", () => {
     assert.throws(
       () => validateArgs("social_copy", { company: "c", name: "n", maxHashtags: "ten" }),
-      /`maxHashtags` debe ser number/,
+      /`maxHashtags` debe ser integer/,
+    );
+    assert.throws(
+      () => validateArgs("social_copy", { company: "c", name: "n", maxHashtags: 1.5 }),
+      /`maxHashtags` debe ser integer/,
+    );
+  });
+
+  test("slide numbers must be integers >= 1", () => {
+    assert.throws(
+      () =>
+        validateArgs("set_slide_bg", {
+          company: "c",
+          name: "n",
+          mode: "css",
+          css: "linear-gradient(#000,#111)",
+          slide: 1.5,
+        }),
+      /`slide` debe ser integer/,
+    );
+    assert.throws(
+      () =>
+        validateArgs("set_slide_bg", {
+          company: "c",
+          name: "n",
+          mode: "css",
+          css: "linear-gradient(#000,#111)",
+          slide: 0,
+        }),
+      /`slide`/,
     );
   });
 

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { carouselDir } from "../lib/paths.mjs";
+import { readCarousel } from "../lib/persist.mjs";
 import { slug } from "../lib/text.mjs";
 
 export default {
@@ -23,23 +24,33 @@ export default {
         description: "false (default): solo muestra el preview. true: borra permanentemente.",
       },
     },
-    required: ["company", "name"],
+    required: ["company"],
   },
   handler(args) {
     const a = args || {};
     const company = slug(a.company || "");
     const name = slug(a.name || a.slug || "");
-    if (!company || !name) throw new Error("Faltan `company` y `name`/`slug`.");
+    if (!company) throw new Error("Falta `company` (requerido).");
+    if (!name) throw new Error("Falta `name`/`slug` (requerido).");
     const CAROUSEL_DIR = carouselDir();
     const dir = path.resolve(CAROUSEL_DIR, company, name);
     if (dir !== CAROUSEL_DIR && !dir.startsWith(CAROUSEL_DIR + path.sep))
       throw new Error("Ruta inválida (fuera del directorio de carruseles).");
     if (!fs.existsSync(path.join(dir, "carousel.json"))) throw new Error(`Carrusel "${company}/${name}" no existe.`);
-    const stored = JSON.parse(fs.readFileSync(path.join(dir, "carousel.json"), "utf8"));
+    const stored = readCarousel(company, name).stored;
     if (!a.confirm) {
       let sizeBytes = 0;
+      const walk = (d) => {
+        for (const f of fs.readdirSync(d, { withFileTypes: true })) {
+          const p = path.join(d, f.name);
+          try {
+            if (f.isDirectory()) walk(p);
+            else sizeBytes += fs.statSync(p).size;
+          } catch {}
+        }
+      };
       try {
-        for (const f of fs.readdirSync(dir)) sizeBytes += fs.statSync(path.join(dir, f)).size;
+        walk(dir);
       } catch {}
       return JSON.stringify(
         {

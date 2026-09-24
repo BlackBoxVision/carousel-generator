@@ -291,13 +291,14 @@ describe("edit_slide", () => {
       fs.readFileSync(path.join(home.carouselDir, COMPANY, "split-test", "carousel.json"), "utf8"),
     );
     assert.equal(stored.slides.length, 2);
-    // explicit split on first list slide (3 items → 2+1)
+    // split with explicit at: 3 items → 2+1 (without at, a <=3 item slide is rejected)
     const out = JSON.parse(
       await editSlide.handler({
         company: COMPANY,
         name: "split-test",
         slide: 1,
         action: "split",
+        payload: { at: 2 },
         open: false,
       }),
     );
@@ -307,6 +308,18 @@ describe("edit_slide", () => {
     assert.equal(out.moved, 1);
     stored = JSON.parse(fs.readFileSync(path.join(home.carouselDir, COMPANY, "split-test", "carousel.json"), "utf8"));
     assert.equal(stored.slides.length, 3);
+    // without payload.at on a <=3 item slide: clear Spanish error
+    await assert.rejects(
+      () =>
+        editSlide.handler({
+          company: COMPANY,
+          name: "split-test",
+          slide: 3,
+          action: "split",
+          open: false,
+        }),
+      /payload\.at/,
+    );
   });
 
   test("set_layout applies align and copyPos onto elements", async () => {
@@ -812,7 +825,74 @@ describe("export_pdf", () => {
   });
 
   test("rejects missing args and bad slide indices", () => {
-    assert.throws(() => exportPdf.handler({}), /Faltan `company` y `name`/);
+    assert.throws(() => exportPdf.handler({}), /Falta `company` \(requerido\)/);
+    assert.throws(() => exportPdf.handler({ company: COMPONENT_SAFE() }), /Falta `name`\/`slug`/);
     assert.throws(() => exportPdf.handler({ company: COMPANY, name: "pdf-src", slides: [99] }), /fuera de rango/);
+  });
+});
+
+describe("F1 integrity guards", () => {
+  const GUARD = "f1-guard";
+  const guardDir = () => path.join(home.carouselDir, COMPANY, GUARD);
+
+  test("slug alias works wherever name is accepted", async () => {
+    await generate.handler({
+      title: "F1 Guard",
+      company: COMPONENT_SAFE(),
+      carouselName: GUARD,
+      slides: slides(),
+      open: false,
+      persist: true,
+      outputDir: path.join(home.home, "out"),
+    });
+    const out = JSON.parse(
+      await editSlide.handler({ company: COMPONENT_SAFE(), slug: GUARD, action: "move", payload: { to: 1 } }),
+    );
+    assert.equal(out.action, "move");
+    await setCarouselMeta.handler({ company: COMPONENT_SAFE(), slug: GUARD, title: "F1 Guard Renamed" });
+    const stored = JSON.parse(fs.readFileSync(path.join(guardDir(), "carousel.json"), "utf8"));
+    assert.equal(stored.meta.title, "F1 Guard Renamed");
+  });
+
+  test("edit_slide delete requires an explicit slide", async () => {
+    await assert.rejects(
+      () => editSlide.handler({ company: COMPONENT_SAFE(), name: GUARD, action: "delete" }),
+      /Falta `slide`/,
+    );
+    // slide out of range / non-integer never falls back to slide 1
+    await assert.rejects(
+      () => editSlide.handler({ company: COMPONENT_SAFE(), name: GUARD, action: "delete", slide: 99 }),
+      /inexistente/,
+    );
+    await assert.rejects(
+      () => editSlide.handler({ company: COMPONENT_SAFE(), name: GUARD, action: "move", slide: 0, payload: { to: 1 } }),
+      /entero/,
+    );
+  });
+
+  test("corrupt carousel.json surfaces a Spanish error and is flagged in list", async () => {
+    const dir = path.join(home.carouselDir, COMPONENT_SAFE(), "corrupt-one");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "carousel.json"), "{ not json", "utf8");
+    assert.throws(() => loadCarousel.handler({ company: COMPONENT_SAFE(), name: "corrupt-one" }), /corrupto/);
+    const listed = JSON.parse(await listCarousels.handler({ company: COMPONENT_SAFE() }));
+    const entry = listed.carousels.find((c) => c.slug === "corrupt-one");
+    assert.ok(entry, "corrupt carousel still listed");
+    assert.equal(entry.corrupt, true);
+    assert.ok(entry.error);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("atomic writes leave no temp files behind", async () => {
+    await saveCarousel.handler({
+      company: COMPONENT_SAFE(),
+      name: GUARD,
+      slides: slides(),
+      open: false,
+      outputDir: path.join(home.home, "out"),
+    });
+    const leftovers = fs.readdirSync(guardDir()).filter((f) => f.endsWith(".tmp"));
+    assert.deepEqual(leftovers, [], "no .tmp leftovers");
+    assert.ok(fs.existsSync(path.join(guardDir(), "carousel.json")));
   });
 });
