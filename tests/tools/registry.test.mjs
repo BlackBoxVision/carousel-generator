@@ -18,12 +18,39 @@ test("every tool has the {name, description, inputSchema, handler} contract", ()
   }
 });
 
-test("listToolsForRpc returns name/description/inputSchema only", () => {
+test("listToolsForRpc returns name/description/inputSchema plus MCP annotations", () => {
   const rpc = listToolsForRpc();
   assert.equal(rpc.length, 22);
   for (const t of rpc) {
-    assert.deepEqual(Object.keys(t).sort(), ["description", "inputSchema", "name"]);
+    assert.deepEqual(Object.keys(t).sort(), ["annotations", "description", "inputSchema", "name"]);
+    const a = t.annotations;
+    assert.equal(typeof a.readOnlyHint, "boolean", t.name + " readOnlyHint");
+    assert.equal(typeof a.destructiveHint, "boolean", t.name + " destructiveHint");
+    assert.equal(typeof a.idempotentHint, "boolean", t.name + " idempotentHint");
+    assert.equal(typeof a.openWorldHint, "boolean", t.name + " openWorldHint");
+    if (a.readOnlyHint) assert.equal(a.destructiveHint, false, t.name + " read-only must not be destructive");
   }
+});
+
+test("annotations flag exactly the destructive and open-world tools", () => {
+  const rpc = new Map(listToolsForRpc().map((t) => [t.name, t.annotations]));
+  for (const n of ["delete_carousel", "delete_brand_kit"]) {
+    assert.equal(rpc.get(n).destructiveHint, true, n + " is destructive");
+  }
+  for (const n of ["brand_kit_from_url", "carousel_from_url", "set_slide_photo"]) {
+    assert.equal(rpc.get(n).openWorldHint, true, n + " fetches URLs");
+  }
+  for (const n of [
+    "list_carousels",
+    "load_carousel",
+    "validate_carousel",
+    "review_slide_images",
+    "list_brand_kits",
+    "load_brand_kit",
+  ]) {
+    assert.equal(rpc.get(n).readOnlyHint, true, n + " is read-only");
+  }
+  assert.equal(rpc.get("edit_slide").readOnlyHint, false);
 });
 
 test("getTool finds by name and returns null for unknown", () => {

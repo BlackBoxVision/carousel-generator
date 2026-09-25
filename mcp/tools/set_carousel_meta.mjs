@@ -17,20 +17,20 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa." },
-      name: { type: "string", description: "Slug del carrusel (alias: slug)." },
-      slug: { type: "string", description: "Alias de name." },
-      title: { type: "string", description: "Nuevo título del carrusel (meta.title)." },
+      company: { type: "string", description: "Company slug." },
+      name: { type: "string", description: "Carousel slug (alias: slug)." },
+      slug: { type: "string", description: "Alias of name." },
+      title: { type: "string", description: "New carousel title (meta.title)." },
       format: {
         type: "string",
         enum: ["feed", "square", "story"],
-        description: "Formato del carrusel. Actualiza meta.format y meta.canvas.",
+        description: "Carousel format. Updates meta.format and meta.canvas.",
       },
-      category: { type: "string", description: "Categoría para cascade de highlightColors del kit (meta.category)." },
-      showCount: { type: "boolean", description: "Muestra/oculta el chip N/M en cada slide (meta.showCount)." },
-      outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
-      fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
-      open: { type: "boolean", description: "Abrir el HTML (default false para tools iterativas)." },
+      category: { type: "string", description: "Category for the kit's highlightColors cascade (meta.category)." },
+      showCount: { type: "boolean", description: "Show/hide the N/M chip on each slide (meta.showCount)." },
+      outputDir: { type: "string", description: "Re-rendered HTML directory. Default ~/Downloads." },
+      fileName: { type: "string", description: "Re-rendered HTML basename." },
+      open: { type: "boolean", description: "Open the HTML (default false for iterative tools)." },
     },
     required: ["company"],
   },
@@ -90,9 +90,9 @@ export default {
     const html = rendered.file;
     const handoff = handoffRender(html, record.file, runtime, {
       nextSteps: [
-        "Meta persistido en carousel.json.",
-        "Si cambiaste format: re-renderizá con render_preview para ver el nuevo lienzo.",
-        "Si cambiaste category: verificá que kit.highlightColors tenga esa clave (si no, mantiene primary).",
+        "Meta persisted to carousel.json.",
+        "If format changed: re-render with render_preview to see the new canvas.",
+        "If category changed: check that kit.highlightColors has that key (otherwise primary is kept).",
         ...(rendered.warning ? [rendered.warning] : []),
       ],
     });

@@ -14,20 +14,22 @@ export default {
   handler() {
     const all = allKitsRaw();
     const slugs = Object.keys(all).sort();
-    if (!slugs.length)
-      return (
+    if (!slugs.length) {
+      const summary =
         "No hay kits guardados. Carpetas de empresa en " +
         brandDir() +
         " (cada una con kit.json), ejemplos en " +
         REPO_KITS +
-        "."
-      );
+        ".";
+      return JSON.stringify({ ok: true, kits: [], summary }, null, 2);
+    }
     const lines = slugs.map((sl) => {
       const entry = all[sl];
       if (!entry.kit) return `- ${sl} (JSON inválido en ${entry.source})`;
       const k = entry.kit;
       return `- ${sl} [${entry.source}] (marca: ${k.name || "?"}, primario: ${(k.colors && k.colors.primary) || "?"}, logo img: ${k.logo && k.logo.img ? "sí" : "no"}, gradients: ${(k.gradients || []).length})`;
     });
-    return "Brand kits disponibles (personales primero):\n" + lines.join("\n");
+    const summary = "Brand kits disponibles (personales primero):\n" + lines.join("\n");
+    return JSON.stringify({ ok: true, kits: slugs, summary }, null, 2);
   },
 };

@@ -16,10 +16,10 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      name: { type: "string", description: "Nombre/slug del kit a eliminar." },
+      name: { type: "string", description: "Name/slug of the kit to delete." },
       confirm: {
         type: "boolean",
-        description: "false (default): solo muestra el preview. true: borra permanentemente.",
+        description: "false (default): only shows the preview. true: deletes permanently.",
       },
     },
     required: ["name"],
@@ -57,6 +57,7 @@ export default {
     }
     const folder = path.dirname(found.file);
     fs.rmSync(folder, { recursive: true, force: true });
-    return `Brand kit "${name}" eliminado (${folder}).`;
+    const summary = `Brand kit "${name}" eliminado (${folder}).`;
+    return JSON.stringify({ ok: true, deleted: true, name, folder, summary }, null, 2);
   },
 };

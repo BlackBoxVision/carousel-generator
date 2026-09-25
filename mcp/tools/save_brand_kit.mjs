@@ -19,11 +19,11 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      name: { type: "string", description: "Nombre/slug del kit (a-z, 0-9, -)." },
+      name: { type: "string", description: "Kit name/slug (a-z, 0-9, -)." },
       kit: {
         type: "object",
         description:
-          "El kit (completo o parcial): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, logoSize, photoOverlay:{enabled,css}, gradients:[{name,css,light}] }.",
+          "The kit (full or partial): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, logoSize, photoOverlay:{enabled,css}, gradients:[{name,css,light}] }.",
       },
     },
     required: ["name", "kit"],
@@ -48,7 +48,8 @@ export default {
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, "kit.json");
     writeJsonAtomic(file, kit);
-    return `Kit "${name}" guardado en ${file}${existing ? " (mergeado sobre el existente)" : " (nuevo, basado en Default)"}${kit.logo && kit.logo.img ? " — logo embebido en base64" : ""}`;
+    const summary = `Kit "${name}" guardado en ${file}${existing ? " (mergeado sobre el existente)" : " (nuevo, basado en Default)"}${kit.logo && kit.logo.img ? " — logo embebido en base64" : ""}`;
+    return JSON.stringify({ ok: true, name, file, merged: !!existing, summary }, null, 2);
   },
 };
 

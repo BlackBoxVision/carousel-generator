@@ -20,24 +20,24 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa." },
-      name: { type: "string", description: "Slug del carrusel (alias: slug)." },
-      slug: { type: "string", description: "Alias de name." },
+      company: { type: "string", description: "Company slug." },
+      name: { type: "string", description: "Carousel slug (alias: slug)." },
+      slug: { type: "string", description: "Alias of name." },
       format: {
         type: "string",
         description:
-          "Formato: feed|4:5 (1080x1350), square|1:1 (1080x1080), story|9:16 (1080x1920). Default: el formato del carrusel.",
+          "Format: feed|4:5 (1080x1350), square|1:1 (1080x1080), story|9:16 (1080x1920). Default: the carousel's format.",
       },
       slides: {
         type: "array",
         items: { type: "integer", minimum: 1 },
-        description: "Índices 1-based a renderizar. Omite para TODAS las slides.",
+        description: "1-based indices to render. Omit for ALL slides.",
       },
       outputDir: {
         type: "string",
-        description: "Directorio de salida. Default: carpeta del carrusel /previews/{format}/.",
+        description: "Output directory. Default: carousel folder /previews/{format}/.",
       },
-      open: { type: "boolean", description: "Abrir el primer PNG (default false)." },
+      open: { type: "boolean", description: "Open the first PNG (default false)." },
     },
     required: ["company"],
   },
@@ -119,8 +119,8 @@ export default {
             pngs: [],
           },
           nextSteps: [
-            "Instalá Google Chrome o pasá la ruta con CHROME_PATH.",
-            "Abrí el HTML de preview con ?preview=1&slide=N&format=" + format + " y exportá a mano.",
+            "Install Google Chrome or set its path with CHROME_PATH.",
+            "Open the preview HTML with ?preview=1&slide=N&format=" + format + " and export manually.",
           ],
         },
         null,
@@ -174,11 +174,11 @@ export default {
         },
         nextSteps: [
           pngs.length
-            ? `Leé/verificá los ${pngs.length} PNG(s) con visión (copy, fotos, layout).`
-            : "No se generó ningún PNG — revisá errors.",
+            ? `Read/verify the ${pngs.length} PNG(s) with vision (copy, photos, layout).`
+            : "No PNG was generated — check errors.",
           errors.length
-            ? "Hay slides con error de render: revisá errors."
-            : "Si el copy o fotos cambiaron, volvé a correr render_preview.",
+            ? "Some slides failed to render: check errors."
+            : "If copy or photos changed, run render_preview again.",
           "Formatos aceptados: 4:5|feed, 1:1|square, 9:16|story.",
         ],
       },

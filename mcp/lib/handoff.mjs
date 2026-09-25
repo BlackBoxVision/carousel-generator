@@ -27,5 +27,7 @@ export function handoffRender(file, jsonPath, data, extra = {}) {
   };
 }
 export function appendHandoff(text, handoff) {
-  return text + "\n\n---\nhandoff:\n" + JSON.stringify(handoff, null, 2);
+  // Envelope JSON puro: los clientes/agentes hacen JSON.parse del resultado
+  // de cualquier tool; el texto humano vive en `summary`.
+  return JSON.stringify({ ok: true, summary: text, ...handoff }, null, 2);
 }

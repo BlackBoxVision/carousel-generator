@@ -27,24 +27,24 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      url: { type: "string", description: "URL http(s) de la nota/artículo." },
-      company: { type: "string", description: "Slug de empresa. Default: og:site_name o hostname." },
+      url: { type: "string", description: "Note/article URL http(s)." },
+      company: { type: "string", description: "Company slug. Default: og:site_name or hostname." },
       kitName: {
         type: "string",
-        description: "Brand kit a usar (ver list_brand_kits). Si se omite, usa el primer kit personal o Default.",
+        description: "Brand kit to use (see list_brand_kits). If omitted, uses the first personal kit or Default.",
       },
-      carouselName: { type: "string", description: "Slug persistido del carrusel. Default: slug del título." },
-      format: { type: "string", enum: ["feed", "square", "story"], description: "Formato (default feed 4:5)." },
+      carouselName: { type: "string", description: "Persisted carousel slug. Default: title slug." },
+      format: { type: "string", enum: ["feed", "square", "story"], description: "Format (default feed 4:5)." },
       category: {
         type: "string",
-        description: "Categoría de la nota para highlightColors (default: detectada del artículo).",
+        description: "Note category for highlightColors (default: detected from the article).",
       },
-      persist: { type: "boolean", description: "Guardar carousel.json (default true)." },
-      outputDir: { type: "string", description: "Directorio del HTML. Default ~/Downloads." },
-      fileName: { type: "string", description: "Nombre base del HTML." },
+      persist: { type: "boolean", description: "Persist carousel.json (default true)." },
+      outputDir: { type: "string", description: "HTML directory. Default ~/Downloads." },
+      fileName: { type: "string", description: "HTML basename." },
       open: {
         type: "boolean",
-        description: "Abrir el HTML (default true para load/generate/from_url; default false para tools iterativas).",
+        description: "Open the HTML (default true for load/generate/from_url; default false for iterative tools).",
       },
     },
     required: ["url"],
@@ -220,13 +220,13 @@ export default {
     lines.push(...formatStyleWarnings(lintSlideTexts(runtime.slides)));
     const handoff = handoffRender(file, persisted ? persisted.file : null, runtime, {
       nextSteps: [
-        a.open === false ? "HTML generado sin abrir (open:false)." : "Se abrió en el navegador.",
+        a.open === false ? "HTML generated without opening it (open:false)." : "Opened in the browser.",
         ...(sourceMd && sourceMd.wrote
-          ? [`source.md guardado: ${sourceMd.file} — usalo como fuente en social_copy.`]
-          : ["source.md no se escribió (podía existir ya)."]),
-        "Seguí el PHOTO REVIEW PROTOCOL y el NARRATIVE_REVIEW_PROTOCOL antes de entregar.",
+          ? [`source.md saved: ${sourceMd.file} — use it as the source in social_copy.`]
+          : ["source.md was not written (it may have existed already)."]),
+        "Follow the PHOTO REVIEW PROTOCOL and the NARRATIVE_REVIEW_PROTOCOL before delivering.",
         ...(photoNeeds.length
-          ? [`Hay ${photoNeeds.length} slides sin foto coherente: resuelvelas con set_slide_photo / stock.`]
+          ? [`${photoNeeds.length} slides lack a coherent photo: fill them with set_slide_photo / stock.`]
           : []),
       ],
     });

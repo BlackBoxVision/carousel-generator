@@ -45,9 +45,9 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa." },
-      name: { type: "string", description: "Slug del carrusel (alias: slug)." },
-      slug: { type: "string", description: "Alias de name." },
+      company: { type: "string", description: "Company slug." },
+      name: { type: "string", description: "Carousel slug (alias: slug)." },
+      slug: { type: "string", description: "Alias of name." },
     },
     required: ["company"],
   },

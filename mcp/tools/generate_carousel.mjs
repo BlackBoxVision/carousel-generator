@@ -20,85 +20,86 @@ export default {
     properties: {
       title: {
         type: "string",
-        description:
-          "Título del carrusel (se usa en el header y en los nombres de archivo al exportar). Default: 'Carrusel'.",
+        description: "Carousel title (used in the header and in file names on export). Default: 'Carrusel'.",
       },
       fileName: {
         type: "string",
-        description: "Nombre base del archivo HTML (sin extensión). Default: slug del title + timestamp.",
+        description: "Base name of the HTML file (no extension). Default: slug of title + timestamp.",
       },
       carouselName: {
         type: "string",
-        description: "Slug persistido del carrusel dentro de ~/.carousel-generator/carousels/{company}/.",
+        description: "Persisted carousel slug under ~/.carousel-generator/carousels/{company}/.",
       },
       company: {
         type: "string",
-        description: "Empresa/brand slug que agrupa el carrusel. Default: kitName o nombre del kit.",
+        description: "Company/brand slug that groups the carousel. Default: kitName or kit name.",
       },
-      outputDir: { type: "string", description: "Directorio de salida. Acepta ~. Default: ~/Downloads." },
+      outputDir: { type: "string", description: "Output directory. Accepts ~. Default: ~/Downloads." },
       format: {
         type: "string",
         enum: ["feed", "square", "story"],
         description:
-          "Formato inicial: feed (4:5, 1080x1350, default), square (1:1, 1080x1080 para IG/LinkedIn), story (9:16, 1080x1920 para stories/reels/TikTok). Se puede cambiar en vivo en el editor.",
+          "Initial format: feed (4:5, 1080x1350, default), square (1:1, 1080x1080 for IG/LinkedIn), story (9:16, 1080x1920 for stories/reels/TikTok). Can be changed live in the editor.",
       },
       showNumbers: {
         type: "boolean",
         description:
-          "Muestra el chip de numeración N/M arriba a la derecha de cada slide (default true). Pasá false para un look limpio sin números.",
+          "Shows the N/M numbering chip at the top right of each slide (default true). Pass false for a clean look without numbers.",
       },
       category: {
         type: "string",
         description:
-          "Categoría de la nota (ej: Turismo, Diplomacia, Comercio Internacional). Si el kit define highlightColors[category], los bloques highlight sin override usan ese color de fondo. Se guarda en meta.category.",
+          "Category of the piece (e.g: Tourism, Diplomacy, International Trade). If the kit defines highlightColors[category], highlight blocks without override use that background color. Stored in meta.category.",
       },
       persist: {
         type: "boolean",
         description:
-          "Guarda carousel.json v2 y copia los assets en ~/.carousel-generator/carousels/{company}/{carouselName}/. Default true.",
+          "Saves carousel.json v2 and copies assets to ~/.carousel-generator/carousels/{company}/{carouselName}/. Default true.",
       },
       kitName: {
         type: "string",
         description:
-          "Nombre del brand kit (ver list_brand_kits). Se busca en ~/.carousel-generator/brand/{empresa}/kit.json y luego en mcp/kits/ del repo. Default: primer kit del usuario, o Default si no hay ninguno.",
+          "Brand kit name (see list_brand_kits). Looked up in ~/.carousel-generator/brand/{company}/kit.json then in the repo's mcp/kits/. Default: the user's first kit, or Default if none.",
       },
       kit: {
         type: "object",
         description:
-          "Brand kit inline (se mergea sobre el kit base): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, logoSize, photoOverlay:{enabled,css}, gradients:[{name,css,light}] }. logo.imagePath: ruta de logo — 'logo.png' relativo a la carpeta de la empresa (~/.carousel-generator/brand/{empresa}/), o 'file:' + ruta absoluta. Se embebe en base64. logoBackground: color de fondo del logo (ej: '#fff', 'transparent'). Default: transparent. logoShape: forma del fondo del logo ('square' o 'rectangular'). Default: square. logoSize: tamaño del logo en px (default: 43). photoOverlay: gradiente entre foto y texto {enabled:boolean, css:string}. Default: gradiente oscuro inferior.",
+          "Inline brand kit (merged over the base kit): { name, colors:{primary,secondary,tertiary,slideBg}, fonts:{heading,body,googleUrl}, logo:{letter,text,img,imgH,imagePath}, logoBackground, logoShape, logoSize, photoOverlay:{enabled,css}, gradients:[{name,css,light}] }. logo.imagePath: logo path — 'logo.png' relative to the company folder (~/.carousel-generator/brand/{company}/), or 'file:' + absolute path. Embedded as base64. logoBackground: logo background color (e.g: '#fff', 'transparent'). Default: transparent. logoShape: shape of the logo background ('square' or 'rectangular'). Default: square. logoSize: logo size in px (default: 43). photoOverlay: gradient between photo and text {enabled:boolean, css:string}. Default: dark bottom gradient.",
       },
-      open: { type: "boolean", description: "Abrir el HTML en el navegador (default true). Pasá false para no abrir." },
+      open: {
+        type: "boolean",
+        description: "Open the HTML in the browser (default true). Pass false to skip opening.",
+      },
       slides: {
         type: "array",
-        description: "Slides del carrusel. Si se omite, genera 5 slides default (una de cada plantilla).",
+        description: "Carousel slides. If omitted, generates 5 default slides (one per template).",
         items: {
           type: "object",
           properties: {
             id: {
               type: "string",
-              description: "Slide id (round-trip desde un carousel persistido). Default: slide-N.",
+              description: "Slide id (round-trip from a persisted carousel). Default: slide-N.",
             },
             template: {
               type: "string",
               enum: TEMPLATES,
               description:
-                "Plantilla base: cover (portada con título hero φ³), fact (dato + items), map (pills de ubicación, fondo claro), list (items con emoji), cta (cierre con box de marca).",
+                "Base template: cover (title page with hero φ³ title), fact (data + items), map (location pills, light background), list (items with emoji), cta (closing with brand box).",
             },
-            eyebrow: { type: "string", description: "Kicker superior en mayúsculas." },
+            eyebrow: { type: "string", description: "Top kicker in uppercase." },
             titleWhite: {
               type: "string",
               description:
-                "Formato legacy. Preferí elements con un bloque text blanco más chico; no mezcles el resaltado naranja inline.",
+                "Legacy format. Prefer elements with a smaller white text block; don't mix in the inline orange highlight.",
             },
             titleOrange: {
               type: "string",
-              description:
-                "Formato legacy. Preferí elements con un bloque highlight naranja más grande debajo del text blanco.",
+              description: "Legacy format. Prefer elements with a larger orange highlight block below the white text.",
             },
             paragraphs: {
               type: "array",
               items: { type: "string" },
-              description: "Párrafos. Soporta **negrita** y ==resaltado==.",
+              description: "Paragraphs. Supports **bold** and ==highlight==.",
             },
             items: {
               type: "array",
@@ -106,7 +107,7 @@ export default {
                 type: "object",
                 properties: { emoji: { type: "string" }, title: { type: "string" }, desc: { type: "string" } },
               },
-              description: "Items con emoji (grilla icono + título + descripción).",
+              description: "Items with emoji (icon + title + description grid).",
             },
             pills: {
               type: "array",
@@ -119,50 +120,50 @@ export default {
                   offset: { type: "number" },
                 },
               },
-              description: "Pills de ubicación (para template map).",
+              description: "Location pills (for the map template).",
             },
             ctaBox: {
               type: "object",
               properties: { title: { type: "string" }, text: { type: "string" } },
-              description: "Box de marca del cierre.",
+              description: "Closing brand box.",
             },
-            slogan: { type: "string", description: "Slogan final en mayúsculas." },
-            foot: { type: "string", description: "Texto chico del pie." },
+            slogan: { type: "string", description: "Final slogan in uppercase." },
+            foot: { type: "string", description: "Small footer text." },
             background: {
               type: "string",
               description:
-                "Nombre de un gradient del kit ('navy','dusk','mapa',...), CSS de linear-gradient completo, o 'file:' + ruta local a una foto (ej: 'file:/tmp/foto.jpg', acepta ~) que se embebe como background.",
+                "Name of a kit gradient ('navy','dusk','mapa',...), full linear-gradient CSS, or 'file:' + local path to a photo (e.g: 'file:/tmp/foto.jpg', ~ accepted) embedded as background.",
             },
             bg: {
               type: "object",
               description:
-                "Background persistido (round-trip): {type:'gradient'|'css'|'photo', value|css|asset, scrim?, bgPos?}. Alias de background.",
+                "Persisted background (round-trip): {type:'gradient'|'css'|'photo', value|css|asset, scrim?, bgPos?}. Alias of background.",
             },
-            overlayLight: { type: "boolean", description: "Fondo claro con texto oscuro (estilo mapa)." },
+            overlayLight: { type: "boolean", description: "Light background with dark text (map style)." },
             scrim: {
               type: "number",
               description:
-                "Velo de opacidad oscura sobre foto (0-85, default 45 en fotos). Capa sólida html2canvas-safe para que el texto no se pierda.",
+                "Dark opacity veil over photo (0-85, default 45 on photos). Solid html2canvas-safe layer so text stays readable.",
             },
             bgPos: {
               type: "string",
               description:
-                "Punto focal de la foto: 'center', 'center 30%', 'top', 'left bottom', etc. Evita que el sujeto quede cortado al cambiar de formato.",
+                "Photo focal point: 'center', 'center 30%', 'top', 'left bottom', etc. Prevents the subject from getting cropped when the format changes.",
             },
             align: {
               type: "object",
-              description: "Alineación por bloque: {eyebrow,title,body} cada uno left|center|right (default left).",
+              description: "Per-block alignment: {eyebrow,title,body} each left|center|right (default left).",
               properties: { eyebrow: { type: "string" }, title: { type: "string" }, body: { type: "string" } },
             },
             copyPos: {
               type: "object",
-              description: "Posición estructurada del bloque de texto: {anchor: top|center|bottom, offset: -10..10}.",
+              description: "Structured text block position: {anchor: top|center|bottom, offset: -10..10}.",
               properties: { anchor: { type: "string" }, offset: { type: "number" } },
             },
             elements: {
               type: "array",
               description:
-                "Árbol nested v2. Cada nodo es {id,type,style,pos,text,children}; tipos: brand,count,stack,kicker,text,highlight,body,items,item,box,pill,slogan,foot. Si se pasa, reemplaza la forma plana y se persiste tal cual normalizada.",
+                "Nested v2 tree. Each node is {id,type,style,pos,text,children}; types: brand,count,stack,kicker,text,highlight,body,items,item,box,pill,slogan,foot. If passed, replaces the flat shape and is persisted normalized as-is.",
             },
           },
         },
@@ -185,14 +186,14 @@ export default {
     const handoff = handoffRender(file, persisted ? persisted.file : null, data, {
       nextSteps: [
         a.open === false
-          ? "HTML generado sin abrir (open:false). Pasá open:true o abrí la ruta a mano."
+          ? "HTML generated without opening it (open:false). Pass open:true or open the path manually."
           : rendered.warning
-            ? "El HTML no se pudo generar — revisá el warning."
-            : "Se abrió en el navegador.",
-        `Kits en el picker: ${kitNames.length ? kitNames.join(", ") : "(solo el activo)"}.`,
-        "Exportá PNGs/PDF desde el editor.",
+            ? "HTML could not be generated — check the warning."
+            : "Opened in the browser.",
+        `Kits in the picker: ${kitNames.length ? kitNames.join(", ") : "(active one only)"}.`,
+        "Export PNGs/PDF from the editor.",
         ...(rendered.warning ? [rendered.warning] : []),
-        ...(styleLines.length ? ["Corregí los styleWarnings listados arriba."] : []),
+        ...(styleLines.length ? ["Fix the styleWarnings listed above."] : []),
       ],
     });
     return appendHandoff(

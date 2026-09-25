@@ -17,15 +17,15 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa." },
-      name: { type: "string", description: "Slug del carrusel." },
-      slug: { type: "string", description: "Alias de name." },
-      outputDir: { type: "string", description: "Directorio del HTML renderizado. Default ~/Downloads." },
-      fileName: { type: "string", description: "Nombre del HTML renderizado." },
+      company: { type: "string", description: "Company slug." },
+      name: { type: "string", description: "Carousel slug." },
+      slug: { type: "string", description: "Alias of name." },
+      outputDir: { type: "string", description: "Rendered HTML directory. Default ~/Downloads." },
+      fileName: { type: "string", description: "Rendered HTML file name." },
       open: {
         type: "boolean",
         description:
-          "Abrir el HTML en navegador (default true en generate/load/from_url; default false en edit_slide/set_slide_photo).",
+          "Open the HTML in the browser (default true in generate/load/from_url; default false in edit_slide/set_slide_photo).",
       },
     },
     required: ["company"],
@@ -52,9 +52,9 @@ export default {
     const narrative = narrativeAudit(record.stored.slides || [], record.stored.meta && record.stored.meta.title);
     const handoff = handoffRender(file, record.file, runtime, {
       nextSteps: [
-        a.open === false ? "HTML listo sin abrir (open:false)." : "Se abrió en el navegador.",
-        "Inspeccioná el JSON nested y editá con edit_slide / save_carousel.",
-        "Narrativa: revisá narrativeAudit.flags y NARRATIVE_REVIEW_PROTOCOL.",
+        a.open === false ? "HTML ready without opening it (open:false)." : "Opened in the browser.",
+        "Inspect the nested JSON and edit with edit_slide / save_carousel.",
+        "Narrative: review narrativeAudit.flags and NARRATIVE_REVIEW_PROTOCOL.",
       ],
     });
     return JSON.stringify(

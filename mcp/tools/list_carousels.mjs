@@ -15,7 +15,7 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Filtro opcional: solo carruseles de esta empresa (slug)." },
+      company: { type: "string", description: "Optional filter: only carousels of this company (slug)." },
     },
   },
   handler(args) {

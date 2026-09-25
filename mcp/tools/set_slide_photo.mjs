@@ -22,24 +22,24 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa." },
-      name: { type: "string", description: "Slug del carrusel (alias: slug)." },
-      slug: { type: "string", description: "Alias de name." },
-      slide: { type: "integer", minimum: 1, description: "Número de slide (1-based)." },
-      slideIndex: { type: "integer", minimum: 1, description: "Alias de slide." },
-      source: { type: "string", description: "URL http(s) de la imagen o ruta local ('file:' + ruta o absoluta/~)." },
+      company: { type: "string", description: "Company slug." },
+      name: { type: "string", description: "Carousel slug (alias: slug)." },
+      slug: { type: "string", description: "Alias of name." },
+      slide: { type: "integer", minimum: 1, description: "Slide number (1-based)." },
+      slideIndex: { type: "integer", minimum: 1, description: "Alias of slide." },
+      source: { type: "string", description: "Image http(s) URL or local path ('file:' + path, absolute or ~/)." },
       scrim: {
         type: "number",
         minimum: 0,
         maximum: 85,
-        description: "Velo de opacidad 0-85 (default: mantiene el actual).",
+        description: "Opacity veil 0-85 (default: keeps the current one).",
       },
-      bgPos: { type: "string", description: "Punto focal CSS background-position (ej: 'center 30%')." },
-      outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
-      fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
+      bgPos: { type: "string", description: "CSS background-position focal point (e.g: 'center 30%')." },
+      outputDir: { type: "string", description: "Re-rendered HTML directory. Default ~/Downloads." },
+      fileName: { type: "string", description: "Re-rendered HTML basename." },
       open: {
         type: "boolean",
-        description: "Abrir el HTML (default true para load/generate/from_url; default false para tools iterativas).",
+        description: "Open the HTML (default true for load/generate/from_url; default false for iterative tools).",
       },
     },
     required: ["company", "source"],
@@ -132,9 +132,9 @@ export default {
         }));
       const handoff = handoffRender(html, record.file, runtime, {
         nextSteps: [
-          "Foto persistida en carousel.json + assets/.",
-          "photoNeeds restantes: revisalas abajo.",
-          "Re-auditá con review_slide_images antes de entregar.",
+          "Photo persisted to carousel.json + assets/.",
+          "Remaining photoNeeds: review them below.",
+          "Re-audit with review_slide_images before delivering.",
           ...(rendered.warning ? [rendered.warning] : []),
         ],
       });

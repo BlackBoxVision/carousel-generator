@@ -16,17 +16,17 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa (omitir si pasás `slides` sueltos)." },
-      name: { type: "string", description: "Slug del carrusel (alias: slug)." },
-      slug: { type: "string", description: "Alias de name." },
+      company: { type: "string", description: "Company slug (omit when passing standalone `slides`)." },
+      name: { type: "string", description: "Carousel slug (alias: slug)." },
+      slug: { type: "string", description: "Alias of name." },
       slides: {
         type: "array",
         description:
-          "Slides nested o legacy a validar en modo dry-run sin persistir. Si se omite, se leen del carousel persistido.",
+          "Nested or legacy slides to validate in dry-run mode without persisting. If omitted, reads from the persisted carousel.",
       },
       title: {
         type: "string",
-        description: "Título a usar en el audit de narrativa (default: meta.title del persistido).",
+        description: "Title to use in the narrative audit (default: the persisted meta.title).",
       },
     },
     required: [],
@@ -66,9 +66,9 @@ export default {
         styleLines: formatStyleWarnings(styleWarnings),
         nextSteps: [
           ok
-            ? "Sin flags sólidos ni styleWarnings: listo para entregar (revisá fotos con review_slide_images si aplica)."
-            : "Corregí narrativeAudit.flags (severidad solid) y styleWarnings con edit_slide / save_carousel, y volvé a validar.",
-          "validate_carousel no escribe: aplicá cambios con edit_slide o save_carousel.",
+            ? "No solid flags nor styleWarnings: ready to deliver (verify photos with review_slide_images if applicable)."
+            : "Fix narrativeAudit.flags (solid severity) and styleWarnings with edit_slide / save_carousel, then validate again.",
+          "validate_carousel does not write: apply changes with edit_slide or save_carousel.",
         ],
       },
       null,

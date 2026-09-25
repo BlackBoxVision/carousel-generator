@@ -16,16 +16,16 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa (opcional si viene en payload/carousel)." },
-      name: { type: "string", description: "Slug del carrusel (alias: slug). Opcional si viene en payload." },
-      slug: { type: "string", description: "Alias de name." },
+      company: { type: "string", description: "Company slug (optional if it comes in payload/carousel)." },
+      name: { type: "string", description: "Carousel slug (alias: slug). Optional if it comes in payload." },
+      slug: { type: "string", description: "Alias of name." },
       payload: {
         type: ["object", "string"],
         description:
-          "Alternativa a args top-level: string JSON o objeto {action:'upsert', company, name, carousel}. Si es string, se parsea. Preferí company+name+carousel directos si el cliente trunca objetos anidados.",
+          "Alternative to top-level args: JSON string or object {action:'upsert', company, name, carousel}. If it's a string, it is parsed. Prefer direct company+name+carousel when the client truncates nested objects.",
       },
-      carousel: { type: "object", description: "carousel.json v2 completo (preferido con company/name top-level)." },
-      open: { type: "boolean", description: "Abrir el HTML regenerado (default false)." },
+      carousel: { type: "object", description: "Full carousel.json v2 (preferred with top-level company/name)." },
+      open: { type: "boolean", description: "Open the regenerated HTML (default false)." },
     },
   },
   async handler(args) {
@@ -77,12 +77,12 @@ export default {
     const handoff = html
       ? handoffRender(html, result.saved || null, runtime || { company, slug: name, slides: [], meta: {} }, {
           nextSteps: [
-            "Estado del editor importado a carousel.json.",
-            "Las fotos base64 (si las hubo) quedaron en assets/.",
-            "Podés seguir refinando con edit_slide / render_preview / social_copy.",
+            "Editor state imported into carousel.json.",
+            "Base64 photos (if any) were moved into assets/.",
+            "Keep refining with edit_slide / render_preview / social_copy.",
           ],
         })
-      : { nextSteps: ["Estado importado; no se pudo re-renderizar el HTML en este paso."] };
+      : { nextSteps: ["Editor state imported; the HTML could not be re-rendered in this step."] };
     return JSON.stringify({ imported: true, ...result, ...handoff }, null, 2);
   },
 };

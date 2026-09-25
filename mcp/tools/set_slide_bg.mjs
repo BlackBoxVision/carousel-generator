@@ -17,29 +17,29 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa." },
-      name: { type: "string", description: "Slug del carrusel (alias: slug)." },
-      slug: { type: "string", description: "Alias de name." },
-      slide: { type: "integer", minimum: 1, description: "Número de slide (1-based)." },
-      slideIndex: { type: "integer", minimum: 1, description: "Alias de slide." },
+      company: { type: "string", description: "Company slug." },
+      name: { type: "string", description: "Carousel slug (alias: slug)." },
+      slug: { type: "string", description: "Alias of name." },
+      slide: { type: "integer", minimum: 1, description: "Slide number (1-based)." },
+      slideIndex: { type: "integer", minimum: 1, description: "Alias of slide." },
       mode: {
         type: "string",
         enum: ["gradient", "css", "remove"],
         description:
-          "Tipo de fondo: gradient (nombre del kit), css (linear-gradient u otra regla), remove (quita foto y vuelve al gradiente default del kit).",
+          "Background type: gradient (kit gradient name), css (linear-gradient or another rule), remove (drops the photo and falls back to the kit default gradient).",
       },
       gradient: {
         type: "string",
-        description: "Nombre del gradiente del kit (mode=gradient). Ej: navy, sunset, mint, deep.",
+        description: "Kit gradient name (mode=gradient). E.g: navy, sunset, mint, deep.",
       },
-      css: { type: "string", description: "Regla CSS de fondo (mode=css). Ej: linear-gradient(135deg,#111,#333)." },
+      css: { type: "string", description: "Background CSS rule (mode=css). E.g: linear-gradient(135deg,#111,#333)." },
       overlayLight: {
         type: "boolean",
-        description: "Override de overlayLight (texto oscuro sobre fondo claro). Default: según el gradiente del kit.",
+        description: "Override overlayLight (dark text on light background). Default: follows the kit gradient.",
       },
-      outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
-      fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
-      open: { type: "boolean", description: "Abrir el HTML (default false para tools iterativas)." },
+      outputDir: { type: "string", description: "Re-rendered HTML directory. Default ~/Downloads." },
+      fileName: { type: "string", description: "Re-rendered HTML basename." },
+      open: { type: "boolean", description: "Open the HTML (default false for iterative tools)." },
     },
     required: ["company", "mode"],
   },
@@ -119,9 +119,9 @@ export default {
     const html = rendered.file;
     const handoff = handoffRender(html, record.file, runtime, {
       nextSteps: [
-        "Fondo persistido en carousel.json.",
-        "Si el texto no lee bien: ajustá overlayLight o cambiá el gradiente con set_slide_bg.",
-        "Para foto: usá set_slide_photo en su lugar.",
+        "Background persisted to carousel.json.",
+        "If text readability is poor: adjust overlayLight or switch the gradient with set_slide_bg.",
+        "For photos: use set_slide_photo instead.",
         ...(rendered.warning ? [rendered.warning] : []),
       ],
     });

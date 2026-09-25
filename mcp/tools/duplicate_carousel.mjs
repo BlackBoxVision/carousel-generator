@@ -18,14 +18,14 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa origen." },
-      name: { type: "string", description: "Slug del carrusel origen (alias: slug)." },
-      slug: { type: "string", description: "Alias de name origen." },
-      toCompany: { type: "string", description: "Empresa destino. Default: la misma empresa origen." },
-      toName: { type: "string", description: "Slug destino del duplicado. Default: {origen}-copy." },
-      open: { type: "boolean", description: "Abrir el HTML del duplicado (default false)." },
-      outputDir: { type: "string", description: "Directorio del HTML re-renderizado. Default ~/Downloads." },
-      fileName: { type: "string", description: "Nombre base del HTML re-renderizado." },
+      company: { type: "string", description: "Source company slug." },
+      name: { type: "string", description: "Source carousel slug (alias: slug)." },
+      slug: { type: "string", description: "Alias of source name." },
+      toCompany: { type: "string", description: "Destination company. Default: same as the source company." },
+      toName: { type: "string", description: "Destination slug of the duplicate. Default: {origin}-copy." },
+      open: { type: "boolean", description: "Open the duplicate's HTML (default false)." },
+      outputDir: { type: "string", description: "Re-rendered HTML directory. Default ~/Downloads." },
+      fileName: { type: "string", description: "Re-rendered HTML basename." },
     },
     required: ["company"],
   },
@@ -104,9 +104,9 @@ export default {
     const html = rendered.file;
     const handoff = handoffRender(html, saved.file, runtime, {
       nextSteps: [
-        `Duplicado creado en ${toCompany}/${toName} (${(saved.data.slides || []).length} slides).`,
-        "El original no se modificó.",
-        "Si es una variante A/B: editá el duplicado con edit_slide / set_carousel_meta / set_slide_bg.",
+        `Copy created at ${toCompany}/${toName} (${(saved.data.slides || []).length} slides).`,
+        "The original carousel was not modified.",
+        "For an A/B variant: edit the copy with edit_slide / set_carousel_meta / set_slide_bg.",
         ...(rendered.warning ? [rendered.warning] : []),
       ],
     });

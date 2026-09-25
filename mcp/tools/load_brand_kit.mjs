@@ -18,7 +18,7 @@ export default {
       name: { type: "string" },
       includeLogo: {
         type: "boolean",
-        description: "Incluir logo.img/imgH en base64 completo (default false: solo logoBytes).",
+        description: "Include logo.img/imgH as full base64 (default false: logoBytes only).",
       },
     },
     required: ["name"],

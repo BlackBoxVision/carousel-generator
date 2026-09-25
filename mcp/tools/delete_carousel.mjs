@@ -16,12 +16,12 @@ export default {
   inputSchema: {
     type: "object",
     properties: {
-      company: { type: "string", description: "Slug de empresa." },
-      name: { type: "string", description: "Slug del carrusel (alias: slug)." },
-      slug: { type: "string", description: "Alias de name." },
+      company: { type: "string", description: "Company slug." },
+      name: { type: "string", description: "Carousel slug (alias: slug)." },
+      slug: { type: "string", description: "Alias of name." },
       confirm: {
         type: "boolean",
-        description: "false (default): solo muestra el preview. true: borra permanentemente.",
+        description: "false (default): only shows the preview. true: deletes permanently.",
       },
     },
     required: ["company"],
@@ -72,6 +72,7 @@ export default {
       );
     }
     fs.rmSync(dir, { recursive: true, force: true });
-    return `Carrusel "${company}/${name}" eliminado (${dir}).`;
+    const summary = `Carrusel "${company}/${name}" eliminado (${dir}).`;
+    return JSON.stringify({ ok: true, deleted: true, company, name, folder: dir, summary }, null, 2);
   },
 };
