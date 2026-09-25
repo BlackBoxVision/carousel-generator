@@ -4,12 +4,12 @@
  * Keeps stdin open until responses arrive (server exits on stdin close).
  * Usage: node scripts/test-tools.mjs
  */
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { EXPECTED_TOOL_COUNT, EXPECTED_TOOL_NAMES } from "../tests/helpers/tools.mjs";
+import { contentText, rpc } from "./lib/jsonrpc.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
@@ -22,73 +22,6 @@ if (OWNS_HOME) process.env.CAROUSEL_GENERATOR_HOME = fs.mkdtempSync(path.join(os
 const HOME = process.env.CAROUSEL_GENERATOR_HOME;
 const CAROUSELS = path.join(HOME, "carousels");
 const BRAND = path.join(HOME, "brand");
-
-function rpc(msgs, waitIds, timeoutMs = 60000) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [SERVER], {
-      stdio: ["pipe", "pipe", "pipe"],
-      cwd: ROOT,
-    });
-    let buf = "";
-    let err = "";
-    const results = new Map();
-    const timer = setTimeout(() => {
-      try {
-        child.kill("SIGKILL");
-      } catch {}
-      reject(
-        new Error("timeout waiting for " + waitIds.join(",") + "\n" + err.slice(0, 500) + "\n" + buf.slice(0, 500)),
-      );
-    }, timeoutMs);
-    child.stdout.on("data", (d) => {
-      buf += d.toString();
-      let idx;
-      while ((idx = buf.indexOf("\n")) >= 0) {
-        const line = buf.slice(0, idx);
-        buf = buf.slice(idx + 1);
-        if (!line.trim()) continue;
-        try {
-          const obj = JSON.parse(line);
-          if (obj.id != null) results.set(obj.id, obj);
-        } catch {}
-      }
-      if (waitIds.every((id) => results.has(id))) {
-        clearTimeout(timer);
-        try {
-          child.stdin.end();
-        } catch {}
-        setTimeout(() => {
-          try {
-            child.kill();
-          } catch {}
-        }, 50);
-        resolve(results);
-      }
-    });
-    child.stderr.on("data", (d) => {
-      err += d.toString();
-    });
-    child.on("error", (e) => {
-      clearTimeout(timer);
-      reject(e);
-    });
-    child.on("exit", () => {
-      if (waitIds.every((id) => results.has(id))) {
-        clearTimeout(timer);
-        resolve(results);
-      }
-    });
-    for (const m of msgs) child.stdin.write(JSON.stringify(m) + "\n");
-  });
-}
-
-function contentText(res) {
-  const r = res && res.result;
-  if (!r) throw new Error("no result: " + JSON.stringify(res).slice(0, 300));
-  if (r.isError)
-    throw new Error("tool error: " + ((r.content && r.content[0] && r.content[0].text) || "").slice(0, 400));
-  return (r.content || []).map((c) => c.text || "").join("\n");
-}
 
 let passed = 0;
 const fails = [];

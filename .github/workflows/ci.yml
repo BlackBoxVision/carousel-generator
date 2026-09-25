@@ -77,6 +77,21 @@ jobs:
           kill $FIX_PID 2>/dev/null || true
           exit $EXIT
 
+  e2e-driver:
+    name: e2e driver (deterministic, all 22 tools)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      # No Chrome on purpose: render_preview/export_pdf answer "no-chrome"
+      # (accepted) while real PNGs stay covered by the tools-e2e job.
+      - name: Drive every tool over JSON-RPC
+        run: node scripts/e2e-driver.mjs
+
   agent-e2e:
     name: agent e2e (opencode free model)
     runs-on: ubuntu-24.04

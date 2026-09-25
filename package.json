@@ -14,6 +14,7 @@
     "test:sync": "node scripts/sync-manifest.mjs --check",
     "test:fixture": "node scripts/test-fixture-server.mjs",
     "test:from-url": "node scripts/test-from-url.mjs",
+    "test:driver": "node scripts/e2e-driver.mjs",
     "sync:manifest": "node scripts/sync-manifest.mjs",
     "verify:agent": "node scripts/verify-agent-output.mjs",
     "agent:e2e": "node scripts/run-agent-e2e.mjs",

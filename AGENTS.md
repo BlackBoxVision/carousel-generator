@@ -47,7 +47,8 @@ Guía para agentes (humanos con IA o autónomos) que modifiquen este repo. Segui
 
 - **unit**: biome lint (`npx biome check .`) + syntax + `sync-manifest --check` + `bundle:check` + `node --test 'tests/**/*.test.mjs'` + editor smoke.
 - **tools-e2e**: `scripts/test-tools.mjs` con chrome-headless-shell + `scripts/test-from-url.mjs` contra `scripts/fixture-server.mjs`.
-- **agent-e2e** (canario, `continue-on-error: true`): instala opencode CLI, corre `scripts/run-agent-e2e.mjs` con model `opencode/mimo-v2.6-flash-free` (override: `OPENCODE_MODEL`) y home/log aislados, luego `scripts/verify-agent-output.mjs` (cobertura de tools `ok:true` + artefactos). El exit code del job es el del **verifier**, no el del modelo, y no bloquea PRs: la cobertura obligatoria es unit + tools-e2e. Contingencia: si free devuelve 401, agregar secret `OPENCODE_API_KEY` (costo $0). **No usar** `--model free` (no es un model ID válido).
+- **e2e-driver**: `scripts/e2e-driver.mjs` — driver determinista (sin modelo, sin red externa) que llama a las 22 tools sobre JSON-RPC con home aislado y fixture server propio, exigiendo que cada resultado sea JSON puro (env F5) y que `render_preview`/`export_pdf` respondan `no-chrome` si no hay Chrome. Corre `npm run test:driver`.
+- **agent-e2e** (canario, `continue-on-error: true`): instala opencode CLI, corre `scripts/run-agent-e2e.mjs` con model `opencode/mimo-v2.6-flash-free` (override: `OPENCODE_MODEL`) y home/log aislados, luego `scripts/verify-agent-output.mjs` (cobertura de tools `ok:true` + artefactos). El exit code del job es el del **verifier**, no el del modelo, y no bloquea PRs: la cobertura obligatoria es unit + tools-e2e + e2e-driver. Contingencia: si free devuelve 401, agregar secret `OPENCODE_API_KEY` (costo $0). **No usar** `--model free` (no es un model ID válido).
 
 ## Formato de slides y datos
 
@@ -86,6 +87,7 @@ Los protocolos y el `SERVER_INSTRUCTIONS` del MCP están en **inglés** (model a
 - [ ] `npm run test:unit` + `npm run test:integration` (o `npm test` completo)
 - [ ] `npm run smoke` (si se tocó `app/index.html`)
 - [ ] `npm run test:tools` (si se tocó tools MCP)
+- [ ] `npm run test:driver` (si se tocó tools MCP o el envelope JSON de resultados)
 - [ ] `manifest.json` sincronizado (regenerar con `npm run sync:manifest` si hace falta)
 - [ ] README actualizado (tabla de tools, conteo, nuevos protocolos o reglas, Development)
 - [ ] Si se agregó una tool: archivo en `mcp/tools/` + registro en `mcp/registry.mjs` + `sync-manifest` + tests + README

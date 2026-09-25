@@ -491,6 +491,7 @@ npm run lint:fix                      # apply safe fixes + format
 npm run test:unit                     # tests/lib + tests/tools
 npm run test:integration              # JSON-RPC + verifier tests
 npm run test:tools                    # MCP tools end-to-end (needs Chrome for PNGs)
+npm run test:driver                   # deterministic driver: all 22 tools, pure JSON results
 npm run test:fixture                  # offline fixture server
 node scripts/fixture-server.mjs &     # then: npm run test:from-url
 npm run sync:manifest                 # regenerate manifest.json tools[]
@@ -513,11 +514,12 @@ Safety guards (defaults; bypass with `CAROUSEL_GENERATOR_ALLOW_LOCAL=1`):
 
 ### CI
 
-`.github/workflows/ci.yml` runs three jobs:
+`.github/workflows/ci.yml` runs four jobs:
 
 1. **unit** — biome lint, syntax, `sync-manifest --check`, `bundle:check`, `node --test`, editor smoke.
 2. **tools-e2e** — JSON-RPC tools test with `chrome-headless-shell`, plus offline `*_from_url` against `scripts/fixture-server.mjs`.
-3. **agent-e2e** (non-blocking canary) — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `opencode/mimo-v2.6-flash-free`) that should exercise all 22 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (`ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's, and `continue-on-error` keeps flaky free-model runs from blocking PRs — required coverage comes from **unit** and **tools-e2e**. Artifacts upload on failure for debugging.
+3. **e2e-driver** — deterministic JSON-RPC driver (`scripts/e2e-driver.mjs`) that calls every one of the 22 tools against an isolated home and a local fixture server, asserting each result parses as pure JSON and that `render_preview`/`export_pdf` degrade to `no-chrome` when Chrome is absent.
+4. **agent-e2e** (non-blocking canary) — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `opencode/mimo-v2.6-flash-free`) that should exercise all 22 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (`ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's, and `continue-on-error` keeps flaky free-model runs from blocking PRs — required coverage comes from **unit**, **tools-e2e** and **e2e-driver**. Artifacts upload on failure for debugging.
 
 ```bash
 # local agent e2e (requires opencode CLI + fixture server):
