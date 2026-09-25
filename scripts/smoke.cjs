@@ -103,4 +103,14 @@ assert("safe zones", t("slideHTML(state.slides[0],0)").includes("UI inferior"));
 t('setFormat("square")');
 assert("square class", t("slideHTML(state.slides[0],0)").includes("fmt-square"));
 assert("FORMATS px", t("FORMATS.story.px") === "1080×1920");
+
+// Cascada highlightColors en render (slide raíz → .orange/.hl heredan)
+t('state.kit.highlightColors={turismo:"#0f766e"}');
+t('state.meta.category="Turismo"');
+assert("cascade category hl-bg", t("slideHTML(state.slides[0],0)").includes("--hl-bg:#0f766e"));
+t(`(function walk(ns){for(const el of ns||[]){if(el.type==="highlight"){el.style.background="#ff0000"}if(el.children)walk(el.children)}})(state.slides[0].elements)`);
+assert("highlight block override wins", t("slideHTML(state.slides[0],0)").includes("--hl-bg:#ff0000"));
+t(`(function walk(ns){for(const el of ns||[]){if(el.type==="highlight"){delete el.style.background}if(el.children)walk(el.children)}})(state.slides[0].elements)`);
+t('state.meta.category=""');
+assert("cascade falls back to primary", t("slideHTML(state.slides[0],0)").includes("--hl-bg:" + t("state.kit.colors.primary")));
 console.log("SMOKE DONE");
