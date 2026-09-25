@@ -268,6 +268,11 @@ async function main() {
       const p = o.pdf || {};
       check(!!p.htmlPath && fs.existsSync(p.htmlPath), "export_pdf htmlPath exists");
       check(p.ok === true || ["no-chrome", "chrome-failed"].includes(p.reason), "export_pdf ok or no-chrome");
+      if (p.ok === true && p.pdfPath && fs.existsSync(p.pdfPath)) {
+        const pdfTxt = fs.readFileSync(p.pdfPath).toString("latin1");
+        const pageObjs = (pdfTxt.match(/\/Type\s*\/Page(?!s)/g) || []).length;
+        check(pageObjs === p.count, `export_pdf one page per slide (${pageObjs} vs ${p.count})`);
+      }
     });
     await step(20, "social_copy", { company: COMPANY, name: CAROUSEL, tone: "directo", save: true }, (o) => {
       check(!!(o.captions && o.captions.instagram && o.captions.linkedin), "social_copy captions IG+LI");

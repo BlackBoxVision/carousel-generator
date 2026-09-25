@@ -60,4 +60,15 @@ describe("safeKit", () => {
     assert.throws(() => safeKit({ fonts: { googleUrl: "http://evil.example/x.css" } }), /https:\/\//);
     assert.doesNotThrow(() => safeKit({ fonts: { googleUrl: "https://fonts.googleapis.com/css2?family=Inter" } }));
   });
+
+  test("logo.img admite data URIs grandes (no aplica el cap de CSS) (#2047)", () => {
+    const big = "data:image/png;base64," + "A".repeat(15634);
+    assert.equal(safeKit({ name: "x", logo: { img: big } }).logo.img, big);
+    const huge = "data:image/png;base64," + "A".repeat(800_001);
+    assert.throws(() => safeKit({ name: "x", logo: { img: huge } }), /demasiado largo/);
+    assert.throws(
+      () => safeKit({ name: "x", logo: { img: "data:image/svg+xml,<svg onload=alert(1)>" } }),
+      /caracteres no permitidos/,
+    );
+  });
 });

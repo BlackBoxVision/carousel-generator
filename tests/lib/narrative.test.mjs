@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  applyCategoryColors,
   boldifyData,
   extractFigures,
   formatStyleWarnings,
@@ -69,4 +70,38 @@ test("lintSlideTexts catches em-dash, no-es contrast and AI clichés", () => {
   const text = formatStyleWarnings(warnings);
   assert.ok(/raya|—/.test(text) || warnings.some((w) => w.rule === "em-dash"));
   assert.ok(/cliché|cliche|en un mundo/i.test(text) || warnings.some((w) => /cliche/.test(w.rule)));
+});
+
+test("applyCategoryColors bakes cascade color only for highlights without override", () => {
+  const kit = { highlightColors: { turismo: "#0f766e" } };
+  const slides = [
+    {
+      template: "cover",
+      elements: [
+        { type: "highlight", text: "Sin color propio", style: {} },
+        { type: "highlight", text: "Con override", style: { background: "#ff0000" } },
+        { type: "stack", children: [{ type: "highlight", text: "Hijo", style: {} }] },
+      ],
+    },
+  ];
+  applyCategoryColors(slides, kit, "turismo");
+  assert.equal(slides[0].elements[0].style.background, "#0f766e");
+  assert.equal(slides[0].elements[1].style.background, "#ff0000", "explicit override wins");
+  assert.equal(slides[0].elements[2].children[0].style.background, "#0f766e");
+});
+
+test("applyCategoryColors matches category case-insensitively (#2051)", () => {
+  const kit = { highlightColors: { Turismo: "#0ea5e9" } };
+  const slides = [{ template: "cover", elements: [{ type: "highlight", text: "x", style: {} }] }];
+  applyCategoryColors(slides, kit, "TURISMO");
+  assert.equal(slides[0].elements[0].style.background, "#0ea5e9");
+});
+
+test("applyCategoryColors is a no-op without category or without kit entry", () => {
+  const kit = { highlightColors: { turismo: "#0f766e" } };
+  const slides = [{ template: "cover", elements: [{ type: "highlight", text: "x", style: {} }] }];
+  applyCategoryColors(slides, kit, "");
+  applyCategoryColors(slides, kit, "deporte");
+  applyCategoryColors(slides, {}, "turismo");
+  assert.equal(slides[0].elements[0].style.background, undefined);
 });

@@ -4,6 +4,7 @@
  * Keeps stdin open until responses arrive (server exits on stdin close).
  * Usage: node scripts/test-tools.mjs
  */
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -138,6 +139,18 @@ async function main() {
     (rp.preview.pngs || []).every((p) => fs.existsSync(p.path) && p.bytes > 3000),
     "PNG files exist and non-tiny",
   );
+  const rpShas = (rp.preview.pngs || []).map((p) =>
+    crypto.createHash("sha256").update(fs.readFileSync(p.path)).digest("hex"),
+  );
+  assert(new Set(rpShas).size === rpShas.length, "PNGs are distinct (regression: shared-frame bug #2043)");
+  const rpDims = (rp.preview.pngs || []).map((p) => {
+    const b = fs.readFileSync(p.path);
+    return `${b.readUInt32BE(16)}x${b.readUInt32BE(20)}`;
+  });
+  assert(
+    rpDims.every((d) => d === `${rp.preview.width}x${rp.preview.height}`),
+    `PNG dims = canvas (got ${rpDims.join(", ")}, expected ${rp.preview.width}x${rp.preview.height})`,
+  );
 
   const sc = JSON.parse(contentText(phase2.get(5)));
   assert(sc.captions && sc.captions.instagram && sc.captions.linkedin, "social_copy captions IG+LI");
@@ -155,7 +168,11 @@ async function main() {
       company: TMP_COMPANY,
       slug: "smoke-tools",
       meta: { title: "Smoke Tools Imported", format: "feed" },
-      slides: [{ template: "cover", titleWhite: "IMPORT", titleOrange: "OK" }],
+      slides: [
+        { template: "cover", titleWhite: "IMPORT", titleOrange: "OK" },
+        { template: "fact", titleWhite: "FACT", titleOrange: "42%", paragraphs: ["Dato 42% del periodo."] },
+        { template: "cta", titleWhite: "FIN", titleOrange: "OK", ctaBox: { title: "Cierre", text: "Fin." } },
+      ],
     },
   };
   const imp = {
@@ -231,6 +248,15 @@ async function main() {
     pdfOut.pdf.ok === true || ["no-chrome", "chrome-failed"].includes(pdfOut.pdf.reason),
     "export_pdf payload shape",
   );
+  if (pdfOut.pdf.ok === true && pdfOut.pdf.pdfPath && fs.existsSync(pdfOut.pdf.pdfPath)) {
+    const pdfTxt = fs.readFileSync(pdfOut.pdf.pdfPath).toString("latin1");
+    const pageObjs = (pdfTxt.match(/\/Type\s*\/Page(?!s)/g) || []).length;
+    const counts = (pdfTxt.match(/\/Count\s+(\d+)/g) || []).map((s) => parseInt(s.split(/\s+/)[1], 10));
+    assert(
+      pageObjs === pdfOut.pdf.count || counts.includes(pdfOut.pdf.count),
+      `export_pdf one page per slide (pages=${pageObjs}, counts=[${counts}], expected=${pdfOut.pdf.count})`,
+    );
+  }
 
   assert(/smoke-doomed/.test(contentText(phase4.get(10))), "save_brand_kit doomed");
   const prev = JSON.parse(contentText(phase4.get(11)));

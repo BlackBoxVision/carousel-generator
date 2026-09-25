@@ -68,6 +68,42 @@ describe("generate/save/load/list/delete carousel", () => {
     assert.equal(stored.slides.length, 3);
   });
 
+  test("generate keeps highlightColors cascade dynamic (#2051)", async () => {
+    const out = await generate.handler({
+      title: "Cascada",
+      company: COMPANY,
+      carouselName: "cascada-test",
+      category: "Turismo",
+      kit: { name: "Cascada Kit", highlightColors: { turismo: "#0f766e" } },
+      slides: [{ template: "cover", titleWhite: "VIAJES", titleOrange: "42%" }],
+      open: false,
+      persist: true,
+      outputDir: path.join(home.home, "out"),
+    });
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "cascada-test", "carousel.json"), "utf8"),
+    );
+    assert.equal(stored.meta.category, "Turismo");
+    assert.equal(stored.kit.highlightColors.turismo, "#0f766e");
+    const findHl = (nodes) => {
+      for (const n of nodes || []) {
+        if (n.type === "highlight") return n;
+        const hit = findHl(n.children);
+        if (hit) return hit;
+      }
+      return null;
+    };
+    const hl = findHl(stored.slides[0].elements);
+    assert.ok(hl, "cover has highlight block");
+    assert.ok(!hl.style.background, "no baked background — cascade resolved at render time");
+    const res = JSON.parse(out);
+    const htmlPath = res.render && res.render.htmlPath;
+    assert.ok(htmlPath, "returns html path");
+    const html = fs.readFileSync(htmlPath, "utf8");
+    assert.ok(html.includes("highlightColors"), "HTML carries kit.highlightColors for the editor cascade");
+    assert.ok(html.includes("Turismo"), "HTML carries meta.category");
+  });
+
   test("list_carousels finds the company", async () => {
     const out = await listCarousels.handler({});
     assert.ok(out.includes(COMPANY));
@@ -129,6 +165,48 @@ describe("generate/save/load/list/delete carousel", () => {
     const stored = JSON.parse(fs.readFileSync(json, "utf8"));
     assert.equal(stored.version, 2);
     assert.ok(stored.kit && stored.kit.colors, "kit resolved via fallback");
+  });
+
+  test("save_carousel partial payload re-renders HTML with embedded photo assets", () => {
+    const PNG =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const first = JSON.parse(
+      saveCarousel.handler({
+        company: COMPANY,
+        name: "photo-embed",
+        carousel: {
+          version: 2,
+          company: COMPANY,
+          slug: "photo-embed",
+          meta: { title: "Con Foto", format: "feed" },
+          slides: [
+            { template: "cover", titleWhite: "CON", titleOrange: "FOTO", background: { type: "photo", src: PNG } },
+          ],
+        },
+        open: false,
+        outputDir: home.home,
+      }),
+    );
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(home.carouselDir, COMPANY, "photo-embed", "carousel.json"), "utf8"),
+    );
+    assert.equal(stored.slides[0].bg.src, undefined, "persist strips bg.src to assets/");
+    assert.ok(stored.slides[0].bg.asset, "persist stores bg.asset");
+
+    // Partial (kit-only): slides se releen del stored sin bg.src — el HTML debe
+    // rehidratar los assets, no renderizar el crudo (#2049).
+    const partial = JSON.parse(
+      saveCarousel.handler({
+        company: COMPANY,
+        name: "photo-embed",
+        kit: { colors: { primary: "#123456" } },
+        open: false,
+        outputDir: home.home,
+      }),
+    );
+    assert.ok(partial.htmlPath, "partial save returns htmlPath");
+    const html = fs.readFileSync(partial.htmlPath, "utf8");
+    assert.ok(html.includes("data:image/png"), "re-rendered HTML embeds photo data URI");
   });
 
   test("delete_carousel previews without confirm, deletes with confirm", async () => {
@@ -656,6 +734,31 @@ describe("brand kits", () => {
     const kit = JSON.parse(await loadKit.handler({ name: "testbrand" }));
     assert.equal(kit.colors.primary, "#ff5a00");
     assert.equal(kit.name, "Test Brand");
+  });
+
+  test("save_kit merges over stored kit with large logo.img (#2047)", () => {
+    const dir = path.join(home.brandDir, "biglogo");
+    fs.mkdirSync(dir, { recursive: true });
+    const bigImg = "data:image/png;base64," + "A".repeat(15634);
+    fs.writeFileSync(
+      path.join(dir, "kit.json"),
+      JSON.stringify({
+        name: "Big Logo",
+        colors: { primary: "#123456" },
+        fonts: {
+          heading: "'Inter', sans-serif",
+          body: "'Inter', sans-serif",
+          googleUrl: "https://fonts.googleapis.com",
+        },
+        logo: { letter: "b", img: bigImg },
+        gradients: [],
+      }),
+    );
+    const out = JSON.parse(saveKit.handler({ name: "biglogo", kit: { colors: { primary: "#654321" } } }));
+    assert.equal(out.ok, true, "partial save must pass despite stored large logo");
+    const saved = JSON.parse(fs.readFileSync(path.join(dir, "kit.json"), "utf8"));
+    assert.equal(saved.logo.img, bigImg, "stored logo preserved");
+    assert.equal(saved.colors.primary, "#654321");
   });
 
   test("load_kit errors for unknown kit", () => {
