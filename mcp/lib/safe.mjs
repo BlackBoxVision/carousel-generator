@@ -44,6 +44,20 @@ export function safeCssOpt(value, field) {
   return safeCss(value, field);
 }
 
+/**
+ * Logo embebido (data URI base64). safeCss tope en 2000 chars es para CSS;
+ * un logo legitimo llega a ~667k chars (500KB en base64, el cap de descarga).
+ * Mismo chequeo de inyeccion, tope propio. Lanza si hay inyeccion o excede.
+ */
+export function safeLogoImg(value, field = "logo.img") {
+  if (value === undefined || value === null) return value;
+  const s = String(value).trim();
+  if (!s) return s;
+  if (INJECTION.test(s) || hasControl(s)) fail(field, s);
+  if (s.length > 800_000) throw new Error(`\`${field}\` demasiado largo (${s.length} > 800000 chars).`);
+  return s;
+}
+
 /** Sanea recursivamente los valores string de un objeto de estilo (set_block / kit). */
 export function safeStyleObject(style, field = "style") {
   if (!style || typeof style !== "object") return style;
@@ -73,7 +87,7 @@ export function safeKit(kit) {
     out.logo = {
       ...l,
       background: safeCssOpt(l.background, "logo.background"),
-      img: safeCssOpt(l.img, "logo.img"),
+      img: safeLogoImg(l.img, "logo.img"),
       imgH: typeof l.imgH === "string" ? safeCss(l.imgH, "logo.imgH") : l.imgH,
       letter: safeCssOpt(l.letter, "logo.letter"),
       text: safeCssOpt(l.text, "logo.text"),
@@ -83,6 +97,14 @@ export function safeKit(kit) {
     const c = {};
     for (const [k, v] of Object.entries(out.colors)) c[k] = typeof v === "string" ? safeCss(v, `colors.${k}`) : v;
     out.colors = c;
+  }
+  if (out.highlightColors && typeof out.highlightColors === "object" && !Array.isArray(out.highlightColors)) {
+    const hc = {};
+    for (const [k, v] of Object.entries(out.highlightColors).slice(0, 20)) {
+      const key = String(k).toLowerCase().trim();
+      if (key) hc[key] = typeof v === "string" ? safeCss(v, "highlightColors") : v;
+    }
+    out.highlightColors = hc;
   }
   if (out.fonts && typeof out.fonts === "object") {
     const f = {};

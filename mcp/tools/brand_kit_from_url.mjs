@@ -6,6 +6,7 @@ import { writeJsonAtomic } from "../lib/fsutil.mjs";
 import { fetchBrandHTML } from "../lib/html.mjs";
 import { findKitFile } from "../lib/kits.mjs";
 import { brandDir } from "../lib/paths.mjs";
+import { safeKit } from "../lib/safe.mjs";
 import { deepMerge, slug } from "../lib/text.mjs";
 
 export default {
@@ -83,7 +84,9 @@ export default {
         throw new Error(`kit.json corrupto en "${existing.file}": ${e.message}. Borralo o re-creá el kit.`);
       }
     } else base = clone(DEFAULT_KIT);
-    const merged = deepMerge(base, kit);
+    // Misma validación que save_brand_kit: si no, un kit inferido con un campo
+    // inválido queda escrito y después ningún save puede pasarlo.
+    const merged = safeKit(deepMerge(base, kit));
     merged.name = kit.name;
     const dir = path.join(brandDir(), sl);
     fs.mkdirSync(dir, { recursive: true });
