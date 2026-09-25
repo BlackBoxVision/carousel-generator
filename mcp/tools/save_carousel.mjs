@@ -3,7 +3,7 @@ import { canvasForFormat, NARRATIVE_REVIEW_PROTOCOL } from "../lib/const.mjs";
 import { resolveKit } from "../lib/kits.mjs";
 import { lintSlideTexts, narrativeAudit } from "../lib/narrative.mjs";
 import { carouselPath } from "../lib/paths.mjs";
-import { persistCarousel, readCarousel } from "../lib/persist.mjs";
+import { hydrateCarousel, persistCarousel, readCarousel } from "../lib/persist.mjs";
 import { renderCarouselSafe } from "../lib/render.mjs";
 import { safeKit } from "../lib/safe.mjs";
 import { deepMerge, slug } from "../lib/text.mjs";
@@ -119,10 +119,17 @@ export default {
     const saved = persistCarousel(data, company, name, sourceDir);
     const styleWarnings = lintSlideTexts(slides);
     const narrative = narrativeAudit(slides, data.meta.title || name);
-    const rendered = renderCarouselSafe(
-      { ...data, company, slug: name },
-      { outputDir: a.outputDir, fileName: a.fileName, open: a.open === true, stable: true },
-    );
+    // Rehidratar desde lo persistido: bg.src y kit.logo.img se embeben desde
+    // assets/ solo en hydrate; renderizar `data` crudo daba HTML sin fotos.
+    const runtime = hydrateCarousel(saved.data, saved.dir);
+    runtime.company = company;
+    runtime.slug = name;
+    const rendered = renderCarouselSafe(runtime, {
+      outputDir: a.outputDir,
+      fileName: a.fileName,
+      open: a.open === true,
+      stable: true,
+    });
     return JSON.stringify(
       {
         saved: saved.file,
