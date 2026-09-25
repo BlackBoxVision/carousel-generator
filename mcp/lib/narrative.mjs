@@ -217,7 +217,11 @@ export function formatStyleWarnings(warnings) {
 }
 export function applyCategoryColors(slides, kit, category) {
   if (!category) return slides;
-  const color = kit && kit.highlightColors && kit.highlightColors[category];
+  const hc = kit && kit.highlightColors;
+  if (!hc || typeof hc !== "object") return slides;
+  const key = String(category).toLowerCase().trim();
+  const hit = key && Object.keys(hc).find((k) => String(k).toLowerCase().trim() === key);
+  const color = hit ? hc[hit] : null;
   if (!color) return slides;
   const walk = (nodes) => {
     for (const el of nodes || []) {

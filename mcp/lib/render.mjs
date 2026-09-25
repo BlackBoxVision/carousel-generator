@@ -5,7 +5,7 @@ import { normSlideArg, partitionListSlides } from "./blocks.mjs";
 import { canvasForFormat, MARKER, TEMPLATES } from "./const.mjs";
 import { loadAppTemplate } from "./handoff.mjs";
 import { brandKitsPayload, resolveKit } from "./kits.mjs";
-import { applyBoldify, applyCategoryColors } from "./narrative.mjs";
+import { applyBoldify } from "./narrative.mjs";
 import { assertPathAllowed } from "./paths.mjs";
 import { expandHome, slug } from "./text.mjs";
 
@@ -78,7 +78,9 @@ export function runtimeDataFromArgs(args) {
   const title = String(a.title || "Carrusel");
   const format = ["feed", "square", "story"].includes(a.format) ? a.format : "feed";
   const category = String((a.meta && a.meta.category) || a.category || "").trim();
-  applyCategoryColors(slides, kit, category);
+  // La cascada highlightColors NO se hornea acá: se resuelve en render
+  // (editor: resolvedHlColor() → --hl-bg en la slide raíz). Si setearamos
+  // style.background quedaría fijo y no seguiría cambios de kit/categoría.
   return {
     version: 2,
     company: slug(a.company || a.kitName || kit.name || "default"),
