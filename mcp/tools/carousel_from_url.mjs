@@ -56,6 +56,7 @@ export default {
     const html = await fetchBrandHTML(pageUrl);
     const art = extractArticle(html, pageUrl);
     if (!art.title) throw new Error("No se pudo extraer el título de la nota.");
+    const detected = detectCategory(html);
     const company = slug(a.company || art.site);
     const carouselName = slug(a.carouselName || a.fileName || art.title);
     const cover = splitTitleForCover(art.title);
@@ -64,7 +65,9 @@ export default {
     const slides = [
       {
         template: "cover",
-        eyebrow: art.site.toUpperCase(),
+        // Kicker de portada: categoría detectada (o la pasada por el usuario) y,
+        // si no hay, el site como fallback — no siempre el site (#2045).
+        eyebrow: String(a.category || (detected && detected.category) || art.site).toUpperCase(),
         titleWhite: cover.white,
         titleOrange: cover.orange,
         paragraphs: [art.dek].filter(Boolean),
@@ -114,7 +117,6 @@ export default {
     });
     // Fotos: candidatos del artículo → asignar por orden; slides sin foto → photoNeeds
     const candidates = pickPhotoCandidates(art);
-    const detected = detectCategory(html);
     const assigned = [];
     const photoNeeds = [];
     const slots = [];
@@ -186,6 +188,9 @@ export default {
       }
     }
     const file = renderCarousel(runtime, { ...a, open: a.open !== false, stable: true });
+    const cat = runtime.meta.category || (detected && detected.category) || "";
+    const hc = runtime.kit.highlightColors || {};
+    const hlKey = Object.keys(hc).find((k) => String(k).toLowerCase().trim() === cat.toLowerCase().trim());
     const lines = [
       `Carrusel desde URL creado (${runtime.slides.length} slides):`,
       file,
@@ -193,7 +198,7 @@ export default {
       ...(sourceMd ? [`source.md: ${sourceMd.file}${sourceMd.wrote ? " (nuevo)" : ` (${sourceMd.reason})`}`] : []),
       "",
       detected
-        ? `Categoría detectada: "${runtime.meta.category || detected.category}" (señal: ${detected.source})${runtime.kit.highlightColors && runtime.kit.highlightColors[runtime.meta.category || detected.category] ? ` → highlight: ${runtime.kit.highlightColors[runtime.meta.category || detected.category]}` : " (sin color en kit.highlightColors — se usa el primario)"}`
+        ? `Categoría detectada: "${cat}" (señal: ${detected.source})${hlKey ? ` → highlight: ${hc[hlKey]}` : " (sin color en kit.highlightColors — se usa el primario)"}`
         : "Categoría no detectada — seteá meta.category manualmente si el kit define highlightColors.",
       "",
       `Fotos del artículo asignadas: ${assigned.length ? assigned.map((x) => `slide ${x.slide} ← ${x.source}`).join("; ") : "(ninguna candidata válida)"}`,

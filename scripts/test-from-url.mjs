@@ -154,6 +154,19 @@ async function main() {
     const stored = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
     assert(stored.version === 2 && stored.slides.length >= 3, "v2 with >=3 slides");
     assert(stored.meta && stored.meta.category, "meta.category set (Mercado)");
+    const findKicker = (nodes) => {
+      for (const n of nodes || []) {
+        if (n.type === "kicker") return n;
+        const hit = findKicker(n.children);
+        if (hit) return hit;
+      }
+      return null;
+    };
+    const kicker = findKicker(stored.slides[0].elements);
+    assert(
+      kicker && kicker.text === "MERCADO",
+      `cover kicker = detected category, not site (#2045, got "${kicker && kicker.text}")`,
+    );
   }
   const sourceMd = path.join(home, "carousels", TMP_COMPANY, "from-url", "source.md");
   assert(fs.existsSync(sourceMd), "source.md written");
