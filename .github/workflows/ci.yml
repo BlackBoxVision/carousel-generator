@@ -30,7 +30,11 @@ jobs:
       - name: Manifest sync
         run: node scripts/sync-manifest.mjs --check
       - name: Bundle freshness
-        run: node scripts/bundle-check.mjs
+        # dist/ is gitignored, so CI has no bundle: build it first, then
+        # assert the packed manifest matches package.json + the registry.
+        run: |
+          npm run bundle
+          node scripts/bundle-check.mjs
       - name: Unit + integration tests
         run: node --test 'tests/**/*.test.mjs'
       - name: Editor smoke
