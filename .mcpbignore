@@ -1,0 +1,17 @@
+# Dev-only files — the runtime bundle only needs manifest.json, app/, mcp/ and deps.
+.husky/
+.github/
+tests/
+scripts/
+commitlint.config.mjs
+biome.json
+AGENTS.md
+README.md
+.impeccable.md
+opencode.json
+install.mjs
+dist/
+node_modules/@commitlint
+node_modules/@biomejs
+node_modules/husky
+node_modules/.bin

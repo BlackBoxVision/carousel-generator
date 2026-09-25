@@ -53,7 +53,7 @@ Run this command from the repository folder:
 node install.mjs
 ```
 
-To install for one specific client:
+With **no flags it configures every detected client** (`--all` is equivalent). To install for specific clients only:
 
 ```bash
 node install.mjs --opencode
@@ -62,6 +62,8 @@ node install.mjs --claude-desktop
 node install.mjs --codex
 node install.mjs --cursor
 ```
+
+Existing client config files are never overwritten if they fail to parse (the installer skips them with a warning).
 
 Restart the MCP client after installation. Local MCP servers are started when the client starts.
 
@@ -134,25 +136,31 @@ The initial generation and MCP save operations create a persistent JSON document
 
 ## MCP tools
 
-The server exposes sixteen tools. You can ask the AI to use them in plain language; you do not need to call them manually.
+The server exposes twenty-two tools. You can ask the AI to use them in plain language; you do not need to call them manually.
 
 | Tool | Use it when you want to... |
 |---|---|
 | `generate_carousel` | Create a new editable carousel and open it in the browser. |
 | `carousel_from_url` | Build a draft carousel from an article/note URL, with photos assigned from the article. |
-| `list_carousels` | See the saved carousels, grouped by company. |
+| `list_carousels` | See the saved carousels, grouped by company (optional `company` filter). |
 | `load_carousel` | Reopen an existing carousel with its photos and logo resolved. |
 | `save_carousel` | Create or update the persistent nested JSON and copy assets into its asset folder. |
-| `edit_slide` | Edit one slide without touching raw JSON: update text, move/reorder, duplicate, or delete. |
+| `duplicate_carousel` | Copy a saved carousel to another company/slug (A/B variants); original untouched. |
+| `edit_slide` | Edit slides without touching raw JSON: `update_text`, `move`, `duplicate`, `delete`, `add`, `split` (list slides), `set_layout` (align/copyPos/scrim/bgPos), block CRUD (`add_block`/`delete_block`/`move_block`/`set_block`), items (`add_item`/`delete_item`), pills (`add_pill`/`update_pill`/`delete_pill`). |
+| `set_slide_bg` | Change a slide's non-photo background: kit gradient, custom CSS, or reset to the kit's default gradient. |
+| `set_carousel_meta` | Update carousel meta only: title, format (feed/square/story + canvas), category, showCount. |
+| `validate_carousel` | Dry-run quality audit (narrativeAudit + styleWarnings) without writing or re-rendering. |
 | `import_editor_state` | Import the editor's Push-to-MCP JSON (or a v2 carousel) back into `carousel.json`. |
 | `render_preview` | Render slides to real PNGs with headless Chromium (`4:5`, `1:1`, `9:16`; all slides or selected indices). |
+| `export_pdf` | Export the carousel to a multi-page PDF with headless Chrome (`feed`/`square`/`story`; all slides or selected). Writes under `exports/`. |
 | `social_copy` | Generate captions, hooks, hashtags, and per-slide alt text for Instagram/LinkedIn/X (es-AR heuristics; prefers `source.md`). |
 | `delete_carousel` | Permanently delete a saved carousel and its assets. Two-step: without `confirm:true` it only returns a preview; the second call with `confirm:true` deletes. The AI should ask you before confirming. |
 | `review_slide_images` | Audit the photos of a saved carousel: per-slide texts, assigned photo, `photoNeeds`, and `narrativeAudit`. |
 | `set_slide_photo` | Replace the background photo of one slide (from a URL or a local file) and re-render. |
 | `save_brand_kit` | Create or update a reusable brand kit. Partial updates are merged. |
+| `delete_brand_kit` | Remove a personal brand kit. Two-step: preview first, `confirm:true` to delete (repo kits are protected). |
 | `list_brand_kits` | See all personal and example brand kits available to the editor. |
-| `load_brand_kit` | Inspect the complete JSON of one brand kit. |
+| `load_brand_kit` | Inspect the JSON of one brand kit (logo base64 is masked; pass `includeLogo:true` to get it). |
 | `brand_kit_from_url` | Infer a brand kit from a website homepage and optionally save it. |
 
 ### Common tool flows
@@ -223,7 +231,9 @@ it combines structured signals with an explicit agent checklist:
 2. **Common thread** — confirm every slide talks about the same subject/topic as the note; no filler slides disconnected from the cover or title.
 3. **Arc** — full arc present: cover (hook) → development → cta (end). Order is linear, never going backwards.
 4. **Cohesion** — each slide connects to the previous one (logical bridge or sequence), no random topic jumps.
-5. **Fix** — if something fails: rewrite or reorder with `edit_slide` (`update_text` | `move`) and re-audit before delivering.
+5. **Fix** — if something fails: rewrite or reorder with `edit_slide` (`update_text` | `move` | `split` | `set_layout`) and re-audit before delivering.
+
+**Tool naming in clients:** OpenCode, Claude Code and other clients that namespace MCP servers will show these tools with a prefix (for example `carousel_edit_slide`). Flat clients (Claude Desktop, Cursor, Codex) use the bare names in this table (`edit_slide`). The arguments are identical either way.
 
 Alongside the protocol, the tools return a machine-readable **`narrativeAudit`**
 `{ ok, flags }` with objective starting points:
@@ -237,7 +247,7 @@ Typical flow:
 flowchart LR
     A[carousel_from_url] --> B[narrativeAudit + protocol]
     B --> C{coherent story?}
-    C -->|no| D[edit_slide<br/>update_text / move]
+    C -->|no| D[edit_slide<br/>update_text / move / split]
     D --> B
     C -->|yes| E[review_slide_images photos]
     E --> F[deliver]
@@ -341,6 +351,7 @@ By default, persistent carousels live here:
 ├── source.md          # optional: from carousel_from_url (url, title, curated description)
 ├── social.md          # optional: from social_copy { save: true }
 ├── previews/<format>/ # render_preview PNGs + preview HTML
+├── exports/           # export_pdf intermediate HTML + PDF
 └── assets/
     ├── logo.png
     └── slide-1-background.jpg
@@ -411,6 +422,10 @@ The browser editor keeps its live state in browser storage. Two options:
 
 Ask: *"dame el carousel en 4:5 todos los PNGs"* → `render_preview { format: "4:5" }` (aliases `4:5|feed`, `1:1|square`, `9:16|story`; omit `slides` for all). PNGs are written under `previews/<format>/slide-NN.png`. The server prefers Playwright's arm64 `chrome-headless-shell`, then Chrome/Chromium; override with `CHROME_PATH`.
 
+### How do I export a PDF from the agent?
+
+Ask: *"exportá el carrusel a PDF"* → `export_pdf { company, name, format: "feed" }`. Writes `exports/{name}-feed.pdf` (and an intermediate HTML) under the carousel folder. Without Chrome it returns `pdf.ok:false` with `htmlPath` so you can export from the editor toolbar.
+
 ### How do I get captions/hashtags for posting?
 
 `social_copy` returns hooks, captions per platform (default Instagram + LinkedIn), hashtags, and alt text ≤125 chars per slide. Priority: `source.md` → slides → meta. Pass `save: true` to also write `social.md`.
@@ -447,26 +462,70 @@ The preferred visual hierarchy is a smaller white title, a larger highlighted ti
 To create a one-click-installable bundle for Claude Desktop or another MCPB-compatible client:
 
 ```bash
-npm run bundle
+npm run bundle        # writes dist/carousel-generator.mcpb
+npm run bundle:check  # fails if the bundle is missing or stale (version/tool count vs registry)
 ```
 
-This creates `dist/carousel-generator.mcpb`.
+Dev-only files (`.husky`, `tests`, `scripts`, devDependencies) are excluded via `.mcpbignore`.
 
 ## Development
 
 There is no build step for the app or server. The main files are:
 
 - `app/index.html`: browser editor and renderer.
-- `mcp/server.mjs`: MCP tools, persistence, asset handling, and HTML generation.
+- `mcp/server.mjs`: MCP bootstrap on `@modelcontextprotocol/sdk` (stdio, JSON Schema tools).
+- `mcp/registry.mjs`: single dispatch — the 22 tools, ajv validation of `arguments`, and `callTool`.
+- `mcp/lib/validate.mjs`: ajv runtime validation (strict `additionalProperties` on root + nested-with-properties; freeform bare objects like `carousel`/`kit` stay open). Errors are Spanish, returned as `isError` before the handler runs.
+- `mcp/tools/*.mjs`: one file per tool (`{ name, description, inputSchema, handler }`).
+- `mcp/lib/*.mjs`: shared helpers (paths, kits, narrative, images, persist, render, …).
 - `mcp/kits/`: repository example brand kits.
 
-Smoke tests:
+Formatting and linting use [Biome](https://biomejs.dev) (`biome.json`); `app/index.html` is intentionally out of scope (vanilla single-file editor with its own smoke test).
+
+Tests and checks (also run by `npm test` and CI):
 
 ```bash
-npm test
-# or individually:
-node scripts/smoke.cjs
-node scripts/test-tools.mjs
+npm test                              # lint + syntax + manifest sync + node:test + smoke + tools e2e + fixture
+npm run lint                          # biome check (mcp/, scripts/, tests/, *.mjs)
+npm run lint:fix                      # apply safe fixes + format
+npm run test:unit                     # tests/lib + tests/tools
+npm run test:integration              # JSON-RPC + verifier tests
+npm run test:tools                    # MCP tools end-to-end (needs Chrome for PNGs)
+npm run test:driver                   # deterministic driver: all 22 tools, pure JSON results
+npm run test:fixture                  # offline fixture server
+node scripts/fixture-server.mjs &     # then: npm run test:from-url
+npm run sync:manifest                 # regenerate manifest.json tools[]
+npm run test:sync                     # fail if manifest is out of sync
+npm run bundle:check                  # fail if dist/*.mcpb is stale
+```
+
+Useful env vars:
+
+- `CAROUSEL_GENERATOR_HOME` — override `~/.carousel-generator` (tests and agent-e2e isolate here; `npm run test:tools` uses a throwaway home unless you export one).
+- `CAROUSEL_TOOL_LOG` — JSONL log of every `tools/call` (`{ name, ok, durationMs, … }`).
+- `CHROME_PATH` — force a Chrome binary for `render_preview`.
+- `CAROUSEL_GENERATOR_ALLOW_LOCAL=1` — safety bypass (see below).
+
+Safety guards (defaults; bypass with `CAROUSEL_GENERATOR_ALLOW_LOCAL=1`):
+
+- **SSRF**: outgoing fetches (`carousel_from_url`, `brand_kit_from_url`, `set_slide_photo`, HTML/logo downloads) only accept `http(s)`, skip private/loopback/link-local addresses (including `169.254.169.254`), follow at most 3 redirects manually and stream with a byte cap.
+- **Local files**: `set_slide_photo`, `logo.imagePath`, `hydrateCarousel` assets and `outputDir` are contained to `$HOME`, `$TMPDIR`, `/tmp` and `CAROUSEL_GENERATOR_HOME`.
+- **Injection**: CSS/style values (`set_slide_bg css`, `edit_slide` styles, kit gradients/colors/fonts) reject `<`, `"` and control characters; `load_brand_kit` returns logo sizes instead of base64 unless asked.
+
+### CI
+
+`.github/workflows/ci.yml` runs four jobs:
+
+1. **unit** — biome lint, syntax, `sync-manifest --check`, `bundle:check`, `node --test`, editor smoke.
+2. **tools-e2e** — JSON-RPC tools test with `chrome-headless-shell`, plus offline `*_from_url` against `scripts/fixture-server.mjs`.
+3. **e2e-driver** — deterministic JSON-RPC driver (`scripts/e2e-driver.mjs`) that calls every one of the 22 tools against an isolated home and a local fixture server, asserting each result parses as pure JSON and that `render_preview`/`export_pdf` degrade to `no-chrome` when Chrome is absent.
+4. **agent-e2e** (non-blocking canary) — installs the opencode CLI, runs a free-model agent (`OPENCODE_MODEL`, default `opencode/mimo-v2.6-flash-free`) that should exercise all 22 tools, then `scripts/verify-agent-output.mjs` checks `CAROUSEL_TOOL_LOG` coverage (`ok:true`) and artifacts (`carousel.json`, kits, PNGs, `social.md`, `source.md`). The job exit code is the **verifier's**, not the model's, and `continue-on-error` keeps flaky free-model runs from blocking PRs — required coverage comes from **unit**, **tools-e2e** and **e2e-driver**. Artifacts upload on failure for debugging.
+
+```bash
+# local agent e2e (requires opencode CLI + fixture server):
+node scripts/fixture-server.mjs 8765 &
+node scripts/run-agent-e2e.mjs --log /tmp/calls.jsonl --home /tmp/home --artifacts /tmp/art
+node scripts/verify-agent-output.mjs --log /tmp/calls.jsonl --home /tmp/home
 ```
 
 Commits use Conventional Commits and are checked by commitlint and husky.

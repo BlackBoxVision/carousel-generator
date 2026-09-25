@@ -2,11 +2,16 @@
   "manifest_version": "0.3",
   "name": "carousel-generator",
   "display_name": "Carousel Generator",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Instagram carousel generator with nested block JSON, brand kits, assets and visual editor",
   "long_description": "Generates editable Instagram carousels as HTML and persists descriptive nested carousel.json documents with per-company assets. Includes a block editor with inline drag/reorder, golden-ratio calibration, multi brand-kit support, logo images, and PNG/PDF export.",
-  "author": { "name": "BlackBoxVision" },
-  "repository": { "type": "git", "url": "https://github.com/BlackBoxVision/carousel-generator.git" },
+  "author": {
+    "name": "BlackBoxVision"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BlackBoxVision/carousel-generator.git"
+  },
   "server": {
     "type": "node",
     "entry_point": "mcp/server.mjs",
@@ -17,27 +22,101 @@
     }
   },
   "tools": [
-    { "name": "generate_carousel", "description": "Generates and opens editable HTML, persisting nested carousel.json and assets by company" },
-    { "name": "list_carousels", "description": "Lists persisted carousels grouped by company" },
-    { "name": "load_carousel", "description": "Loads a persisted nested carousel, hydrates assets and opens editable HTML" },
-    { "name": "save_carousel", "description": "Creates or updates nested carousel JSON and its asset folder" },
-    { "name": "delete_carousel", "description": "Deletes a persisted carousel and its assets (two-step with confirm)" },
-    { "name": "review_slide_images", "description": "Audits photos per slide with photoNeeds and suggested queries" },
-    { "name": "set_slide_photo", "description": "Replaces the background photo of one slide from a URL or local file" },
-    { "name": "edit_slide", "description": "Edits a slide: update_text, move, duplicate or delete without touching raw JSON" },
-    { "name": "save_brand_kit", "description": "Saves a brand kit JSON for reuse with generate_carousel" },
-    { "name": "list_brand_kits", "description": "Lists the saved brand kits" },
-    { "name": "load_brand_kit", "description": "Returns the full JSON of a saved brand kit" },
-    { "name": "brand_kit_from_url", "description": "Generates and saves a brand kit from a website URL (homepage heuristics), with per-field confidence for agent review" },
-    { "name": "carousel_from_url", "description": "Builds a draft carousel from an article/note URL, with photos assigned from the article" },
-    { "name": "import_editor_state", "description": "Imports editor Push JSON (or a v2 carousel) back into carousel.json, copying base64 photos to assets" },
-    { "name": "render_preview", "description": "Renders carousel slides to real PNGs with Chrome headless (formats 4:5/1:1/9:16, all or selected slides)" },
-    { "name": "social_copy", "description": "Generates social captions, hooks, hashtags and per-slide alt text (es-AR heuristics, source.md → slides → meta)" }
+    {
+      "name": "generate_carousel",
+      "description": "Create a new editable carousel HTML and optionally open it."
+    },
+    {
+      "name": "list_carousels",
+      "description": "List persisted carousels grouped by company under ~/.carousel-generator/carousels/."
+    },
+    {
+      "name": "load_carousel",
+      "description": "Load a persisted carousel.json v2 by company/slug, resolve assets, render editable HTML."
+    },
+    {
+      "name": "save_carousel",
+      "description": "Upsert a nested carousel.json v2 (full object, slides, or meta/kit partials)."
+    },
+    {
+      "name": "delete_carousel",
+      "description": "Permanently delete a persisted carousel folder (carousel.json + assets)."
+    },
+    {
+      "name": "duplicate_carousel",
+      "description": "Duplicate a persisted carousel to another company and/or slug (A/B variants or working copies)."
+    },
+    {
+      "name": "export_pdf",
+      "description": "Export the carousel to a multi-page PDF with headless Chrome (print-to-pdf)."
+    },
+    {
+      "name": "delete_brand_kit",
+      "description": "Delete a personal brand kit under ~/.carousel-generator/brand/{empresa}/kit.json."
+    },
+    {
+      "name": "review_slide_images",
+      "description": "Audit photos of a persisted carousel: per-slide texts, assigned photo, photoNeeds."
+    },
+    {
+      "name": "set_slide_photo",
+      "description": "Replace the background photo of one slide in a persisted carousel."
+    },
+    {
+      "name": "edit_slide",
+      "description": "Structured slide editor for a persisted carousel."
+    },
+    {
+      "name": "set_slide_bg",
+      "description": "Change the background of a non-photo slide: kit gradient by name, custom CSS, or remove."
+    },
+    {
+      "name": "set_carousel_meta",
+      "description": "Update carousel meta without touching slides: title, format, category, showCount."
+    },
+    {
+      "name": "validate_carousel",
+      "description": "Quality dry-run on a persisted carousel (or unsaved slides): narrativeAudit + styleWarnings."
+    },
+    {
+      "name": "save_brand_kit",
+      "description": "Save or merge a brand kit under ~/.carousel-generator/brand/{empresa}/kit.json."
+    },
+    {
+      "name": "list_brand_kits",
+      "description": "List available brand kits: personal under ~/.carousel-generator/brand/, then repo kits in mcp/kits/."
+    },
+    {
+      "name": "load_brand_kit",
+      "description": "Return the JSON of a saved brand kit (logo base64 masked by default)."
+    },
+    {
+      "name": "brand_kit_from_url",
+      "description": "Generate a brand kit from a site homepage (fetch + heuristics, no deps) and optionally save it."
+    },
+    {
+      "name": "carousel_from_url",
+      "description": "Create a draft carousel from an article URL (fetch + title/lead/data/image extraction)."
+    },
+    {
+      "name": "import_editor_state",
+      "description": "Import visual editor state (Push to MCP button) into carousel.json."
+    },
+    {
+      "name": "render_preview",
+      "description": "Render the carousel to real PNGs with headless Chrome."
+    },
+    {
+      "name": "social_copy",
+      "description": "Generate social post copy (captions, hooks, hashtags, altText) for a persisted carousel."
+    }
   ],
   "keywords": ["instagram", "carousel", "brand-kit", "design", "social-media"],
   "license": "UNLICENSED",
   "compatibility": {
     "platforms": ["darwin", "win32", "linux"],
-    "runtimes": { "node": ">=18.0.0" }
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
   }
 }

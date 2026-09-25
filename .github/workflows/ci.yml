@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "refactor/**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: unit (node:test)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Lint (biome)
+        run: npx biome check .
+      - name: Syntax check
+        run: |
+          node --check mcp/server.mjs
+          node --check mcp/registry.mjs
+          node --check install.mjs
+      - name: Manifest sync
+        run: node scripts/sync-manifest.mjs --check
+      - name: Bundle freshness
+        # dist/ is gitignored, so CI has no bundle: build it first, then
+        # assert the packed manifest matches package.json + the registry.
+        run: |
+          npm run bundle
+          node scripts/bundle-check.mjs
+      - name: Unit + integration tests
+        run: node --test 'tests/**/*.test.mjs'
+      - name: Editor smoke
+        run: node scripts/smoke.cjs
+
+  tools-e2e:
+    name: tools e2e (JSON-RPC + PNG)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Install chrome-headless-shell (Playwright)
+        run: npx -y playwright@1.49.0 install --with-deps chromium-headless-shell
+      - name: Export CHROME_PATH
+        run: |
+          SHELL_BIN=$(find "$HOME/Library/Caches/ms-playwright" "$HOME/.cache/ms-playwright" -type f -name chrome-headless-shell 2>/dev/null | head -1)
+          if [ -n "$SHELL_BIN" ]; then echo "CHROME_PATH=$SHELL_BIN" >> "$GITHUB_ENV"; echo "Found: $SHELL_BIN"; else echo "chrome-headless-shell not found"; fi
+      - name: Fixture server + tools e2e
+        run: |
+          node scripts/fixture-server.mjs 8765 &
+          FIX_PID=$!
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8765/health >/dev/null; then break; fi
+            sleep 0.5
+          done
+          FIXTURE_URL=http://127.0.0.1:8765 node scripts/test-tools.mjs
+          EXIT=$?
+          kill $FIX_PID 2>/dev/null || true
+          exit $EXIT
+      - name: From-URL tools against fixture
+        run: |
+          node scripts/fixture-server.mjs 8766 &
+          FIX_PID=$!
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8766/health >/dev/null; then break; fi
+            sleep 0.5
+          done
+          node scripts/test-from-url.mjs http://127.0.0.1:8766
+          EXIT=$?
+          kill $FIX_PID 2>/dev/null || true
+          exit $EXIT
+
+  e2e-driver:
+    name: e2e driver (deterministic, all 22 tools)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      # No Chrome on purpose: render_preview/export_pdf answer "no-chrome"
+      # (accepted) while real PNGs stay covered by the tools-e2e job.
+      - name: Drive every tool over JSON-RPC
+        run: node scripts/e2e-driver.mjs
+
+  agent-e2e:
+    name: agent e2e (opencode free model)
+    runs-on: ubuntu-24.04
+    # Free models rate-limit and the run is non-deterministic: canary only.
+    # Required PR coverage comes from the deterministic tools-e2e + e2e-driver jobs.
+    continue-on-error: true
+    env:
+      OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/mimo-v2.6-flash-free' }}
+      OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+      AGENT_E2E_TIMEOUT_MS: "900000"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Install chrome-headless-shell (for render_preview)
+        run: npx -y playwright@1.49.0 install --with-deps chromium-headless-shell
+      - name: Export CHROME_PATH
+        run: |
+          SHELL_BIN=$(find "$HOME/Library/Caches/ms-playwright" "$HOME/.cache/ms-playwright" -type f -name chrome-headless-shell 2>/dev/null | head -1)
+          if [ -n "$SHELL_BIN" ]; then echo "CHROME_PATH=$SHELL_BIN" >> "$GITHUB_ENV"; echo "Found: $SHELL_BIN"; else echo "chrome-headless-shell not found"; fi
+      - name: Install opencode CLI
+        run: npm install -g opencode-ai || npm install -g opencode || true
+      - name: Start fixture server
+        run: |
+          node scripts/fixture-server.mjs 8765 &
+          echo $! > /tmp/fixture.pid
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8765/health >/dev/null; then break; fi
+            sleep 0.5
+          done
+      - name: Run agent e2e
+        id: agent
+        run: |
+          mkdir -p /tmp/agent-artifacts
+          node scripts/run-agent-e2e.mjs \
+            --log /tmp/agent-artifacts/calls.jsonl \
+            --home /tmp/agent-home \
+            --artifacts /tmp/agent-artifacts
+      - name: Verify agent output (tool coverage + artifacts)
+        run: |
+          node scripts/verify-agent-output.mjs \
+            --log /tmp/agent-artifacts/calls.jsonl \
+            --home /tmp/agent-home \
+            --artifacts /tmp/agent-artifacts
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: agent-e2e
+          path: |
+            /tmp/agent-artifacts/
+            /tmp/agent-home/carousels/
+            /tmp/agent-home/brand/
+          if-no-files-found: warn
+      - name: Stop fixture server
+        if: always()
+        run: |
+          if [ -f /tmp/fixture.pid ]; then kill $(cat /tmp/fixture.pid) 2>/dev/null || true; fi

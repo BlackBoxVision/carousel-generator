@@ -1,4 +1,4 @@
-# Personal brand kits live in ~/.carousel-generator/kits/ (per machine, outside this repo).
+# Personal brand kits live in ~/.carousel-generator/brand/<company>/kit.json (per machine, outside this repo).
 # Only the generic example kit is tracked:
 mcp/kits/*.json
 !mcp/kits/example.json

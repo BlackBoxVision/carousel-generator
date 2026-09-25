@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "carousel": {
+      "type": "local",
+      "command": ["node", "mcp/server.mjs"],
+      "enabled": true
+    }
+  },
+  "permission": {
+    "external_directory": {
+      "/tmp/*": "allow"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "carousel-generator",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "type": "module",
   "description": "Instagram 4:5 carousel generator with brand kits, golden-ratio calibrated slides, visual editor and MCP server for AI agents",
@@ -9,8 +9,20 @@
     "install:mcp": "node install.mjs",
     "smoke": "node scripts/smoke.cjs",
     "test:tools": "node scripts/test-tools.mjs",
-    "test": "node --check mcp/server.mjs && node --check install.mjs && node scripts/smoke.cjs && node scripts/test-tools.mjs",
+    "test:unit": "node --test 'tests/lib/**/*.test.mjs' 'tests/tools/**/*.test.mjs'",
+    "test:integration": "node --test 'tests/integration/**/*.test.mjs'",
+    "test:sync": "node scripts/sync-manifest.mjs --check",
+    "test:fixture": "node scripts/test-fixture-server.mjs",
+    "test:from-url": "node scripts/test-from-url.mjs",
+    "test:driver": "node scripts/e2e-driver.mjs",
+    "sync:manifest": "node scripts/sync-manifest.mjs",
+    "verify:agent": "node scripts/verify-agent-output.mjs",
+    "agent:e2e": "node scripts/run-agent-e2e.mjs",
+    "test": "npm run lint && node --check mcp/server.mjs && node --check mcp/registry.mjs && node --check install.mjs && node scripts/sync-manifest.mjs --check && node --test 'tests/**/*.test.mjs' && node scripts/smoke.cjs && node scripts/test-tools.mjs && node scripts/test-fixture-server.mjs",
     "bundle": "npx -y @anthropic-ai/mcpb pack . dist/carousel-generator.mcpb",
+    "bundle:check": "node scripts/bundle-check.mjs",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "prepare": "husky"
   },
   "keywords": [
@@ -22,8 +34,13 @@
   ],
   "license": "UNLICENSED",
   "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "husky": "^9.1.7"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "ajv": "^8.20.0"
   }
 }

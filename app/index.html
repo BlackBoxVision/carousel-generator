@@ -78,10 +78,21 @@ body.preview-mode .count,body.preview-mode .toast{display:none!important}
 body.preview-mode main{display:block;height:100vh;width:100vw}
 body.preview-mode #deckwrap{width:100vw;height:100vh;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;padding:0;margin:0}
 body.preview-mode .deck{display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:0;gap:0;background:transparent}
-body.preview-mode .wrap{position:relative!important;display:flex;align-items:center;justify-content:center;width:100%;height:100%;border:0;box-shadow:none;margin:0;transform:none}
+body.preview-mode .wrap{position:relative!important;display:flex!important;align-items:center;justify-content:center;width:100%;height:100%;border:0;box-shadow:none;margin:0;transform:none}
+body.preview-mode .wrap:not(.sel){display:none!important}
+body.preview-mode .wrap.sel .slide{outline:none!important}
 body.preview-mode .slide{flex-shrink:0;transform-origin:center center;box-shadow:none;cursor:default}
 body.preview-mode .slide .block-node[contenteditable]{pointer-events:none!important;outline:none!important}
 body.preview-mode .orange h1,body.preview-mode h1,body.preview-mode p{cursor:default}
+/* ===== PRINT (export_pdf: una página por slide, página = canvas) ===== */
+@media print{
+  body.preview-mode{overflow:visible!important;background:#fff}
+  body.preview-mode #deckwrap{display:block!important;width:auto!important;height:auto!important;overflow:visible!important;background:#fff!important;padding:0!important;margin:0!important}
+  body.preview-mode .deck{display:block!important;width:auto!important;height:auto!important;justify-content:flex-start!important;align-items:flex-start!important;margin:0!important;background:transparent!important;gap:0!important}
+  body.preview-mode .wrap,body.preview-mode .wrap:not(.sel){display:block!important;position:relative!important;margin:0!important;transform:none!important;overflow:hidden;break-after:page;page-break-after:always;break-inside:avoid}
+  body.preview-mode .wrap:last-child{break-after:auto;page-break-after:auto}
+  body.preview-mode .slide{outline:none!important;box-shadow:none!important;cursor:default}
+}
 </style>
 <style>
 /* ===== SLIDE TOKENS — solo se usan dentro de .slide ===== */
@@ -533,9 +544,9 @@ function slideHTMLLegacy(s,i){
   if(s.ctaBox.title||s.ctaBox.text)copy+=`<div class="ctabox" style="text-align:${al.body}"><b${ed?` contenteditable="true" data-cta="title" data-single="1" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${esc(s.ctaBox.title)}</b>${`<p${ed?` contenteditable="true" data-cta="text" oninput="edInput(this)" onkeydown="edKeys(event,this)" onpaste="edPaste(event)"`:""}>${md(s.ctaBox.text)}</p>`}</div>`;
   if(s.slogan)copy+=`<p class="slogan" style="text-align:${al.body}"${eb("slogan",true)}>${esc(s.slogan)}</p>`;
   if(s.foot)copy+=`<div class="foot" style="text-align:${al.body}"${eb("foot",true)}>${esc(s.foot)}</div>`;
-  return`<section class="slide fmt-${state.meta.format} ${s.template}${light} ${anchorCls}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${photoStyle}"></div>${overlayCSS?`<div class="photo-overlay" style="background:${overlayCSS}"></div>`:""}${scrimStyle?`<div class="scrim" style="${scrimStyle}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div><div class="brand">${logoHTML()} ${esc(state.kit.logo.text||"")}</div>${state.meta.showCount===false?"":`<span class="count">${i+1}/${n}</span>`}${pillsHTML(s,ed)}<div class="copy" style="${offStyle}">${copy}</div></section>`}
+  return`<section class="slide fmt-${state.meta.format} ${s.template}${light} ${anchorCls}" style="--hl-bg:${escAttr(resolvedHlColor())}" id="s${i}" onclick="selectSlide(${i})"><div class="photo" style="${escAttr(photoStyle)}"></div>${overlayCSS?`<div class="photo-overlay" style="background:${escAttr(overlayCSS)}"></div>`:""}${scrimStyle?`<div class="scrim" style="${escAttr(scrimStyle)}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div><div class="brand">${logoHTML()} ${esc(state.kit.logo.text||"")}</div>${state.meta.showCount===false?"":`<span class="count">${i+1}/${n}</span>`}${pillsHTML(s,ed)}<div class="copy" style="${escAttr(offStyle)}">${copy}</div></section>`}
 
-function slideHTML(s,i,thumb){const ed=thumb?false:i===sel;const photoStyle=s.bg.type==="photo"?`background-image:url('${s.bg.src||""}');background-position:${s.bgPos||"center"}`:`background-image:${gradCss(s)}`;const scrimStyle=s.bg.type==="photo"&&s.scrim>0?`background:rgba(4,12,20,${(s.scrim/100).toFixed(2)})`:"";const overlayCSS=state.kit.photoOverlay&&state.kit.photoOverlay.enabled!==false&&state.kit.photoOverlay.css?state.kit.photoOverlay.css:"";const light=lightOn(s)?" light":"";return`<section class="slide fmt-${state.meta.format} ${s.template}${light}"${thumb?"":` id="s${i}" onclick="selectSlide(${i})"`}><div class="photo" style="${photoStyle}"></div>${overlayCSS?`<div class="photo-overlay" style="background:${overlayCSS}"></div>`:""}${scrimStyle?`<div class="scrim" style="${scrimStyle}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div>${blocksHTML(s,ed,thumb?-1:i)}</section>`}
+function slideHTML(s,i,thumb){const ed=thumb?false:i===sel;const photoStyle=s.bg.type==="photo"?`background-image:url('${s.bg.src||""}');background-position:${s.bgPos||"center"}`:`background-image:${gradCss(s)}`;const scrimStyle=s.bg.type==="photo"&&s.scrim>0?`background:rgba(4,12,20,${(s.scrim/100).toFixed(2)})`:"";const overlayCSS=state.kit.photoOverlay&&state.kit.photoOverlay.enabled!==false&&state.kit.photoOverlay.css?state.kit.photoOverlay.css:"";const light=lightOn(s)?" light":"";return`<section class="slide fmt-${state.meta.format} ${s.template}${light}" style="--hl-bg:${escAttr(resolvedHlColor())}"${thumb?"":` id="s${i}" onclick="selectSlide(${i})"`}><div class="photo" style="${escAttr(photoStyle)}"></div>${overlayCSS?`<div class="photo-overlay" style="background:${escAttr(overlayCSS)}"></div>`:""}${scrimStyle?`<div class="scrim" style="${escAttr(scrimStyle)}"></div>`:""}<div class="phig"><div class="safe"></div><div class="tag">zona áurea 38.2%</div></div><div class="safe"><div class="ztop"><span class="t">UI superior · avatar + progreso</span></div><div class="zbot"><span class="t">UI inferior · caption + botones</span></div></div>${blocksHTML(s,ed,thumb?-1:i)}</section>`}
  function controlsHTML(i){const n=state.slides.length;return`<div class="controls" aria-label="Acciones de la slide">
    <div class="controls-main">
     <div class="control-group" aria-label="Navegación"><md-icon-button onclick="moveSlide(${i},-1)"${i===0?" disabled":""} title="Mover atrás" aria-label="Mover slide atrás"><span class="material-symbols-outlined">arrow_back</span></md-icon-button>
@@ -818,7 +829,7 @@ function kColor(key,val){state.kit.colors[key]=val;queueSave();applyTheme();rend
 function renderKHls(){const kg=document.getElementById("k_hlcolors");const hc=state.kit.highlightColors||{};const keys=Object.keys(hc);kg.innerHTML=keys.length?keys.map((key,i)=>`<div class="arr"><md-icon-button class="x" onclick="kDelHl('${escAttr(key)}')" title="Eliminar categoría"><span class="material-symbols-outlined">close</span></md-icon-button><input type="color" value="${escAttr(hc[key])}" oninput="kHlKey('${escAttr(key)}',null,this.value)" style="width:38px;height:38px;border:1px solid var(--ed-border);border-radius:6px;background:none;padding:2px;cursor:pointer"><md-outlined-text-field label="Categoría" value="${escAttr(key)}" oninput="kHlKey('${escAttr(key)}',this.value,null)"></md-outlined-text-field><code style="align-self:center;font-size:11px">${escAttr(hc[key])}</code></div>`).join(""):`<div style="font-size:12px;color:var(--ed-text3);padding:6px 0">Sin categorías — los highlights usan el color primario.</div>`}
 function kAddHl(){state.kit.highlightColors=state.kit.highlightColors||{};const base="categoria";let n=1,key=base;while(state.kit.highlightColors[key])key=base+"-"+(++n);state.kit.highlightColors[key]=state.kit.colors.primary;queueSave();renderKHls()}
 function kDelHl(key){delete state.kit.highlightColors[key];queueSave();renderKHls()}
-function kHlKey(oldKey,newKey,newVal){const hc=state.kit.highlightColors;if(newVal)hc[oldKey]=newVal;if(newKey&&newKey!==oldKey){newKey=String(newKey).toLowerCase().trim();if(!newKey||hc[newKey])return;hc[newKey]=hc[oldKey];delete hc[oldKey]}queueSave()}
+function kHlKey(oldKey,newKey,newVal){const hc=state.kit.highlightColors;if(newVal)hc[oldKey]=newVal;if(newKey&&newKey!==oldKey){newKey=String(newKey).toLowerCase().trim();if(!newKey||hc[newKey])return;hc[newKey]=hc[oldKey];delete hc[oldKey]}queueSave();queueRender()}
 function renderKGrads(){const kg=document.getElementById("k_grads");kg.innerHTML=state.kit.gradients.map((gr,i)=>`<div class="arr"><md-icon-button class="x" onclick="kDelGrad(${i})" title="Eliminar gradient"><span class="material-symbols-outlined">close</span></md-icon-button>
  <md-outlined-text-field label="Nombre" value="${escAttr(gr.name)}" oninput="kGrad(${i},'name',this.value)"></md-outlined-text-field>
  <md-outlined-text-field style="margin-top:6px" type="textarea" rows="2" label="CSS background" value="${escAttr(gr.css)}" oninput="kGrad(${i},'css',this.value)"></md-outlined-text-field>
@@ -848,12 +859,16 @@ function applyPreviewLayout(){
   const p=previewParams();
   const fmt=p.get("format");
   if(fmt&&FORMATS[fmt]&&state.meta.format!==fmt){state.meta.format=validFormat(fmt);state.meta.canvas=FORMATS[state.meta.format]}
+  const PF=FORMATS[state.meta.format]||{w:1080,h:1350};
+  let pcss=document.getElementById("pdfPrintCss");
+  if(!pcss){pcss=document.createElement("style");pcss.id="pdfPrintCss";document.head.appendChild(pcss)}
+  pcss.textContent=`@page{size:${PF.w}px ${PF.h}px;margin:0}@media print{body.preview-mode .wrap{width:${PF.w}px!important;height:${PF.h}px!important}body.preview-mode .slide{transform:scale(${PF.w/540})!important;transform-origin:top left!important}}`;
   const sn=parseInt(p.get("slide")||"1",10);
   if(Number.isFinite(sn)&&state.slides.length){sel=Math.max(0,Math.min(state.slides.length-1,sn-1))}
   document.body.classList.add("preview-mode");
   renderAll();
   const scaleSlide=()=>{
-    const sl=document.querySelector("#deck .slide");
+    const sl=document.querySelector("#deck .wrap.sel .slide")||document.querySelector("#deck .slide");
     if(!sl)return;
     sl.style.transform="none";
     const w=sl.offsetWidth||540,h=sl.offsetHeight||675;
